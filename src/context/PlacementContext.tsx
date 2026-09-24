@@ -26,7 +26,7 @@ import {
 } from '../data/seedData';
 import { StorageAdapter, type AppStorageState } from '../storage/storageAdapter';
 
-export type RoutePath = 'dashboard' | 'roadmap' | 'dsa' | 'skills' | 'companies' | 'settings';
+export type RoutePath = 'dashboard' | 'roadmap' | 'dsa' | 'skills' | 'companies' | 'analytics' | 'settings';
 
 interface AppExtendedStorageState extends AppStorageState {
   dsaAttempts: DSAAttempt[];
@@ -70,6 +70,7 @@ interface PlacementContextType {
     evidenceScore: number
   ) => void;
   updateSkillState: (updatedSkillState: TopicSkillState) => void;
+  saveCompanyOverlay: (company: CompanyOverlay) => void;
   resetApplicationData: () => void;
   exportBackupJSON: () => string;
   importBackupJSON: (jsonStr: string) => { success: boolean; error?: string };
@@ -118,7 +119,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#/', '').toLowerCase();
-      if (['dashboard', 'roadmap', 'dsa', 'skills', 'companies', 'settings'].includes(hash)) {
+      if (['dashboard', 'roadmap', 'dsa', 'skills', 'companies', 'analytics', 'settings'].includes(hash)) {
         setCurrentRoute(hash as RoutePath);
       } else {
         setCurrentRoute('dashboard');
@@ -274,6 +275,16 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }));
   };
 
+  const saveCompanyOverlay = (company: CompanyOverlay) => {
+    setAppState((prev) => {
+      const filtered = prev.companyOverlays.filter((c) => c.id !== company.id);
+      return {
+        ...prev,
+        companyOverlays: [...filtered, company],
+      };
+    });
+  };
+
   const resetApplicationData = () => {
     const defaults = StorageAdapter.resetState() as AppExtendedStorageState;
     setAppState({
@@ -331,6 +342,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         sealDayExecution,
         logDSAAttempt,
         updateSkillState,
+        saveCompanyOverlay,
         resetApplicationData,
         exportBackupJSON,
         importBackupJSON,

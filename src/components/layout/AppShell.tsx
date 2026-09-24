@@ -8,6 +8,7 @@ import {
   Code2,
   Sparkles,
   Building2,
+  BarChart3,
   Settings,
   Calendar,
   Layers,
@@ -28,6 +29,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
     { id: 'dsa', label: 'DSA Bank', icon: Code2 },
     { id: 'skills', label: 'Skills & Matrix', icon: Sparkles },
     { id: 'companies', label: 'Companies', icon: Building2 },
+    { id: 'analytics', label: 'Analytics & Review', icon: BarChart3 },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 

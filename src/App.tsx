@@ -6,6 +6,7 @@ import { RoadmapView } from './components/roadmap/RoadmapView';
 import { DSAView } from './components/dsa/DSAView';
 import { SkillsView } from './components/skills/SkillsView';
 import { CompaniesView } from './components/companies/CompaniesView';
+import { AnalyticsView } from './components/analytics/AnalyticsView';
 import { SettingsView } from './components/settings/SettingsView';
 
 const MainContent: React.FC = () => {
@@ -22,6 +23,8 @@ const MainContent: React.FC = () => {
       return <SkillsView />;
     case 'companies':
       return <CompaniesView />;
+    case 'analytics':
+      return <AnalyticsView />;
     case 'settings':
       return <SettingsView />;
     default:

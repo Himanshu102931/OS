@@ -1,9 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { usePlacement } from '../../context/PlacementContext';
-import { Building2, Code, Layers } from 'lucide-react';
+import { CompanyModal } from './CompanyModal';
+import type { CompanyOverlay } from '../../types';
+import { Building2, Code, Layers, PlusCircle, Edit } from 'lucide-react';
+import { Button } from '../ui/button';
 
 export const CompaniesView: React.FC = () => {
-  const { companyOverlays, domains } = usePlacement();
+  const { companyOverlays, domains, saveCompanyOverlay } = usePlacement();
+  const [selectedCompany, setSelectedCompany] = useState<CompanyOverlay | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const statusBadges: Record<string, string> = {
     target: 'bg-slate-800 text-slate-300 border-slate-700',
@@ -14,18 +19,42 @@ export const CompaniesView: React.FC = () => {
     offered: 'bg-emerald-950 text-emerald-300 border-emerald-800/60',
   };
 
+  const handleOpenNew = () => {
+    setSelectedCompany(null);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (comp: CompanyOverlay) => {
+    setSelectedCompany(comp);
+    setIsModalOpen(true);
+  };
+
+  const handleSave = (company: CompanyOverlay) => {
+    saveCompanyOverlay(company);
+  };
+
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
       {/* Header */}
-      <div>
-        <div className="flex items-center gap-2 text-xs font-semibold text-amber-400 uppercase tracking-wider">
-          <Building2 className="size-3.5" />
-          <span>Target Company Overlays</span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-semibold text-amber-400 uppercase tracking-wider">
+            <Building2 className="size-3.5" />
+            <span>Target Company Overlays</span>
+          </div>
+          <h2 className="text-2xl font-bold text-white mt-1">Company Preparation Track</h2>
+          <p className="text-sm text-slate-400 mt-1">
+            Target company profiles, application lifecycle status, and technical requirements.
+          </p>
         </div>
-        <h2 className="text-2xl font-bold text-white mt-1">Company Preparation Track</h2>
-        <p className="text-sm text-slate-400 mt-1">
-          Target company profiles, application lifecycle status, and technical requirements.
-        </p>
+
+        <Button
+          size="sm"
+          onClick={handleOpenNew}
+          className="text-xs bg-amber-600 hover:bg-amber-500 text-white font-bold"
+        >
+          <PlusCircle className="size-3.5 mr-1" /> Add Company Overlay
+        </Button>
       </div>
 
       {/* Company Cards Grid */}
@@ -41,12 +70,22 @@ export const CompaniesView: React.FC = () => {
                 <p className="text-xs text-slate-400 font-medium">{comp.targetRole}</p>
               </div>
 
-              {comp.eventDate && (
-                <div className="text-right text-xs bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 font-mono text-amber-400 shrink-0">
-                  <div className="text-[10px] text-slate-500 font-sans uppercase font-bold">Event Date</div>
-                  {comp.eventDate}
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                {comp.eventDate && (
+                  <div className="text-right text-xs bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 font-mono text-amber-400 shrink-0">
+                    <div className="text-[10px] text-slate-500 font-sans uppercase font-bold">Event Date</div>
+                    {comp.eventDate}
+                  </div>
+                )}
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  onClick={() => handleOpenEdit(comp)}
+                  className="text-xs text-slate-400 hover:text-amber-300"
+                >
+                  <Edit className="size-3.5" />
+                </Button>
+              </div>
             </div>
 
             {/* Required Domains */}
@@ -82,6 +121,14 @@ export const CompaniesView: React.FC = () => {
           </div>
         ))}
       </div>
+
+      {/* Target Company Modal */}
+      <CompanyModal
+        company={selectedCompany}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSaveCompany={handleSave}
+      />
     </div>
   );
 };
