@@ -104,7 +104,20 @@ export const StorageAdapter = {
       const parsed = JSON.parse(raw);
 
       if (validateStorageState(parsed)) {
-        return parsed;
+        // Idempotent migration: Merge default task progress & skills for newly added curriculum items
+        const defaults = getDefaultStorageState();
+        const mergedTaskProgress = { ...defaults.taskProgress, ...parsed.taskProgress };
+        const mergedSkillStates = { ...defaults.skillStates, ...parsed.skillStates };
+        const mergedDsaProgress = { ...defaults.dsaProgress, ...parsed.dsaProgress };
+
+        const migratedState: AppStorageState = {
+          ...parsed,
+          taskProgress: mergedTaskProgress,
+          skillStates: mergedSkillStates,
+          dsaProgress: mergedDsaProgress,
+        };
+        this.saveState(migratedState);
+        return migratedState;
       } else {
         console.warn('[PlacementOS] Local storage data failed integrity check. Reverting to baseline default state.');
         const defaults = getDefaultStorageState();
