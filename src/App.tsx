@@ -1,11 +1,42 @@
+import React from 'react';
+import { PlacementProvider, usePlacement } from './context/PlacementContext';
+import { AppShell } from './components/layout/AppShell';
+import { DashboardView } from './components/dashboard/DashboardView';
+import { RoadmapView } from './components/roadmap/RoadmapView';
+import { DSAView } from './components/dsa/DSAView';
+import { SkillsView } from './components/skills/SkillsView';
+import { CompaniesView } from './components/companies/CompaniesView';
+import { SettingsView } from './components/settings/SettingsView';
+
+const MainContent: React.FC = () => {
+  const { currentRoute } = usePlacement();
+
+  switch (currentRoute) {
+    case 'dashboard':
+      return <DashboardView />;
+    case 'roadmap':
+      return <RoadmapView />;
+    case 'dsa':
+      return <DSAView />;
+    case 'skills':
+      return <SkillsView />;
+    case 'companies':
+      return <CompaniesView />;
+    case 'settings':
+      return <SettingsView />;
+    default:
+      return <DashboardView />;
+  }
+};
+
 function App() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950">
-      <h1 className="text-4xl font-bold text-white">
-        PlacementOS
-      </h1>
-    </main>
-  )
+    <PlacementProvider>
+      <AppShell>
+        <MainContent />
+      </AppShell>
+    </PlacementProvider>
+  );
 }
 
-export default App
+export default App;
