@@ -8,6 +8,7 @@ import type {
   TaskProgress,
   DSAProblem,
   DSAProgress,
+  DSAAttempt,
   TopicSkillState,
   CompanyOverlay,
   DailyCheckIn,
@@ -27,6 +28,11 @@ import { StorageAdapter, type AppStorageState } from '../storage/storageAdapter'
 
 export type RoutePath = 'dashboard' | 'roadmap' | 'dsa' | 'skills' | 'companies' | 'settings';
 
+interface AppExtendedStorageState extends AppStorageState {
+  dsaAttempts: DSAAttempt[];
+  evidenceLogs: EvidenceLog[];
+}
+
 interface PlacementContextType {
   currentRoute: RoutePath;
   setRoute: (route: RoutePath) => void;
@@ -41,10 +47,12 @@ interface PlacementContextType {
   taskProgress: Record<string, TaskProgress>;
   dsaProblems: DSAProblem[];
   dsaProgress: Record<string, DSAProgress>;
+  dsaAttempts: DSAAttempt[];
   skillStates: Record<string, TopicSkillState>;
   companyOverlays: CompanyOverlay[];
   dailyCheckIns: DailyCheckIn[];
   dailyTaskAssignments: DailyTaskAssignment[];
+  evidenceLogs: EvidenceLog[];
   activePhase: Phase;
   updateTaskState: (taskId: string, newState: TaskProgress['state']) => void;
   commitDailyPlan: (checkIn: DailyCheckIn, assignments: DailyTaskAssignment[]) => void;
@@ -56,6 +64,12 @@ interface PlacementContextType {
     updatedDsaProgressMap: Record<string, DSAProgress>,
     updatedSkillStatesMap: Record<string, TopicSkillState>
   ) => void;
+  logDSAAttempt: (
+    attempt: DSAAttempt,
+    updatedProgress: DSAProgress,
+    evidenceScore: number
+  ) => void;
+  updateSkillState: (updatedSkillState: TopicSkillState) => void;
   resetApplicationData: () => void;
   exportBackupJSON: () => string;
   importBackupJSON: (jsonStr: string) => { success: boolean; error?: string };
@@ -74,11 +88,10 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return `${year}-${month}-${day}`;
   });
 
-  // Hydrate initial state safely from StorageAdapter
-  const [appState, setAppState] = useState<AppStorageState>(() => {
-    const loaded = StorageAdapter.loadState();
-    // Auto-seal past unsealed calendar days on launch
-    const updatedCheckIns = loaded.dailyCheckIns.map((ci) => {
+  // Hydrate state safely from StorageAdapter
+  const [appState, setAppState] = useState<AppExtendedStorageState>(() => {
+    const loaded = StorageAdapter.loadState() as AppExtendedStorageState;
+    const updatedCheckIns = (loaded.dailyCheckIns || []).map((ci) => {
       if (ci.date < todayDate && !ci.isSealed) {
         return {
           ...ci,
@@ -93,15 +106,15 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return {
       ...loaded,
       dailyCheckIns: updatedCheckIns,
+      dsaAttempts: loaded.dsaAttempts || [],
+      evidenceLogs: loaded.evidenceLogs || [],
     };
   });
 
-  // Automatically save to localStorage whenever appState updates
   useEffect(() => {
     StorageAdapter.saveState(appState);
   }, [appState]);
 
-  // Handle hash-based routing
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#/', '').toLowerCase();
@@ -176,7 +189,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const sealDayExecution = (
     updatedCheckIn: DailyCheckIn,
     updatedAssignments: DailyTaskAssignment[],
-    _newEvidenceLogs: EvidenceLog[],
+    newEvidenceLogs: EvidenceLog[],
     updatedTaskProgressMap: Record<string, TaskProgress>,
     updatedDsaProgressMap: Record<string, DSAProgress>,
     updatedSkillStatesMap: Record<string, TopicSkillState>
@@ -192,13 +205,82 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         skillStates: updatedSkillStatesMap,
         dailyCheckIns: [...filteredCheckIns, updatedCheckIn],
         dailyTaskAssignments: [...otherAssignments, ...updatedAssignments],
+        evidenceLogs: [...(prev.evidenceLogs || []), ...newEvidenceLogs],
       };
     });
   };
 
+  const logDSAAttempt = (
+    attempt: DSAAttempt,
+    updatedProgress: DSAProgress,
+    evidenceScore: number
+  ) => {
+    setAppState((prev) => {
+      const prob = DSA_PROBLEMS.find((p) => p.id === attempt.problemId);
+      const topicId = prob?.topicId || 'topic-dsa-arrays';
+      const domainId = prob?.domainId || 'dsa';
+
+      const existingSkill = prev.skillStates[topicId] || {
+        topicId,
+        domainId,
+        freshness: 'untested',
+        evidenceStrength: 0,
+      };
+
+      const newEvidenceStrength = Math.min(
+        100,
+        Math.max(0, Math.round(existingSkill.evidenceStrength * 0.7 + evidenceScore * 0.3))
+      );
+
+      const newEvidence: EvidenceLog = {
+        id: `evidence-dsa-${Date.now()}`,
+        topicId,
+        domainId,
+        score: evidenceScore,
+        confidence: 4,
+        timestamp: new Date().toISOString(),
+        sourceType: 'dsa_attempt',
+        sourceId: attempt.id,
+      };
+
+      return {
+        ...prev,
+        dsaAttempts: [attempt, ...(prev.dsaAttempts || [])],
+        dsaProgress: {
+          ...prev.dsaProgress,
+          [attempt.problemId]: updatedProgress,
+        },
+        skillStates: {
+          ...prev.skillStates,
+          [topicId]: {
+            ...existingSkill,
+            lastPracticedAt: new Date().toISOString(),
+            freshness: 'fresh',
+            evidenceStrength: newEvidenceStrength,
+          },
+        },
+        evidenceLogs: [...(prev.evidenceLogs || []), newEvidence],
+      };
+    });
+  };
+
+  const updateSkillState = (updatedSkillState: TopicSkillState) => {
+    setAppState((prev) => ({
+      ...prev,
+      skillStates: {
+        ...prev.skillStates,
+        [updatedSkillState.topicId]: updatedSkillState,
+      },
+    }));
+  };
+
   const resetApplicationData = () => {
-    const defaults = StorageAdapter.resetState();
-    setAppState(defaults);
+    const defaults = StorageAdapter.resetState() as AppExtendedStorageState;
+    setAppState({
+      ...defaults,
+      dsaAttempts: [],
+      evidenceLogs: [],
+    });
   };
 
   const exportBackupJSON = (): string => {
@@ -208,7 +290,12 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const importBackupJSON = (jsonStr: string): { success: boolean; error?: string } => {
     const result = StorageAdapter.importJSON(jsonStr);
     if (result.success && result.state) {
-      setAppState(result.state);
+      const loaded = result.state as AppExtendedStorageState;
+      setAppState({
+        ...loaded,
+        dsaAttempts: loaded.dsaAttempts || [],
+        evidenceLogs: loaded.evidenceLogs || [],
+      });
       return { success: true };
     }
     return { success: false, error: result.error };
@@ -232,14 +319,18 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         taskProgress: appState.taskProgress,
         dsaProblems: DSA_PROBLEMS,
         dsaProgress: appState.dsaProgress,
+        dsaAttempts: appState.dsaAttempts || [],
         skillStates: appState.skillStates,
         companyOverlays: appState.companyOverlays,
         dailyCheckIns: appState.dailyCheckIns,
         dailyTaskAssignments: appState.dailyTaskAssignments,
+        evidenceLogs: appState.evidenceLogs || [],
         activePhase,
         updateTaskState,
         commitDailyPlan,
         sealDayExecution,
+        logDSAAttempt,
+        updateSkillState,
         resetApplicationData,
         exportBackupJSON,
         importBackupJSON,
