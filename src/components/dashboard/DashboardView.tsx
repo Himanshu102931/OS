@@ -34,6 +34,7 @@ export const DashboardView: React.FC = () => {
     dailyTaskAssignments,
     commitDailyPlan,
     sealDayExecution,
+    decomposeTask,
   } = usePlacement();
 
   const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
@@ -184,6 +185,7 @@ export const DashboardView: React.FC = () => {
                     domain={getDomain(nextBestActionTask.domainId)}
                     isNextBestAction={true}
                     onUpdateState={updateTaskState}
+                    onDecomposeTask={decomposeTask}
                   />
                 </div>
               </div>
@@ -215,6 +217,7 @@ export const DashboardView: React.FC = () => {
                   progress={taskProgress[task.id]}
                   domain={getDomain(task.domainId)}
                   onUpdateState={updateTaskState}
+                  onDecomposeTask={decomposeTask}
                 />
               ))}
             </div>

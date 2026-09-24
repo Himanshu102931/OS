@@ -29,6 +29,7 @@ import { StorageAdapter, type AppStorageState } from '../storage/storageAdapter'
 export type RoutePath = 'dashboard' | 'roadmap' | 'dsa' | 'skills' | 'companies' | 'analytics' | 'settings';
 
 interface AppExtendedStorageState extends AppStorageState {
+  customTaskDefinitions?: TaskDefinition[];
   dsaAttempts: DSAAttempt[];
   evidenceLogs: EvidenceLog[];
 }
@@ -71,6 +72,7 @@ interface PlacementContextType {
   ) => void;
   updateSkillState: (updatedSkillState: TopicSkillState) => void;
   saveCompanyOverlay: (company: CompanyOverlay) => void;
+  decomposeTask: (parentTask: TaskDefinition, subtasks: TaskDefinition[]) => void;
   resetApplicationData: () => void;
   exportBackupJSON: () => string;
   importBackupJSON: (jsonStr: string) => { success: boolean; error?: string };
@@ -107,6 +109,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return {
       ...loaded,
       dailyCheckIns: updatedCheckIns,
+      customTaskDefinitions: loaded.customTaskDefinitions || [],
       dsaAttempts: loaded.dsaAttempts || [],
       evidenceLogs: loaded.evidenceLogs || [],
     };
@@ -144,6 +147,11 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const activePhase = PHASES[0];
+
+  const allTaskDefinitions = [
+    ...TASK_DEFINITIONS,
+    ...(appState.customTaskDefinitions || []),
+  ];
 
   const updateTaskState = (taskId: string, newState: TaskProgress['state']) => {
     setAppState((prev) => {
@@ -285,10 +293,50 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   };
 
+  const decomposeTask = (parentTask: TaskDefinition, subtasks: TaskDefinition[]) => {
+    setAppState((prev) => {
+      const parentProg = prev.taskProgress[parentTask.id] || {
+        taskId: parentTask.id,
+        state: 'not_started',
+        postponeCount: 0,
+        skipCount: 0,
+        timeSpentMinutes: 0,
+        updatedAt: new Date().toISOString(),
+      };
+
+      const updatedProgress: Record<string, TaskProgress> = {
+        ...prev.taskProgress,
+        [parentTask.id]: {
+          ...parentProg,
+          state: 'archived',
+          updatedAt: new Date().toISOString(),
+        },
+      };
+
+      subtasks.forEach((st) => {
+        updatedProgress[st.id] = {
+          taskId: st.id,
+          state: 'not_started',
+          postponeCount: 0,
+          skipCount: 0,
+          timeSpentMinutes: 0,
+          updatedAt: new Date().toISOString(),
+        };
+      });
+
+      return {
+        ...prev,
+        customTaskDefinitions: [...(prev.customTaskDefinitions || []), ...subtasks],
+        taskProgress: updatedProgress,
+      };
+    });
+  };
+
   const resetApplicationData = () => {
     const defaults = StorageAdapter.resetState() as AppExtendedStorageState;
     setAppState({
       ...defaults,
+      customTaskDefinitions: [],
       dsaAttempts: [],
       evidenceLogs: [],
     });
@@ -304,6 +352,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const loaded = result.state as AppExtendedStorageState;
       setAppState({
         ...loaded,
+        customTaskDefinitions: loaded.customTaskDefinitions || [],
         dsaAttempts: loaded.dsaAttempts || [],
         evidenceLogs: loaded.evidenceLogs || [],
       });
@@ -326,7 +375,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         modules: MODULES,
         topics: TOPICS,
         domains: DOMAINS,
-        taskDefinitions: TASK_DEFINITIONS,
+        taskDefinitions: allTaskDefinitions,
         taskProgress: appState.taskProgress,
         dsaProblems: DSA_PROBLEMS,
         dsaProgress: appState.dsaProgress,
@@ -343,6 +392,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         logDSAAttempt,
         updateSkillState,
         saveCompanyOverlay,
+        decomposeTask,
         resetApplicationData,
         exportBackupJSON,
         importBackupJSON,

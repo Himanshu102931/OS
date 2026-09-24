@@ -65,6 +65,7 @@ export interface TaskDefinition {
   taskType: 'learning' | 'practice' | 'review' | 'assessment' | 'project';
   languageTags?: string[];
   prerequisiteTaskDefinitionIds?: string[];
+  parentTaskId?: string;
   dueDate?: string; // YYYY-MM-DD
   createdAt: string;
 }

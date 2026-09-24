@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { TaskDefinition, TaskProgress, DomainDefinition } from '../../types';
-import { Clock, AlertCircle, CheckCircle2, Play, Check } from 'lucide-react';
+import { TaskDecompositionModal } from './TaskDecompositionModal';
+import { Clock, AlertCircle, CheckCircle2, Play, Check, GitFork, AlertTriangle } from 'lucide-react';
 import { Button } from '../ui/button';
 
 interface TaskCardProps {
@@ -9,6 +10,7 @@ interface TaskCardProps {
   domain?: DomainDefinition;
   isNextBestAction?: boolean;
   onUpdateState: (taskId: string, newState: TaskProgress['state']) => void;
+  onDecomposeTask?: (parentTask: TaskDefinition, subtasks: TaskDefinition[]) => void;
 }
 
 export const TaskCard: React.FC<TaskCardProps> = ({
@@ -17,8 +19,14 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   domain,
   isNextBestAction = false,
   onUpdateState,
+  onDecomposeTask,
 }) => {
+  const [isDecompModalOpen, setIsDecompModalOpen] = useState(false);
+
   const state = progress?.state || 'not_started';
+  const postponeCount = progress?.postponeCount || 0;
+  const skipCount = progress?.skipCount || 0;
+  const isHighFriction = postponeCount >= 2 || skipCount >= 1;
 
   const stateColors = {
     not_started: 'border-slate-800 bg-slate-900/60 text-slate-300',
@@ -46,6 +54,25 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         <div className="mb-2.5 flex items-center gap-1.5 text-xs font-extrabold tracking-wider text-blue-400 uppercase">
           <AlertCircle className="size-4 text-blue-400 animate-bounce" />
           <span>Recommended Next Best Action</span>
+        </div>
+      )}
+
+      {isHighFriction && state !== 'completed' && (
+        <div className="mb-2.5 flex items-center justify-between p-2 rounded-xl bg-amber-950/40 border border-amber-800/60 text-xs text-amber-300">
+          <div className="flex items-center gap-1.5 font-bold text-[11px]">
+            <AlertTriangle className="size-3.5 text-amber-400 shrink-0" />
+            <span>High Friction ({postponeCount} postponements)</span>
+          </div>
+          {onDecomposeTask && (
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => setIsDecompModalOpen(true)}
+              className="text-[10px] font-bold border-amber-700 bg-amber-950 hover:bg-amber-900 text-amber-200"
+            >
+              <GitFork className="size-3 mr-1" /> Decompose
+            </Button>
+          )}
         </div>
       )}
 
@@ -124,6 +151,16 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           )}
         </div>
       </div>
+
+      {/* Task Decomposition Modal */}
+      {onDecomposeTask && (
+        <TaskDecompositionModal
+          task={task}
+          isOpen={isDecompModalOpen}
+          onClose={() => setIsDecompModalOpen(false)}
+          onDecomposeTask={onDecomposeTask}
+        />
+      )}
     </div>
   );
 };
