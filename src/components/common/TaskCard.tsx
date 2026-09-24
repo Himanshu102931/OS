@@ -22,69 +22,69 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 
   const stateColors = {
     not_started: 'border-slate-800 bg-slate-900/60 text-slate-300',
-    in_progress: 'border-blue-500/40 bg-blue-950/30 text-blue-200',
-    completed: 'border-emerald-500/30 bg-emerald-950/20 text-emerald-300 opacity-75',
+    in_progress: 'border-blue-500/50 bg-gradient-to-r from-blue-950/40 via-slate-900 to-slate-900 text-blue-200 shadow-md shadow-blue-500/10',
+    completed: 'border-emerald-500/40 bg-emerald-950/20 text-emerald-300 opacity-80',
     archived: 'border-slate-800 bg-slate-950 text-slate-500 opacity-50',
   };
 
   const stateBadges = {
-    not_started: <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-medium">To Do</span>,
-    in_progress: <span className="text-xs px-2 py-0.5 rounded bg-blue-900/50 text-blue-300 font-medium">In Progress</span>,
-    completed: <span className="text-xs px-2 py-0.5 rounded bg-emerald-900/50 text-emerald-300 font-medium flex items-center gap-1"><CheckCircle2 className="size-3"/> Completed</span>,
-    archived: <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-500">Archived</span>,
+    not_started: <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-800/80 text-slate-400 border border-slate-700/60">To Do</span>,
+    in_progress: <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-950 text-blue-300 border border-blue-800/80 animate-pulse">In Progress</span>,
+    completed: <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800/80 flex items-center gap-1"><CheckCircle2 className="size-3"/> Completed</span>,
+    archived: <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-500">Archived</span>,
   };
 
   return (
     <div
-      className={`rounded-xl border p-4 transition-all duration-150 ${stateColors[state]} ${
+      className={`rounded-2xl border p-4 sm:p-5 transition-all duration-200 ${stateColors[state]} ${
         isNextBestAction
-          ? 'ring-2 ring-blue-500/60 shadow-lg shadow-blue-500/10 border-blue-500/60 bg-gradient-to-r from-slate-900 via-blue-950/40 to-slate-900'
-          : 'hover:border-slate-700'
+          ? 'ring-2 ring-blue-500/80 shadow-xl shadow-blue-500/20 border-blue-400/80 bg-gradient-to-br from-slate-900 via-blue-950/50 to-slate-900'
+          : 'hover:border-slate-700 hover:shadow-lg'
       }`}
     >
       {isNextBestAction && (
-        <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wider text-blue-400 uppercase">
-          <AlertCircle className="size-3.5 text-blue-400" />
+        <div className="mb-2.5 flex items-center gap-1.5 text-xs font-extrabold tracking-wider text-blue-400 uppercase">
+          <AlertCircle className="size-4 text-blue-400 animate-bounce" />
           <span>Recommended Next Best Action</span>
         </div>
       )}
 
       <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 space-y-1">
+        <div className="flex-1 space-y-1.5">
           <div className="flex items-center gap-2 flex-wrap">
             {domain && (
-              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-200 border border-slate-700">
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-lg bg-blue-950/80 text-blue-300 border border-blue-800/60 shadow-inner">
                 {domain.shortName}
               </span>
             )}
-            <span className="text-xs text-slate-400 uppercase font-medium tracking-wide">
+            <span className="text-[11px] text-slate-400 uppercase font-semibold tracking-wider">
               {task.taskType}
             </span>
             {stateBadges[state]}
           </div>
 
-          <h3 className={`font-semibold text-base leading-snug ${state === 'completed' ? 'line-through text-slate-400' : 'text-slate-100'}`}>
+          <h3 className={`font-bold text-base sm:text-lg leading-snug tracking-tight ${state === 'completed' ? 'line-through text-slate-400' : 'text-white'}`}>
             {task.title}
           </h3>
 
-          <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+          <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed font-normal">
             {task.description}
           </p>
         </div>
       </div>
 
-      <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+      <div className="mt-4 pt-3.5 border-t border-white/10 flex items-center justify-between text-xs text-slate-400">
         <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1 font-medium text-slate-300">
-            <Clock className="size-3.5 text-slate-400" />
+          <span className="flex items-center gap-1 font-semibold text-slate-200">
+            <Clock className="size-3.5 text-blue-400" />
             {task.estimatedMinutes} mins
           </span>
-          <span className="flex items-center gap-1">
-            Importance: <strong className="text-slate-200">{task.importance}/10</strong>
+          <span className="flex items-center gap-1 font-medium">
+            Importance: <strong className="text-white font-mono">{task.importance}/10</strong>
           </span>
           {task.dueDate && (
             <span className="text-slate-400 hidden sm:inline">
-              Due: <span className="text-amber-400 font-medium">{task.dueDate}</span>
+              Due: <span className="text-amber-400 font-mono font-semibold">{task.dueDate}</span>
             </span>
           )}
         </div>
@@ -95,9 +95,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               size="sm"
               variant="default"
               onClick={() => onUpdateState(task.id, 'in_progress')}
-              className="h-7 text-xs bg-blue-600 hover:bg-blue-500 text-white"
+              className="h-8 text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-md shadow-blue-500/20"
             >
-              <Play className="size-3 mr-1" /> Start
+              <Play className="size-3.5 mr-1" /> Start
             </Button>
           )}
 
@@ -106,9 +106,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               size="sm"
               variant="default"
               onClick={() => onUpdateState(task.id, 'completed')}
-              className="h-7 text-xs bg-emerald-600 hover:bg-emerald-500 text-white"
+              className="h-8 text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md shadow-emerald-500/20"
             >
-              <Check className="size-3 mr-1" /> Mark Done
+              <Check className="size-3.5 mr-1" /> Mark Done
             </Button>
           )}
 
@@ -117,7 +117,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               size="sm"
               variant="ghost"
               onClick={() => onUpdateState(task.id, 'not_started')}
-              className="h-7 text-xs text-slate-400 hover:text-slate-200"
+              className="h-8 text-xs text-slate-400 hover:text-slate-200"
             >
               Reopen
             </Button>

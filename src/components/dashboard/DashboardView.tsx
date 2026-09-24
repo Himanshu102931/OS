@@ -13,6 +13,8 @@ import {
   ArrowRight,
   Sun,
   Moon,
+  Clock,
+  CheckCircle2,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 
@@ -64,44 +66,95 @@ export const DashboardView: React.FC = () => {
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
-      {/* Top Banner / Summary */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-blue-950/40 to-slate-900 p-5 rounded-2xl border border-slate-800 shadow-sm">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-blue-400 uppercase tracking-wider">
-            <Sparkles className="size-3.5" />
-            <span>Placement Preparation Control Center</span>
+      {/* Top Hero Banner */}
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-r from-slate-900 via-blue-950/50 to-indigo-950/60 p-6 sm:p-8 shadow-2xl">
+        <div className="absolute top-0 right-0 -mt-8 -mr-8 size-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 text-xs font-extrabold text-blue-400 uppercase tracking-widest px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
+              <Sparkles className="size-3.5" />
+              <span>Placement Preparation Control Center</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              Focus Dashboard for <span className="gradient-text-blue">{todayDate}</span>
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-300 font-medium">
+              Active Phase: <strong className="text-white">{activePhase.name}</strong> • Mode:{' '}
+              <strong className="text-blue-400 uppercase tracking-wide">{currentMode}</strong>
+            </p>
           </div>
-          <h2 className="text-xl sm:text-2xl font-bold text-white mt-1">
-            Focus Dashboard for {todayDate}
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            Active Phase: <strong className="text-slate-200">{activePhase.name}</strong> • Mode:{' '}
-            <strong className="text-blue-400 uppercase">{currentMode}</strong>
-          </p>
+
+          <div className="flex items-center gap-3 flex-wrap">
+            <Button
+              size="lg"
+              onClick={() => setIsMorningModalOpen(true)}
+              className="text-xs font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white shadow-xl shadow-blue-500/25 rounded-2xl px-5 h-11"
+            >
+              <Sun className="size-4 mr-2 text-amber-300" /> Morning Planning Protocol
+            </Button>
+
+            <Button
+              size="lg"
+              variant="outline"
+              disabled={isDaySealed || dailyTaskAssignments.length === 0}
+              onClick={() => setIsEveningModalOpen(true)}
+              className={`text-xs font-bold rounded-2xl px-5 h-11 border-slate-700 ${
+                isDaySealed
+                  ? 'bg-slate-900 text-slate-500 border-slate-800'
+                  : 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300 hover:bg-emerald-900 shadow-lg shadow-emerald-500/10'
+              }`}
+            >
+              <Moon className="size-4 mr-2 text-indigo-300" />{' '}
+              {isDaySealed ? 'Day Sealed' : 'Evening Reflection & Seal'}
+            </Button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap">
-          <Button
-            size="sm"
-            onClick={() => setIsMorningModalOpen(true)}
-            className="text-xs bg-blue-600 hover:bg-blue-500 text-white font-bold"
-          >
-            <Sun className="size-3.5 mr-1" /> Morning Planning
-          </Button>
+        {/* Quick Stat Pill Bar */}
+        <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+          <div className="bg-slate-950/60 p-3 rounded-2xl border border-white/5 flex items-center gap-3">
+            <div className="size-8 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
+              <Clock className="size-4" />
+            </div>
+            <div>
+              <span className="text-slate-400 block font-medium">Time Budget</span>
+              <span className="font-mono font-bold text-white text-sm">180 mins</span>
+            </div>
+          </div>
 
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={isDaySealed || dailyTaskAssignments.length === 0}
-            onClick={() => setIsEveningModalOpen(true)}
-            className={`text-xs border-slate-700 ${
-              isDaySealed
-                ? 'bg-slate-900 text-slate-500 border-slate-800'
-                : 'bg-emerald-950/60 border-emerald-800 text-emerald-300 hover:bg-emerald-900'
-            }`}
-          >
-            <Moon className="size-3.5 mr-1" /> {isDaySealed ? 'Day Sealed' : 'Evening Reflection'}
-          </Button>
+          <div className="bg-slate-950/60 p-3 rounded-2xl border border-white/5 flex items-center gap-3">
+            <div className="size-8 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+              <CheckCircle2 className="size-4" />
+            </div>
+            <div>
+              <span className="text-slate-400 block font-medium">Completed</span>
+              <span className="font-mono font-bold text-emerald-400 text-sm">
+                {completedCount} / {totalTasks} Tasks
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-slate-950/60 p-3 rounded-2xl border border-white/5 flex items-center gap-3">
+            <div className="size-8 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400">
+              <Building2 className="size-4" />
+            </div>
+            <div>
+              <span className="text-slate-400 block font-medium">Active Targets</span>
+              <span className="font-mono font-bold text-amber-300 text-sm">
+                {companyOverlays.length} Companies
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-slate-950/60 p-3 rounded-2xl border border-white/5 flex items-center gap-3">
+            <div className="size-8 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400">
+              <BarChart3 className="size-4" />
+            </div>
+            <div>
+              <span className="text-slate-400 block font-medium">Overall Progress</span>
+              <span className="font-mono font-bold text-purple-300 text-sm">{progressPercent}%</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -111,22 +164,20 @@ export const DashboardView: React.FC = () => {
         <div className="lg:col-span-2 space-y-6">
           {/* Section 1: Next Best Action Card */}
           {nextBestActionTask && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Target className="size-4 text-blue-400" />
-                  Primary Actionable Recommendation
-                </h3>
-              </div>
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2">
+                <Target className="size-4 text-blue-400" />
+                Primary Actionable Recommendation
+              </h3>
 
-              <div className="bg-slate-900/80 border border-blue-500/30 rounded-2xl p-1">
-                <div className="bg-blue-950/20 border-b border-blue-900/30 px-4 py-2 rounded-t-xl text-xs text-blue-300 flex items-center gap-2">
-                  <AlertCircle className="size-3.5 text-blue-400 shrink-0" />
+              <div className="glass-card rounded-3xl p-1 glow-blue border-blue-500/40">
+                <div className="bg-blue-950/40 border-b border-blue-900/40 px-5 py-2.5 rounded-t-2xl text-xs text-blue-300 flex items-center gap-2 font-medium">
+                  <AlertCircle className="size-4 text-blue-400 shrink-0" />
                   <span>
                     <strong>Why Recommended:</strong> Core Phase 1 importance ({nextBestActionTask.importance}/10) with upcoming assessment alignment.
                   </span>
                 </div>
-                <div className="p-3">
+                <div className="p-4">
                   <TaskCard
                     task={nextBestActionTask}
                     progress={taskProgress[nextBestActionTask.id]}
@@ -140,9 +191,9 @@ export const DashboardView: React.FC = () => {
           )}
 
           {/* Section 2: Active Task Queue */}
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <h3 className="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2">
                 <Layers className="size-4 text-indigo-400" />
                 Active Task Queue ({taskDefinitions.length})
               </h3>
@@ -150,13 +201,13 @@ export const DashboardView: React.FC = () => {
                 variant="ghost"
                 size="sm"
                 onClick={() => setRoute('roadmap')}
-                className="text-xs text-blue-400 hover:text-blue-300"
+                className="text-xs text-blue-400 hover:text-blue-300 font-semibold"
               >
-                View Master Roadmap <ArrowRight className="size-3 ml-1" />
+                View Master Roadmap <ArrowRight className="size-3.5 ml-1" />
               </Button>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-3.5">
               {sortedTasks.map((task) => (
                 <TaskCard
                   key={task.id}
@@ -173,60 +224,58 @@ export const DashboardView: React.FC = () => {
         {/* Right 1 Column: Secondary Monitoring Widgets */}
         <div className="space-y-6">
           {/* Widget 1: Roadmap Progress Overview */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-4">
+          <div className="glass-card rounded-3xl p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-1.5">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <BarChart3 className="size-4 text-emerald-400" />
-                Roadmap Progress
+                Roadmap Completion
               </h3>
-              <span className="text-xs font-mono font-semibold text-emerald-400">
-                {progressPercent}%
-              </span>
+              <span className="text-sm font-mono font-bold text-emerald-400">{progressPercent}%</span>
             </div>
 
-            <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+            <div className="w-full bg-slate-900 rounded-full h-3 overflow-hidden p-0.5 border border-white/5">
               <div
-                className="bg-gradient-to-r from-blue-500 to-emerald-400 h-2.5 rounded-full transition-all duration-300"
+                className="bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400 h-2 rounded-full transition-all duration-500"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
 
-            <div className="text-xs text-slate-400 space-y-1.5 pt-1 border-t border-slate-800/80">
+            <div className="text-xs text-slate-400 space-y-2 pt-2 border-t border-white/10">
               <div className="flex justify-between">
                 <span>Phase 1 Tasks</span>
-                <span className="text-slate-200 font-medium">
-                  {completedCount} of {totalTasks} completed
+                <span className="text-slate-200 font-medium font-mono">
+                  {completedCount} / {totalTasks} Done
                 </span>
               </div>
               <div className="flex justify-between">
-                <span>Timeline Span</span>
-                <span className="text-slate-300">Sep 2026 – May 2027</span>
+                <span>Curriculum Span</span>
+                <span className="text-slate-300 font-mono text-[11px]">Sep 2026 – May 2027</span>
               </div>
             </div>
           </div>
 
           {/* Widget 2: Target Company Events */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-3">
-            <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-1.5">
+          <div className="glass-card rounded-3xl p-6 space-y-4">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
               <Building2 className="size-4 text-amber-400" />
               Target Company Events
             </h3>
 
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {companyOverlays.map((comp) => (
                 <div
                   key={comp.id}
-                  className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs"
+                  className="p-3.5 rounded-2xl bg-slate-950/80 border border-white/5 flex items-center justify-between text-xs"
                 >
                   <div>
-                    <div className="font-semibold text-slate-200">{comp.companyName}</div>
-                    <div className="text-slate-400 text-[11px]">{comp.targetRole}</div>
+                    <div className="font-bold text-slate-100">{comp.companyName}</div>
+                    <div className="text-slate-400 text-[11px] font-medium">{comp.targetRole}</div>
                   </div>
                   <div className="text-right">
-                    <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-amber-950 text-amber-300 border border-amber-800/60 block">
-                      {comp.applicationStatus}
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] uppercase font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30 inline-block mb-1">
+                      {comp.applicationStatus.replace('_', ' ')}
                     </span>
-                    <span className="text-[10px] text-slate-400 mt-0.5 block">{comp.eventDate}</span>
+                    <span className="text-[10px] text-slate-400 font-mono block">{comp.eventDate}</span>
                   </div>
                 </div>
               ))}
@@ -234,8 +283,8 @@ export const DashboardView: React.FC = () => {
           </div>
 
           {/* Widget 3: Skill Freshness Signals */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-3">
-            <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-1.5">
+          <div className="glass-card rounded-3xl p-6 space-y-4">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
               <AlertCircle className="size-4 text-rose-400" />
               Skill Freshness Signals
             </h3>
@@ -244,16 +293,16 @@ export const DashboardView: React.FC = () => {
               {Object.values(skillStates).map((sk) => (
                 <div
                   key={sk.topicId}
-                  className="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800"
+                  className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/80 border border-white/5"
                 >
-                  <span className="text-slate-300 font-medium">{sk.topicId.replace('topic-', '')}</span>
+                  <span className="text-slate-200 font-medium">{sk.topicId.replace('topic-', '')}</span>
                   <span
-                    className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
+                    className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full border ${
                       sk.freshness === 'untested'
-                        ? 'bg-rose-950 text-rose-300 border border-rose-800/60'
+                        ? 'bg-rose-500/10 text-rose-300 border-rose-500/30'
                         : sk.freshness === 'aging'
-                        ? 'bg-amber-950 text-amber-300 border border-amber-800/60'
-                        : 'bg-emerald-950 text-emerald-300 border border-emerald-800/60'
+                        ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                        : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
                     }`}
                   >
                     {sk.freshness}
