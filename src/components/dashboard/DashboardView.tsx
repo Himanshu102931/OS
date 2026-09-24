@@ -15,6 +15,7 @@ import {
   ChevronUp,
   Play,
   Check,
+  Zap,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 
@@ -89,42 +90,43 @@ export const DashboardView: React.FC = () => {
   const visiblePlanTasks = isPlanExpanded ? sortedTasks : sortedTasks.slice(0, 3);
 
   return (
-    <div className="space-y-5 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto">
       {/* Top Header & Daily Protocol Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#262D38]">
         <div>
-          <h1 className="text-lg font-bold tracking-tight text-zinc-100 flex items-center gap-2">
-            Today
-            <span className="text-xs font-mono font-normal text-zinc-400">· {todayDate}</span>
+          <h1 className="text-xl font-bold tracking-tight text-[#F1F5F9] flex items-center gap-2">
+            Today / Operational Workspace
+            <span className="text-xs font-mono font-medium text-[#E5A93C] bg-[#E5A93C]/10 border border-[#E5A93C]/30 px-2 py-0.5 rounded-[4px]">
+              {todayDate}
+            </span>
           </h1>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            <span className="capitalize font-medium text-zinc-300">{currentMode.replace('_', ' ')} Mode</span> ·{' '}
-            <span className="text-zinc-400">{todayCheckIn?.availableMinutes ? Math.round(todayCheckIn.availableMinutes / 60) : 3}h 00m available budget</span> · Phase:{' '}
-            <span className="text-zinc-300 font-medium">{activePhase.name}</span>
+          <p className="text-xs text-[#8E98A8] mt-1 font-mono">
+            <span className="capitalize text-[#FFC665] font-semibold">{currentMode.replace('_', ' ')} Mode</span> ·{' '}
+            <span>{todayCheckIn?.availableMinutes ? Math.round(todayCheckIn.availableMinutes / 60) : 3}h 00m target budget</span> · Phase:{' '}
+            <span className="text-[#F1F5F9]">{activePhase.name}</span>
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <Button
             size="sm"
             onClick={() => setIsMorningModalOpen(true)}
-            className="text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700/80 rounded h-7 px-2.5"
+            className="text-xs font-semibold bg-[#1B2028] hover:bg-[#222833] text-[#F1F5F9] border border-[#262D38] hover:border-[#3B4556] rounded-[4px] h-8 px-3"
           >
-            <Sun className="size-3.5 mr-1 text-amber-400" /> Morning Planning
+            <Sun className="size-3.5 mr-1.5 text-[#F59E0B]" /> Morning Planning
           </Button>
 
           <Button
             size="sm"
-            variant="outline"
             disabled={isDaySealed || dailyTaskAssignments.length === 0}
             onClick={() => setIsEveningModalOpen(true)}
-            className={`text-xs font-medium rounded h-7 px-2.5 border-zinc-800 ${
+            className={`text-xs font-semibold rounded-[4px] h-8 px-3 border ${
               isDaySealed
-                ? 'bg-zinc-900 text-zinc-600'
-                : 'bg-zinc-900 text-emerald-400 border-zinc-700 hover:bg-zinc-800'
+                ? 'bg-[#14171D] text-[#5C6675] border-[#262D38]'
+                : 'bg-[#1B2028] text-[#10B981] border-[#10B981]/40 hover:bg-[#10B981]/10'
             }`}
           >
-            <Moon className="size-3.5 mr-1 text-indigo-400" />{' '}
+            <Moon className="size-3.5 mr-1.5 text-[#59E8AB]" />{' '}
             {isDaySealed ? 'Day Sealed' : 'Evening Reflection'}
           </Button>
         </div>
@@ -132,37 +134,37 @@ export const DashboardView: React.FC = () => {
 
       {/* Hero Section: NEXT ACTION */}
       {nextBestActionTask && (
-        <section className="app-surface p-4 border-l-4 border-l-indigo-500 space-y-3">
+        <section className="app-surface p-5 border-l-4 border-l-[#E5A93C] space-y-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-semibold text-indigo-400 uppercase tracking-wider">
-                NEXT ACTION
+              <span className="text-xs font-mono font-bold text-[#E5A93C] uppercase tracking-wider flex items-center gap-1">
+                <Zap className="size-3.5" /> NEXT ACTION
               </span>
-              <span className="text-zinc-600">·</span>
-              <span className="text-xs font-mono text-zinc-400">
+              <span className="text-[#5C6675]">·</span>
+              <span className="text-xs font-mono text-[#8E98A8]">
                 {nextBestActionTask.estimatedMinutes} mins
               </span>
             </div>
-            <span className="text-xs font-medium text-zinc-400 px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800">
+            <span className="tech-chip tech-chip-primary font-semibold">
               {getDomain(nextBestActionTask.domainId)?.name || 'General'}
             </span>
           </div>
 
           <div>
-            <h2 className="text-base font-semibold text-zinc-100">{nextBestActionTask.title}</h2>
-            <p className="text-xs text-zinc-400 mt-0.5 line-clamp-2">{nextBestActionTask.description}</p>
+            <h2 className="text-lg font-semibold text-[#F1F5F9] tracking-tight">{nextBestActionTask.title}</h2>
+            <p className="text-xs text-[#8E98A8] mt-1 leading-relaxed">{nextBestActionTask.description}</p>
           </div>
 
           {/* Human Readable Adaptive Reasons */}
-          <div className="pt-2 border-t border-zinc-800/80 space-y-1">
-            <span className="text-[11px] font-medium text-zinc-400 flex items-center gap-1">
-              <HelpCircle className="size-3 text-zinc-400" /> Why this task is recommended:
+          <div className="pt-3 border-t border-[#262D38] space-y-1.5">
+            <span className="text-[11px] font-medium text-[#8E98A8] flex items-center gap-1">
+              <HelpCircle className="size-3 text-[#E5A93C]" /> Adaptive recommendation drivers:
             </span>
             <div className="flex flex-wrap gap-1.5 text-xs">
               {getAdaptiveReasons(nextBestActionTask).map((reason, idx) => (
                 <span
                   key={idx}
-                  className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 text-[11px]"
+                  className="tech-chip text-[11px]"
                 >
                   • {reason}
                 </span>
@@ -171,10 +173,10 @@ export const DashboardView: React.FC = () => {
           </div>
 
           {/* Action Execution Row */}
-          <div className="pt-2 border-t border-zinc-800/60 flex items-center justify-between">
-            <div className="flex items-center gap-3 text-xs text-zinc-400">
-              <span>Importance: <span className="font-mono text-zinc-200">{nextBestActionTask.importance}/10</span></span>
-              {nextBestActionTask.dueDate && <span>Due: <span className="font-mono text-zinc-200">{nextBestActionTask.dueDate}</span></span>}
+          <div className="pt-3 border-t border-[#262D38] flex items-center justify-between">
+            <div className="flex items-center gap-4 text-xs text-[#8E98A8] font-mono">
+              <span>Importance: <span className="text-[#F1F5F9] font-semibold">{nextBestActionTask.importance}/10</span></span>
+              {nextBestActionTask.dueDate && <span>Due: <span className="text-[#FFC665]">{nextBestActionTask.dueDate}</span></span>}
             </div>
 
             <div className="flex items-center gap-2">
@@ -182,9 +184,9 @@ export const DashboardView: React.FC = () => {
                 <Button
                   size="sm"
                   onClick={() => updateTaskState(nextBestActionTask.id, 'in_progress')}
-                  className="h-7 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white rounded px-3"
+                  className="h-8 text-xs font-semibold bg-[#E5A93C] hover:bg-[#F59E0B] text-[#432C00] rounded-[4px] px-4 shadow-sm"
                 >
-                  <Play className="size-3 mr-1" /> Start Next Action
+                  <Play className="size-3.5 mr-1.5" /> Start Next Action
                 </Button>
               )}
 
@@ -192,15 +194,15 @@ export const DashboardView: React.FC = () => {
                 <Button
                   size="sm"
                   onClick={() => updateTaskState(nextBestActionTask.id, 'completed')}
-                  className="h-7 text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white rounded px-3"
+                  className="h-8 text-xs font-semibold bg-[#10B981] hover:bg-[#059669] text-[#002113] rounded-[4px] px-4 shadow-sm"
                 >
-                  <Check className="size-3 mr-1" /> Complete Action
+                  <Check className="size-3.5 mr-1.5" /> Complete Action
                 </Button>
               )}
 
               {nextActionState === 'completed' && (
-                <span className="text-xs text-emerald-400 font-medium flex items-center gap-1">
-                  <Check className="size-3.5" /> Action Completed
+                <span className="text-xs text-[#10B981] font-semibold font-mono flex items-center gap-1">
+                  <Check className="size-4" /> Action Completed
                 </span>
               )}
             </div>
@@ -208,22 +210,22 @@ export const DashboardView: React.FC = () => {
         </section>
       )}
 
-      {/* TODAY'S PLAN / SCHEDULE (COLLAPSIBLE) */}
-      <section className="space-y-2.5">
+      {/* TODAY'S PLAN / SCHEDULE */}
+      <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">
+          <h3 className="text-xs font-mono font-semibold text-[#8E98A8] uppercase tracking-wider">
             Today's Plan ({sortedTasks.length} Tasks)
           </h3>
           <button
             onClick={() => setRoute('roadmap')}
-            className="text-xs text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1"
+            className="text-xs text-[#E5A93C] hover:text-[#FFC665] font-medium flex items-center gap-1 transition-colors"
           >
-            View Roadmap <ArrowRight className="size-3" />
+            View Roadmap <ArrowRight className="size-3.5" />
           </button>
         </div>
 
-        {/* Task Cards List (Initial 3 or Expanded) */}
-        <div className="space-y-2">
+        {/* Task Cards List */}
+        <div className="space-y-2.5">
           {visiblePlanTasks.map((task) => (
             <TaskCard
               key={task.id}
@@ -240,64 +242,70 @@ export const DashboardView: React.FC = () => {
         {sortedTasks.length > 3 && (
           <button
             onClick={() => setIsPlanExpanded(!isPlanExpanded)}
-            className="w-full py-2 text-xs font-medium text-zinc-400 hover:text-zinc-200 bg-zinc-900/60 hover:bg-zinc-900 border border-zinc-800/80 rounded-md flex items-center justify-center gap-1.5 transition-colors"
+            className="w-full py-2.5 text-xs font-mono font-medium text-[#8E98A8] hover:text-[#F1F5F9] bg-[#14171D] hover:bg-[#1B2028] border border-[#262D38] hover:border-[#3B4556] rounded-[4px] flex items-center justify-center gap-1.5 transition-all"
           >
             {isPlanExpanded ? (
               <>
                 <span>Collapse List</span>
-                <ChevronUp className="size-3.5 text-zinc-400" />
+                <ChevronUp className="size-3.5 text-[#8E98A8]" />
               </>
             ) : (
               <>
                 <span>Show All ({sortedTasks.length} Tasks)</span>
-                <ChevronDown className="size-3.5 text-zinc-400" />
+                <ChevronDown className="size-3.5 text-[#8E98A8]" />
               </>
             )}
           </button>
         )}
       </section>
 
-      {/* SUMMARY GRID: PROGRESS, WEAK AREAS & UPCOMING */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 border-t border-zinc-800">
+      {/* SUMMARY GRID: PROGRESS, SKILL SIGNALS & TARGET COMPANIES */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-[#262D38]">
         {/* Progress & Metrics */}
-        <div className="app-surface p-3.5 space-y-2.5">
-          <h4 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-            <BarChart3 className="size-3.5 text-indigo-400" /> Progress
+        <div className="app-surface p-4 space-y-3">
+          <h4 className="text-xs font-mono font-semibold text-[#8E98A8] uppercase tracking-wider flex items-center gap-2">
+            <BarChart3 className="size-3.5 text-[#E5A93C]" /> Progress Telemetry
           </h4>
-          <div className="space-y-1.5 text-xs">
-            <div className="flex justify-between text-zinc-400">
+          <div className="space-y-2 text-xs">
+            <div className="flex justify-between text-[#8E98A8] font-mono">
               <span>Completed Tasks</span>
-              <span className="font-mono text-zinc-200 font-medium">
+              <span className="text-[#F1F5F9] font-semibold">
                 {completedCount} / {totalTasks}
               </span>
             </div>
-            <div className="w-full bg-zinc-900 rounded-full h-1.5 overflow-hidden">
+            <div className="w-full bg-[#1B2028] rounded-[2px] h-1.5 overflow-hidden border border-[#262D38]">
               <div
-                className="bg-indigo-500 h-full transition-all duration-300"
+                className="bg-[#E5A93C] h-full transition-all duration-300"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
-            <div className="flex justify-between text-zinc-400 pt-0.5">
-              <span>Roadmap Completion</span>
-              <span className="font-mono text-indigo-400 font-medium">{progressPercent}%</span>
+            <div className="flex justify-between text-[#8E98A8] font-mono pt-1">
+              <span>Roadmap Mastered</span>
+              <span className="text-[#FFC665] font-semibold">{progressPercent}%</span>
             </div>
           </div>
         </div>
 
-        {/* Weak Areas */}
-        <div className="app-surface p-3.5 space-y-2.5">
-          <h4 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-            <AlertCircle className="size-3.5 text-amber-400" /> Skill Signals
+        {/* Skill Signals */}
+        <div className="app-surface p-4 space-y-3">
+          <h4 className="text-xs font-mono font-semibold text-[#8E98A8] uppercase tracking-wider flex items-center gap-2">
+            <AlertCircle className="size-3.5 text-[#F59E0B]" /> Skill Signals
           </h4>
-          <div className="space-y-1 text-xs">
+          <div className="space-y-1.5 text-xs font-mono">
             {Object.values(skillStates)
               .slice(0, 3)
               .map((sk) => (
-                <div key={sk.topicId} className="flex items-center justify-between text-zinc-400">
-                  <span className="text-zinc-300 truncate max-w-[120px]">
+                <div key={sk.topicId} className="flex items-center justify-between text-[#8E98A8]">
+                  <span className="text-[#F1F5F9] truncate max-w-[130px]">
                     {sk.topicId.replace('topic-', '')}
                   </span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-zinc-900 border border-zinc-800 text-zinc-400 capitalize">
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-[4px] border capitalize ${
+                    sk.freshness === 'fresh'
+                      ? 'tech-chip-success'
+                      : sk.freshness === 'aging'
+                      ? 'tech-chip-warning'
+                      : 'tech-chip'
+                  }`}>
                     {sk.freshness}
                   </span>
                 </div>
@@ -305,16 +313,16 @@ export const DashboardView: React.FC = () => {
           </div>
         </div>
 
-        {/* Upcoming Targets */}
-        <div className="app-surface p-3.5 space-y-2.5">
-          <h4 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-            <Building2 className="size-3.5 text-emerald-400" /> Target Companies
+        {/* Target Companies */}
+        <div className="app-surface p-4 space-y-3">
+          <h4 className="text-xs font-mono font-semibold text-[#8E98A8] uppercase tracking-wider flex items-center gap-2">
+            <Building2 className="size-3.5 text-[#59E8AB]" /> Target Companies
           </h4>
-          <div className="space-y-1 text-xs">
+          <div className="space-y-1.5 text-xs font-mono">
             {companyOverlays.slice(0, 2).map((comp) => (
-              <div key={comp.id} className="flex items-center justify-between text-zinc-400">
-                <span className="text-zinc-200 font-medium">{comp.companyName}</span>
-                <span className="text-[10px] text-zinc-400 font-mono">{comp.eventDate}</span>
+              <div key={comp.id} className="flex items-center justify-between text-[#8E98A8]">
+                <span className="text-[#F1F5F9] font-medium">{comp.companyName}</span>
+                <span className="text-[10px] text-[#FFC665]">{comp.eventDate}</span>
               </div>
             ))}
           </div>

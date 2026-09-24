@@ -70,45 +70,45 @@ export const DSAAttemptModal: React.FC<DSAAttemptModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
+      <div className="bg-[#14171D] border border-[#262D38] rounded-[4px] max-w-lg w-full p-6 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+        <div className="flex items-center justify-between border-b border-[#262D38] pb-4">
           <div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+            <div className="flex items-center gap-2 text-xs font-mono font-semibold text-[#E5A93C] uppercase tracking-wider">
               <Code2 className="size-3.5" />
               <span>DSA Attempt Protocol</span>
             </div>
-            <h2 className="text-xl font-bold text-white mt-0.5">{problem.title}</h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Current Box: <strong className="text-slate-200">Box {currentBox}</strong> • Pattern:{' '}
-              <strong className="text-blue-400">{problem.pattern}</strong>
+            <h2 className="text-lg font-bold text-[#F1F5F9] mt-1">{problem.title}</h2>
+            <p className="text-xs font-mono text-[#8E98A8] mt-1">
+              Current Box: <strong className="text-[#FFC665]">Box {currentBox}</strong> • Pattern:{' '}
+              <strong className="text-[#F1F5F9]">{problem.pattern}</strong>
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-[4px] text-[#8E98A8] hover:text-[#F1F5F9] hover:bg-[#1B2028] transition-colors"
           >
             <X className="size-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+        <form onSubmit={handleSubmit} className="space-y-4 text-xs font-mono">
           {/* Input 1: Attempt Result */}
           <div className="space-y-1.5">
-            <label className="text-slate-400 font-semibold block">Attempt Result</label>
+            <label className="text-[#8E98A8] font-semibold block uppercase text-[11px]">Attempt Result</label>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { id: 'pass', label: 'Pass (Solved)', color: 'border-emerald-500/50 bg-emerald-950/30 text-emerald-300' },
-                { id: 'partial', label: 'Partial', color: 'border-amber-500/50 bg-amber-950/30 text-amber-300' },
-                { id: 'fail', label: 'Fail (Unsolved)', color: 'border-rose-500/50 bg-rose-950/30 text-rose-300' },
+                { id: 'pass', label: 'Pass (Solved)', color: 'border-[#10B981]/50 bg-[#10B981]/10 text-[#10B981]' },
+                { id: 'partial', label: 'Partial', color: 'border-[#F59E0B]/50 bg-[#F59E0B]/10 text-[#F59E0B]' },
+                { id: 'fail', label: 'Fail (Unsolved)', color: 'border-[#F43F5E]/50 bg-[#F43F5E]/10 text-[#F43F5E]' },
               ].map((opt) => (
                 <button
                   type="button"
                   key={opt.id}
                   onClick={() => setResult(opt.id as 'pass' | 'partial' | 'fail')}
-                  className={`p-2.5 rounded-xl border text-center font-bold transition-all ${
-                    result === opt.id ? opt.color + ' ring-2 ring-offset-2 ring-offset-slate-900' : 'border-slate-800 bg-slate-950 text-slate-400'
+                  className={`p-2.5 rounded-[4px] border text-center font-bold text-xs transition-all ${
+                    result === opt.id ? opt.color + ' ring-1 ring-[#E5A93C]' : 'border-[#262D38] bg-[#1B2028] text-[#8E98A8] hover:bg-[#222833]'
                   }`}
                 >
                   {opt.label}
@@ -119,13 +119,13 @@ export const DSAAttemptModal: React.FC<DSAAttemptModalProps> = ({
 
           {/* Input 2: Assistance Level */}
           <div className="space-y-1.5">
-            <label className="text-slate-400 font-semibold flex items-center gap-1">
-              <HelpCircle className="size-3.5 text-blue-400" /> Assistance Required
+            <label className="text-[#8E98A8] font-semibold flex items-center gap-1 uppercase text-[11px]">
+              <HelpCircle className="size-3.5 text-[#E5A93C]" /> Assistance Required
             </label>
             <select
               value={assistanceLevel}
               onChange={(e) => setAssistanceLevel(e.target.value as 'none' | 'hint' | 'solution')}
-              className="w-full bg-slate-950 text-slate-100 font-bold p-2.5 rounded-xl border border-slate-800 focus:outline-none"
+              className="w-full bg-[#1B2028] text-[#F1F5F9] font-medium p-2.5 rounded-[4px] border border-[#262D38] focus:outline-none cursor-pointer"
             >
               <option value="none">Independent (No Hints / Solved Alone)</option>
               <option value="hint">Required Conceptual Hint</option>
@@ -135,52 +135,52 @@ export const DSAAttemptModal: React.FC<DSAAttemptModalProps> = ({
 
           {/* Input 3: Time Taken */}
           <div className="space-y-1.5">
-            <label className="text-slate-400 font-semibold flex items-center gap-1">
-              <Clock className="size-3.5 text-amber-400" /> Time Taken (minutes)
+            <label className="text-[#8E98A8] font-semibold flex items-center gap-1 uppercase text-[11px]">
+              <Clock className="size-3.5 text-[#F59E0B]" /> Time Taken (minutes)
             </label>
             <input
               type="number"
               min={1}
               value={timeTakenMinutes}
               onChange={(e) => setTimeTakenMinutes(Number(e.target.value))}
-              className="w-full bg-slate-950 text-slate-100 font-bold p-2.5 rounded-xl border border-slate-800 focus:outline-none"
+              className="w-full bg-[#1B2028] text-[#F1F5F9] font-medium p-2.5 rounded-[4px] border border-[#262D38] focus:outline-none"
             />
           </div>
 
           {/* Input 4: Notes */}
           <div className="space-y-1.5">
-            <label className="text-slate-400 font-semibold flex items-center gap-1">
-              <FileText className="size-3.5 text-purple-400" /> Solution Notes & Complexity
+            <label className="text-[#8E98A8] font-semibold flex items-center gap-1 uppercase text-[11px]">
+              <FileText className="size-3.5 text-[#59E8AB]" /> Solution Notes & Complexity
             </label>
             <textarea
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. O(N) time using two pointers. Remember to handle edge case when left >= right..."
-              className="w-full bg-slate-950 text-slate-100 p-2.5 rounded-xl border border-slate-800 focus:outline-none leading-relaxed resize-none"
+              placeholder="e.g. O(N) time complexity using sliding window algorithm. Edge case: empty string input..."
+              className="w-full bg-[#1B2028] text-[#F1F5F9] p-2.5 rounded-[4px] border border-[#262D38] focus:outline-none leading-relaxed resize-none font-sans"
             />
           </div>
 
           {/* Live Calculated Transition Preview */}
-          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
-            <span className="text-slate-400">Next Leitner State:</span>
-            <div className="font-mono font-bold text-slate-200">
-              Box {currentBox} <span className="text-blue-400 font-sans">→</span> Box {nextLeitner.nextBox}{' '}
-              <span className="text-amber-400 font-normal">({nextLeitner.intervalDays}d interval)</span>
+          <div className="p-3 rounded-[4px] bg-[#1B2028] border border-[#262D38] flex items-center justify-between text-xs font-mono">
+            <span className="text-[#8E98A8]">Next Leitner Transition:</span>
+            <div className="font-semibold text-[#F1F5F9]">
+              Box {currentBox} <span className="text-[#E5A93C]">→</span> Box {nextLeitner.nextBox}{' '}
+              <span className="text-[#FFC665]">({nextLeitner.intervalDays}d interval)</span>
             </div>
           </div>
 
           {/* Submit Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
-            <Button variant="ghost" size="sm" type="button" onClick={onClose} className="text-xs text-slate-400">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#262D38]">
+            <Button variant="ghost" size="sm" type="button" onClick={onClose} className="text-xs text-[#8E98A8] hover:text-[#F1F5F9]">
               Cancel
             </Button>
             <Button
               size="sm"
               type="submit"
-              className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+              className="text-xs bg-[#E5A93C] hover:bg-[#F59E0B] text-[#432C00] font-semibold rounded-[4px] px-4"
             >
-              <CheckCircle2 className="size-3.5 mr-1" /> Log Attempt & Advance Box
+              <CheckCircle2 className="size-3.5 mr-1.5" /> Log Attempt & Advance Box
             </Button>
           </div>
         </form>

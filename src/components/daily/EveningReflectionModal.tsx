@@ -237,28 +237,28 @@ export const EveningReflectionModal: React.FC<EveningReflectionModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0D0F12]/80 backdrop-blur-sm animate-fade-in">
+      <div className="bg-[#14171D] border border-[#262D38] rounded-[4px] max-w-2xl w-full p-6 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+        <div className="flex items-center justify-between border-b border-[#262D38] pb-4">
           <div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400 uppercase tracking-wider font-mono">
               <CheckCircle2 className="size-3.5" />
               <span>Evening Reflection & Daily Sealing</span>
             </div>
-            <h2 className="text-xl font-bold text-white mt-0.5">Seal Day Execution ({todayDate})</h2>
+            <h2 className="text-xl font-bold text-[#F1F5F9] mt-0.5 font-mono">Seal Day Execution ({todayDate})</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1 rounded-[4px] text-[#8E98A8] hover:text-[#F1F5F9] hover:bg-[#1B2028] transition-colors"
           >
             <X className="size-5" />
           </button>
         </div>
 
         {activeAssignments.length === 0 ? (
-          <div className="p-6 rounded-xl bg-slate-950 border border-slate-800 text-center text-xs text-slate-400 space-y-2">
-            <AlertCircle className="size-6 text-slate-500 mx-auto" />
+          <div className="p-6 rounded-[4px] bg-[#1B2028] border border-[#262D38] text-center text-xs text-[#8E98A8] space-y-2 font-mono">
+            <AlertCircle className="size-6 text-[#5C6675] mx-auto" />
             <p>No active assignments found for today. Plan your morning session first!</p>
           </div>
         ) : (
@@ -269,15 +269,15 @@ export const EveningReflectionModal: React.FC<EveningReflectionModalProps> = ({
               if (!task || !ref) return null;
 
               return (
-                <div key={assign.id} className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
+                <div key={assign.id} className="p-4 rounded-[4px] bg-[#1B2028] border border-[#262D38] space-y-3 font-mono">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-sm text-slate-100">{task.title}</span>
-                    <label className="flex items-center gap-1.5 text-xs text-slate-300 font-semibold cursor-pointer">
+                    <span className="font-bold text-sm text-[#F1F5F9]">{task.title}</span>
+                    <label className="flex items-center gap-1.5 text-xs text-[#F1F5F9] font-semibold cursor-pointer">
                       <input
                         type="checkbox"
                         checked={ref.completed}
                         onChange={(e) => handleFieldChange(assign.id, 'completed', e.target.checked)}
-                        className="rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500"
+                        className="rounded-[4px] border-[#262D38] bg-[#14171D] text-emerald-500 focus:ring-emerald-500"
                       />
                       Completed
                     </label>
@@ -286,23 +286,23 @@ export const EveningReflectionModal: React.FC<EveningReflectionModalProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                     {/* Field 1: Actual Minutes */}
                     <div className="space-y-1">
-                      <label className="text-slate-400 font-medium block">Actual Time (mins)</label>
+                      <label className="text-[#8E98A8] font-medium block text-[11px] uppercase tracking-wider">Actual Time (mins)</label>
                       <input
                         type="number"
                         min={1}
                         value={ref.actualMinutes}
                         onChange={(e) => handleFieldChange(assign.id, 'actualMinutes', Number(e.target.value))}
-                        className="w-full bg-slate-900 text-slate-100 font-bold p-1.5 rounded border border-slate-800"
+                        className="w-full bg-[#14171D] text-[#F1F5F9] font-bold p-1.5 rounded-[4px] border border-[#262D38] focus:border-[#3B4556]"
                       />
                     </div>
 
                     {/* Field 2: Assistance Level */}
                     <div className="space-y-1">
-                      <label className="text-slate-400 font-medium block">Assistance Required</label>
+                      <label className="text-[#8E98A8] font-medium block text-[11px] uppercase tracking-wider">Assistance Required</label>
                       <select
                         value={ref.assistanceLevel}
                         onChange={(e) => handleFieldChange(assign.id, 'assistanceLevel', e.target.value)}
-                        className="w-full bg-slate-900 text-slate-100 font-bold p-1.5 rounded border border-slate-800"
+                        className="w-full bg-[#14171D] text-[#F1F5F9] font-bold p-1.5 rounded-[4px] border border-[#262D38] focus:border-[#3B4556]"
                       >
                         <option value="none">Independent (No Hints)</option>
                         <option value="hint">Required Hints</option>
@@ -312,11 +312,11 @@ export const EveningReflectionModal: React.FC<EveningReflectionModalProps> = ({
 
                     {/* Field 3: Confidence Rating */}
                     <div className="space-y-1">
-                      <label className="text-slate-400 font-medium block">Confidence (1 - 5)</label>
+                      <label className="text-[#8E98A8] font-medium block text-[11px] uppercase tracking-wider">Confidence (1 - 5)</label>
                       <select
                         value={ref.confidence}
                         onChange={(e) => handleFieldChange(assign.id, 'confidence', Number(e.target.value))}
-                        className="w-full bg-slate-900 text-slate-100 font-bold p-1.5 rounded border border-slate-800"
+                        className="w-full bg-[#14171D] text-[#F1F5F9] font-bold p-1.5 rounded-[4px] border border-[#262D38] focus:border-[#3B4556]"
                       >
                         <option value={1}>1 - Low Confidence</option>
                         <option value={2}>2 - Below Average</option>
@@ -333,15 +333,15 @@ export const EveningReflectionModal: React.FC<EveningReflectionModalProps> = ({
         )}
 
         {/* Modal Actions */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
-          <Button variant="ghost" size="sm" onClick={onClose} className="text-xs text-slate-400">
+        <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#262D38]">
+          <Button variant="ghost" size="sm" onClick={onClose} className="text-xs text-[#8E98A8] hover:text-[#F1F5F9] rounded-[4px]">
             Cancel
           </Button>
           <Button
             size="sm"
             onClick={handleSeal}
             disabled={activeAssignments.length === 0}
-            className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+            className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-bold rounded-[4px]"
           >
             <CheckCircle2 className="size-3.5 mr-1" /> Seal Day & Update Skill State
           </Button>

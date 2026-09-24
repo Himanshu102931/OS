@@ -1,117 +1,156 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
 
-@custom-variant dark (&:is(.dark *));
-
 @theme inline {
-  --font-heading: 'Inter Variable', sans-serif;
   --font-sans: 'Inter Variable', sans-serif;
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --color-foreground: var(--foreground);
-  --color-background: var(--background);
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Stitch Dark Mode Tonal Surface Scale */
+  --color-surface-canvas: #0D0F12;
+  --color-surface-panel: #14171D;
+  --color-surface-elevated: #1B2028;
+  --color-surface-subtle: #222833;
+
+  /* Stitch Boundary Lines */
+  --color-border-default: #262D38;
+  --color-border-active: #3B4556;
+
+  /* Stitch Primary Focal Accents */
+  --color-accent-primary: #E5A93C;
+  --color-accent-gold: #FFC665;
+  --color-accent-amber: #F59E0B;
+  --color-accent-subtle: rgba(229, 169, 60, 0.12);
+
+  /* Functional Status Colors */
+  --color-status-success: #10B981;
+  --color-status-warning: #F59E0B;
+  --color-status-danger: #F43F5E;
+
+  /* Text Hierarchy */
+  --color-text-primary: #F1F5F9;
+  --color-text-secondary: #8E98A8;
+  --color-text-tertiary: #5C6675;
+
+  /* Restrained Radii (Chiseled 4px - 6px) */
   --radius-sm: 0.25rem;
   --radius-md: 0.375rem;
   --radius-lg: 0.5rem;
-  --radius-xl: 0.75rem;
 }
 
 :root {
-  --background: oklch(0.13 0.005 260);
-  --foreground: oklch(0.98 0 0);
-  --card: oklch(0.17 0.005 260);
-  --card-foreground: oklch(0.98 0 0);
-  --popover: oklch(0.17 0.005 260);
-  --popover-foreground: oklch(0.98 0 0);
-  --primary: oklch(0.62 0.18 260);
-  --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.22 0.005 260);
-  --secondary-foreground: oklch(0.92 0 0);
-  --muted: oklch(0.20 0.005 260);
-  --muted-foreground: oklch(0.65 0 0);
-  --accent: oklch(0.24 0.01 260);
-  --accent-foreground: oklch(0.98 0 0);
-  --destructive: oklch(0.55 0.18 25);
-  --border: oklch(0.25 0.005 260 / 70%);
-  --input: oklch(0.25 0.005 260);
-  --ring: oklch(0.62 0.18 260);
+  --background: #0D0F12;
+  --foreground: #F1F5F9;
+  --card: #14171D;
+  --card-foreground: #F1F5F9;
+  --popover: #1B2028;
+  --popover-foreground: #F1F5F9;
+  --primary: #E5A93C;
+  --primary-foreground: #432C00;
+  --secondary: #1B2028;
+  --secondary-foreground: #F1F5F9;
+  --muted: #222833;
+  --muted-foreground: #8E98A8;
+  --accent: #222833;
+  --accent-foreground: #F1F5F9;
+  --destructive: #F43F5E;
+  --border: #262D38;
+  --input: #14171D;
+  --ring: #E5A93C;
   --radius: 0.375rem;
 }
 
 @layer base {
   * {
-    @apply border-zinc-800 outline-none;
+    border-color: #262D38;
+    outline: none;
   }
   body {
-    @apply bg-zinc-950 text-zinc-100 antialiased font-sans selection:bg-indigo-600 selection:text-white min-h-screen;
-    background-color: #09090b;
+    background-color: #0D0F12;
+    color: #F1F5F9;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
   }
 }
 
-/* Refrained Product Utilities */
+/* Studio-Grade Utility Classes */
 .app-surface {
-  background-color: #121215;
-  border: 1px solid #27272a;
-  border-radius: var(--radius-md);
+  background-color: #14171D;
+  border: 1px solid #262D38;
+  border-radius: 0.375rem;
+}
+
+.app-surface-elevated {
+  background-color: #1B2028;
+  border: 1px solid #262D38;
+  border-radius: 0.375rem;
 }
 
 .app-surface-hover {
   transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 .app-surface-hover:hover {
-  background-color: #18181c;
-  border-color: #3f3f46;
+  background-color: #1B2028;
+  border-color: #3B4556;
 }
 
 .app-table-row {
-  border-bottom: 1px solid #1f1f23;
+  border-bottom: 1px solid #262D38;
   transition: background-color 0.12s ease;
 }
 .app-table-row:hover {
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: #1B2028;
 }
 
-/* Custom Sleek Scrollbar */
+/* Monospaced Technical Chip */
+.tech-chip {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid #262D38;
+  background-color: rgba(38, 45, 56, 0.4);
+  color: #8E98A8;
+}
+
+.tech-chip-success {
+  background-color: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #10B981;
+}
+
+.tech-chip-warning {
+  background-color: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #F59E0B;
+}
+
+.tech-chip-danger {
+  background-color: rgba(244, 63, 94, 0.08);
+  border-color: rgba(244, 63, 94, 0.3);
+  color: #F43F5E;
+}
+
+.tech-chip-primary {
+  background-color: rgba(229, 169, 60, 0.12);
+  border-color: rgba(229, 169, 60, 0.3);
+  color: #FFC665;
+}
+
+/* Custom Studio Scrollbar */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #09090b;
+  background: #0D0F12;
 }
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
+  background: #262D38;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: #3B4556;
 }
