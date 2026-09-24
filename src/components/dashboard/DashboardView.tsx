@@ -1,16 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { usePlacement } from '../../context/PlacementContext';
 import { TaskCard } from '../common/TaskCard';
+import { MorningPlanningModal } from '../daily/MorningPlanningModal';
+import { EveningReflectionModal } from '../daily/EveningReflectionModal';
 import {
   Sparkles,
   Target,
-  CheckCircle2,
-  Clock,
   Building2,
   AlertCircle,
   BarChart3,
   Layers,
   ArrowRight,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 
@@ -26,7 +28,17 @@ export const DashboardView: React.FC = () => {
     setRoute,
     companyOverlays,
     skillStates,
+    dailyCheckIns,
+    dailyTaskAssignments,
+    commitDailyPlan,
+    sealDayExecution,
   } = usePlacement();
+
+  const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
+  const [isEveningModalOpen, setIsEveningModalOpen] = useState(false);
+
+  const todayCheckIn = dailyCheckIns.find((c) => c.date === todayDate);
+  const isDaySealed = todayCheckIn?.isSealed ?? false;
 
   // Find next best action (highest importance non-completed task)
   const sortedTasks = [...taskDefinitions].sort((a, b) => {
@@ -68,22 +80,28 @@ export const DashboardView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-4 bg-slate-950/80 p-3 rounded-xl border border-slate-800">
-          <div className="text-center px-2">
-            <span className="text-xs text-slate-400 block font-medium">Daily Budget</span>
-            <span className="text-lg font-bold text-slate-100 flex items-center justify-center gap-1">
-              <Clock className="size-4 text-blue-400" />
-              180m
-            </span>
-          </div>
-          <div className="h-8 w-px bg-slate-800" />
-          <div className="text-center px-2">
-            <span className="text-xs text-slate-400 block font-medium">Completed</span>
-            <span className="text-lg font-bold text-emerald-400 flex items-center justify-center gap-1">
-              <CheckCircle2 className="size-4" />
-              {completedCount}/{totalTasks}
-            </span>
-          </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <Button
+            size="sm"
+            onClick={() => setIsMorningModalOpen(true)}
+            className="text-xs bg-blue-600 hover:bg-blue-500 text-white font-bold"
+          >
+            <Sun className="size-3.5 mr-1" /> Morning Planning
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={isDaySealed || dailyTaskAssignments.length === 0}
+            onClick={() => setIsEveningModalOpen(true)}
+            className={`text-xs border-slate-700 ${
+              isDaySealed
+                ? 'bg-slate-900 text-slate-500 border-slate-800'
+                : 'bg-emerald-950/60 border-emerald-800 text-emerald-300 hover:bg-emerald-900'
+            }`}
+          >
+            <Moon className="size-3.5 mr-1" /> {isDaySealed ? 'Day Sealed' : 'Evening Reflection'}
+          </Button>
         </div>
       </div>
 
@@ -187,7 +205,7 @@ export const DashboardView: React.FC = () => {
             </div>
           </div>
 
-          {/* Widget 2: Upcoming Target Company Events */}
+          {/* Widget 2: Target Company Events */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-3">
             <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-1.5">
               <Building2 className="size-4 text-amber-400" />
@@ -215,29 +233,7 @@ export const DashboardView: React.FC = () => {
             </div>
           </div>
 
-          {/* Widget 3: 11 Core Domains Focus Grid */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-3">
-            <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-1.5">
-              <Sparkles className="size-4 text-purple-400" />
-              Core 11 Domains Baseline
-            </h3>
-
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              {domains.map((dom) => (
-                <div
-                  key={dom.id}
-                  className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between hover:border-slate-700 transition-colors"
-                >
-                  <span className="font-medium text-slate-300 truncate">{dom.shortName}</span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-900 text-slate-400">
-                    Active
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Widget 4: Weak & Untested Skills Indicator */}
+          {/* Widget 3: Skill Freshness Signals */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-3">
             <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-1.5">
               <AlertCircle className="size-4 text-rose-400" />
@@ -268,6 +264,36 @@ export const DashboardView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Morning Planning Modal */}
+      <MorningPlanningModal
+        isOpen={isMorningModalOpen}
+        onClose={() => setIsMorningModalOpen(false)}
+        onCommitPlan={(checkIn, assignments) => commitDailyPlan(checkIn, assignments)}
+      />
+
+      {/* Evening Reflection Modal */}
+      <EveningReflectionModal
+        isOpen={isEveningModalOpen}
+        onClose={() => setIsEveningModalOpen(false)}
+        onSealDay={(
+          updatedCheckIn,
+          updatedAssignments,
+          newEvidenceLogs,
+          updatedTaskProgressMap,
+          updatedDsaProgressMap,
+          updatedSkillStatesMap
+        ) =>
+          sealDayExecution(
+            updatedCheckIn,
+            updatedAssignments,
+            newEvidenceLogs,
+            updatedTaskProgressMap,
+            updatedDsaProgressMap,
+            updatedSkillStatesMap
+          )
+        }
+      />
     </div>
   );
 };
