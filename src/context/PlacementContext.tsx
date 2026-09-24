@@ -79,23 +79,41 @@ interface PlacementContextType {
   storageBytes: number;
 }
 
+function getTodayISO(): string {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 const PlacementContext = createContext<PlacementContextType | undefined>(undefined);
 
 export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentRoute, setCurrentRoute] = useState<RoutePath>('dashboard');
-  const [todayDate] = useState<string>(() => {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  });
+  const [todayDate, setTodayDate] = useState<string>(getTodayISO);
+
+  // Periodically check local calendar date rollover (e.g. crossing midnight)
+  useEffect(() => {
+    const checkDateRollover = () => {
+      const current = getTodayISO();
+      setTodayDate((prev) => (prev !== current ? current : prev));
+    };
+
+    const interval = setInterval(checkDateRollover, 60000);
+    window.addEventListener('focus', checkDateRollover);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', checkDateRollover);
+    };
+  }, []);
 
   // Hydrate state safely from StorageAdapter
   const [appState, setAppState] = useState<AppExtendedStorageState>(() => {
     const loaded = StorageAdapter.loadState() as AppExtendedStorageState;
+    const initialToday = getTodayISO();
     const updatedCheckIns = (loaded.dailyCheckIns || []).map((ci) => {
-      if (ci.date < todayDate && !ci.isSealed) {
+      if (ci.date < initialToday && !ci.isSealed) {
         return {
           ...ci,
           isSealed: true,

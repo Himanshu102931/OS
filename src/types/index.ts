@@ -53,6 +53,16 @@ export interface Topic {
   importance: number; // 1 - 10 scale
 }
 
+export interface TaskLearningMetadata {
+  learningSteps?: string[];
+  primaryResource?: { title: string; url?: string; type?: string };
+  supportingResources?: { title: string; url?: string; type?: string }[];
+  practiceItems?: string[];
+  selfCheckQuestions?: string[];
+  completionCriteria?: string[];
+  evidenceType?: string;
+}
+
 export interface TaskDefinition {
   id: string;
   title: string;
@@ -68,6 +78,7 @@ export interface TaskDefinition {
   parentTaskId?: string;
   dueDate?: string; // YYYY-MM-DD
   createdAt: string;
+  learningMetadata?: TaskLearningMetadata;
 }
 
 export interface SkillDefinition {
