@@ -1,0 +1,17 @@
+{
+  "short_name": "PlacementOS",
+  "name": "PlacementOS Personal Control System",
+  "description": "Deterministic local-first placement preparation dashboard and adaptive engine.",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#090d16",
+  "theme_color": "#090d16",
+  "display": "standalone",
+  "orientation": "any"
+}
