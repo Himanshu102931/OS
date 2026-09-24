@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePlacement } from '../../context/PlacementContext';
 import {
   getEvaluatedCandidates,
@@ -35,6 +35,16 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
   const [availableMinutes, setAvailableMinutes] = useState<number>(180);
   const [energyLevel, setEnergyLevel] = useState<'low' | 'medium' | 'high'>('medium');
   const [mode, setMode] = useState<PlacementMode>(currentMode);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -94,7 +104,12 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="morning-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in"
+    >
       <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
@@ -103,11 +118,14 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
               <Target className="size-3.5" />
               <span>Morning Planning Protocol</span>
             </div>
-            <h2 className="text-xl font-bold text-white mt-0.5">Plan Today's Execution ({todayDate})</h2>
+            <h2 id="morning-modal-title" className="text-xl font-bold text-white mt-0.5">
+              Plan Today's Execution ({todayDate})
+            </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            aria-label="Close Morning Planning modal"
+            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <X className="size-5" />
           </button>
@@ -117,13 +135,14 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
           {/* Input 1: Available Time */}
           <div className="space-y-1.5 p-3 rounded-xl bg-slate-950 border border-slate-800">
-            <label className="text-slate-400 font-semibold flex items-center gap-1">
+            <label htmlFor="morning-available-time" className="text-slate-400 font-semibold flex items-center gap-1">
               <Clock className="size-3.5 text-blue-400" /> Available Time
             </label>
             <select
+              id="morning-available-time"
               value={availableMinutes}
               onChange={(e) => setAvailableMinutes(Number(e.target.value))}
-              className="w-full bg-slate-900 text-slate-100 font-bold p-2 rounded border border-slate-800 focus:outline-none"
+              className="w-full bg-slate-900 text-slate-100 font-bold p-2 rounded border border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value={60}>60 minutes (1 hr)</option>
               <option value={120}>120 minutes (2 hrs)</option>
@@ -135,13 +154,14 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
 
           {/* Input 2: Energy Level */}
           <div className="space-y-1.5 p-3 rounded-xl bg-slate-950 border border-slate-800">
-            <label className="text-slate-400 font-semibold flex items-center gap-1">
+            <label htmlFor="morning-energy-level" className="text-slate-400 font-semibold flex items-center gap-1">
               <Zap className="size-3.5 text-amber-400" /> Energy Level
             </label>
             <select
+              id="morning-energy-level"
               value={energyLevel}
               onChange={(e) => setEnergyLevel(e.target.value as 'low' | 'medium' | 'high')}
-              className="w-full bg-slate-900 text-slate-100 font-bold p-2 rounded border border-slate-800 focus:outline-none capitalize"
+              className="w-full bg-slate-900 text-slate-100 font-bold p-2 rounded border border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 capitalize"
             >
               <option value="low">Low Energy</option>
               <option value="medium">Medium Energy</option>
@@ -151,13 +171,14 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
 
           {/* Input 3: Placement Mode */}
           <div className="space-y-1.5 p-3 rounded-xl bg-slate-950 border border-slate-800">
-            <label className="text-slate-400 font-semibold flex items-center gap-1">
+            <label htmlFor="morning-placement-mode" className="text-slate-400 font-semibold flex items-center gap-1">
               <Target className="size-3.5 text-indigo-400" /> Workload Mode
             </label>
             <select
+              id="morning-placement-mode"
               value={mode}
               onChange={(e) => setMode(e.target.value as PlacementMode)}
-              className="w-full bg-slate-900 text-slate-100 font-bold p-2 rounded border border-slate-800 focus:outline-none"
+              className="w-full bg-slate-900 text-slate-100 font-bold p-2 rounded border border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="normal">Normal Workload</option>
               <option value="reduced">Reduced Workload</option>
