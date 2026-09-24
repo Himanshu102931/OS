@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { usePlacement } from '../../context/PlacementContext';
 import { SkillOverrideModal } from './SkillOverrideModal';
 import type { TopicSkillState, Topic } from '../../types';
-import { Sparkles, SlidersHorizontal } from 'lucide-react';
+import { Filter, SlidersHorizontal } from 'lucide-react';
 import { Button } from '../ui/button';
 
 export const SkillsView: React.FC = () => {
@@ -10,13 +10,6 @@ export const SkillsView: React.FC = () => {
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [filterDomain, setFilterDomain] = useState<string>('all');
-
-  const freshnessBadges: Record<string, string> = {
-    untested: 'bg-rose-500/10 text-rose-300 border-rose-500/30',
-    fresh: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
-    aging: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
-    stale: 'bg-rose-500/10 text-rose-300 border-rose-500/30',
-  };
 
   const filteredDomains = domains.filter((d) => {
     if (filterDomain !== 'all' && d.id !== filterDomain) return false;
@@ -33,33 +26,30 @@ export const SkillsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
         <div>
-          <div className="inline-flex items-center gap-2 text-xs font-extrabold text-purple-400 uppercase tracking-widest px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20">
-            <Sparkles className="size-3.5" />
-            <span>Skill Analytics & Freshness Matrix</span>
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mt-1">
-            Placement Skills Matrix
-          </h2>
-          <p className="text-sm text-slate-400 font-medium mt-1">
-            Skill status across all 11 placement domains backed by recorded evidence strength.
+          <h1 className="text-xl font-bold tracking-tight text-zinc-100 flex items-center gap-2">
+            Skills Matrix
+          </h1>
+          <p className="text-xs text-zinc-400 mt-0.5">
+            Recorded skill mastery and freshness states across all 11 placement domains
           </p>
         </div>
 
         {/* Filter */}
-        <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-700/80 rounded-2xl p-2 text-xs shadow-inner">
-          <span className="text-slate-400 font-medium px-2">Domain:</span>
+        <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-md px-2.5 py-1 text-xs">
+          <Filter className="size-3.5 text-zinc-400" />
+          <span className="text-zinc-500 font-medium">Domain:</span>
           <select
             value={filterDomain}
             onChange={(e) => setFilterDomain(e.target.value)}
-            className="bg-slate-950 text-slate-100 font-bold p-1.5 rounded-xl border border-slate-800 focus:outline-none"
+            className="bg-transparent text-zinc-200 font-medium focus:outline-none cursor-pointer text-xs"
           >
-            <option value="all">All 11 Domains</option>
+            <option value="all" className="bg-zinc-900">All 11 Domains</option>
             {domains.map((dom) => (
-              <option key={dom.id} value={dom.id}>
+              <option key={dom.id} value={dom.id} className="bg-zinc-900">
                 {dom.shortName}
               </option>
             ))}
@@ -67,88 +57,75 @@ export const SkillsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Domain Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {filteredDomains.map((dom) => {
-          const domainTopics = topics.filter((t) => t.domainId === dom.id);
+      {/* Skills Matrix Table */}
+      <div className="app-surface overflow-hidden">
+        {/* Table Header */}
+        <div className="hidden sm:grid grid-cols-12 px-4 py-2.5 bg-zinc-900/80 border-b border-zinc-800 text-[11px] font-medium text-zinc-500 uppercase tracking-wider">
+          <div className="col-span-4">Topic / Skill</div>
+          <div className="col-span-3">Domain</div>
+          <div className="col-span-2">Evidence</div>
+          <div className="col-span-2">Freshness</div>
+          <div className="col-span-1 text-right">Action</div>
+        </div>
 
-          return (
-            <div key={dom.id} className="glass-card rounded-3xl p-6 space-y-4">
-              <div className="flex items-center justify-between border-b border-white/10 pb-3.5">
-                <div>
-                  <h3 className="font-bold text-base sm:text-lg text-white">{dom.name}</h3>
-                  <p className="text-xs text-slate-400 font-medium mt-0.5">{dom.description}</p>
-                </div>
-                <span className="text-xs font-extrabold font-mono px-3 py-1 rounded-xl bg-purple-950/60 text-purple-300 border border-purple-500/30">
-                  {dom.shortName}
-                </span>
-              </div>
+        <div className="divide-y divide-zinc-800/60">
+          {filteredDomains.flatMap((dom) => {
+            const domainTopics = topics.filter((t) => t.domainId === dom.id);
+            return domainTopics.map((top) => {
+              const sk = skillStates[top.id] || {
+                topicId: top.id,
+                domainId: dom.id,
+                freshness: 'untested',
+                evidenceStrength: 0,
+              };
 
-              {/* Topics under domain */}
-              <div className="space-y-3 pt-1">
-                {domainTopics.length === 0 ? (
-                  <div className="text-xs text-slate-500 italic">No topics assigned yet</div>
-                ) : (
-                  domainTopics.map((top) => {
-                    const sk = skillStates[top.id] || {
-                      topicId: top.id,
-                      domainId: dom.id,
-                      freshness: 'untested',
-                      evidenceStrength: 0,
-                    };
+              return (
+                <div key={top.id} className="app-table-row p-3 sm:px-4 sm:py-2.5 space-y-1 sm:space-y-0">
+                  <div className="grid grid-cols-1 sm:grid-cols-12 items-center gap-2 text-xs">
+                    <div className="sm:col-span-4">
+                      <span className="font-semibold text-zinc-100">{top.name}</span>
+                      <span className="text-zinc-500 text-[11px] ml-2">({top.importance}/10)</span>
+                    </div>
 
-                    return (
-                      <div
-                        key={top.id}
-                        className="p-3.5 rounded-2xl bg-slate-950/80 border border-white/5 space-y-2 hover:border-purple-500/40 transition-colors"
+                    <div className="sm:col-span-3 text-zinc-400 text-xs">
+                      {dom.name}
+                    </div>
+
+                    <div className="sm:col-span-2 font-mono text-zinc-300">
+                      {sk.evidenceStrength} / 100
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <span
+                        className={`text-[10px] font-mono px-1.5 py-0.2 rounded border capitalize ${
+                          sk.freshness === 'fresh'
+                            ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800/60'
+                            : sk.freshness === 'aging'
+                            ? 'bg-amber-950/60 text-amber-300 border-amber-800/60'
+                            : 'bg-rose-950/60 text-rose-300 border-rose-800/60'
+                        }`}
                       >
-                        <div className="flex items-center justify-between text-xs">
-                          <div>
-                            <div className="font-bold text-slate-100">{top.name}</div>
-                            <div className="text-slate-400 text-[11px] font-medium">Importance: {top.importance}/10</div>
-                          </div>
+                        {sk.freshness}
+                      </span>
+                    </div>
 
-                          <div className="flex items-center gap-3">
-                            <div className="text-right space-y-1">
-                              <span
-                                className={`text-[10px] uppercase font-extrabold px-2.5 py-0.5 rounded-full border block ${
-                                  freshnessBadges[sk.freshness]
-                                }`}
-                              >
-                                {sk.freshness}
-                              </span>
-                              <span className="text-[11px] font-mono font-semibold text-slate-300 block">
-                                Score: <strong className="text-purple-400">{sk.evidenceStrength}/100</strong>
-                              </span>
-                            </div>
-
-                            <Button
-                              size="xs"
-                              variant="ghost"
-                              onClick={() => handleOpenOverride(top)}
-                              className="text-xs text-slate-400 hover:text-purple-300 p-2"
-                              title="Manual Rating Override"
-                            >
-                              <SlidersHorizontal className="size-4" />
-                            </Button>
-                          </div>
-                        </div>
-
-                        {/* Visual Strength Meter */}
-                        <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden border border-white/5">
-                          <div
-                            className="bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-400 h-1.5 rounded-full transition-all duration-300"
-                            style={{ width: `${sk.evidenceStrength}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          );
-        })}
+                    <div className="sm:col-span-1 text-right">
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        onClick={() => handleOpenOverride(top)}
+                        className="h-6 w-6 p-0 text-zinc-500 hover:text-zinc-200"
+                        title="Override Rating"
+                      >
+                        <SlidersHorizontal className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            });
+          })}
+        </div>
       </div>
 
       {/* Manual Skill Rating Modal */}

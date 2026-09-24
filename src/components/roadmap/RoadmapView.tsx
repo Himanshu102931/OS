@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { usePlacement } from '../../context/PlacementContext';
-import { Layers, CheckCircle2, Circle, Clock, BookOpen, Filter } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, Filter, ChevronRight } from 'lucide-react';
 
 export const RoadmapView: React.FC = () => {
   const { phases, modules, topics, taskDefinitions, taskProgress, domains } = usePlacement();
@@ -26,53 +26,49 @@ export const RoadmapView: React.FC = () => {
       : 0;
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-blue-400 uppercase tracking-wider">
-            <Layers className="size-3.5" />
-            <span>Placement Curriculum Timeline</span>
-          </div>
-          <h2 className="text-2xl font-bold text-white mt-1">Master Placement Roadmap</h2>
-          <p className="text-sm text-slate-400 mt-1">
-            Structured curriculum spanning September 2026 to May 2027 across 11 core placement domains.
+          <h1 className="text-xl font-bold tracking-tight text-zinc-100 flex items-center gap-2">
+            Master Roadmap
+          </h1>
+          <p className="text-xs text-zinc-400 mt-0.5">
+            Curriculum timeline (Sep 2026 – May 2027) spanning 11 core placement domains
           </p>
         </div>
 
         {/* Filter Toolbar */}
-        <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl p-1.5 text-xs flex-wrap">
-          <div className="flex items-center gap-1 text-slate-400 font-medium px-1">
-            <Filter className="size-3.5 text-blue-400" /> Filter:
-          </div>
+        <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1 text-xs">
+          <Filter className="size-3.5 text-zinc-400" />
           <select
             value={filterDomain}
             onChange={(e) => setFilterDomain(e.target.value)}
-            className="bg-slate-950 text-slate-200 font-bold p-1 rounded border border-slate-800 focus:outline-none"
+            className="bg-transparent text-zinc-200 font-medium focus:outline-none cursor-pointer text-xs"
           >
-            <option value="all">All Domains</option>
+            <option value="all" className="bg-zinc-900">All Domains</option>
             {domains.map((d) => (
-              <option key={d.id} value={d.id}>
+              <option key={d.id} value={d.id} className="bg-zinc-900">
                 {d.shortName}
               </option>
             ))}
           </select>
-
+          <span className="text-zinc-700">|</span>
           <select
             value={filterState}
             onChange={(e) => setFilterState(e.target.value)}
-            className="bg-slate-950 text-slate-200 font-bold p-1 rounded border border-slate-800 focus:outline-none"
+            className="bg-transparent text-zinc-200 font-medium focus:outline-none cursor-pointer text-xs"
           >
-            <option value="all">All Statuses</option>
-            <option value="not_started">To Do</option>
-            <option value="in_progress">In Progress</option>
-            <option value="completed">Completed</option>
+            <option value="all" className="bg-zinc-900">All Statuses</option>
+            <option value="not_started" className="bg-zinc-900">To Do</option>
+            <option value="in_progress" className="bg-zinc-900">In Progress</option>
+            <option value="completed" className="bg-zinc-900">Completed</option>
           </select>
         </div>
       </div>
 
-      {/* Phase Selector Tabs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* Phase Timeline Tabs (Clean List) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
         {phases.map((phase) => {
           const isActive = phase.id === selectedPhaseId;
           const pTasks = taskDefinitions.filter((t) => t.phaseId === phase.id);
@@ -83,22 +79,20 @@ export const RoadmapView: React.FC = () => {
             <button
               key={phase.id}
               onClick={() => setSelectedPhaseId(phase.id)}
-              className={`p-4 rounded-xl border text-left transition-all ${
+              className={`p-3 rounded-md border text-left transition-colors ${
                 isActive
-                  ? 'bg-blue-950/40 border-blue-500/60 ring-2 ring-blue-500/20 text-white'
-                  : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                  ? 'bg-zinc-800 border-zinc-700 text-zinc-100 font-medium'
+                  : 'bg-zinc-900/50 border-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
               }`}
             >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-blue-400">
-                  Phase {phase.order}
-                </span>
-                <span className="text-xs font-mono font-semibold text-emerald-400">{pPercent}%</span>
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-mono text-[10px] text-zinc-500">PHASE {phase.order}</span>
+                <span className="font-mono font-medium text-indigo-400">{pPercent}%</span>
               </div>
-              <div className="font-semibold text-sm text-slate-100 line-clamp-1 mt-1">
+              <div className="font-semibold text-xs text-zinc-200 truncate mt-1">
                 {phase.name.split(':')[1] || phase.name}
               </div>
-              <div className="text-[11px] text-slate-400 mt-2 font-mono">
+              <div className="text-[10px] text-zinc-500 mt-1 font-mono">
                 {phase.startDate} → {phase.endDate}
               </div>
             </button>
@@ -106,27 +100,26 @@ export const RoadmapView: React.FC = () => {
         })}
       </div>
 
-      {/* Selected Phase Details */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-6">
-        <div className="border-b border-slate-800/80 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Phase Content Section */}
+      <div className="app-surface p-5 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-zinc-800/80">
           <div>
-            <h3 className="text-lg font-bold text-white">{selectedPhase.name}</h3>
-            <p className="text-sm text-slate-400 mt-1">{selectedPhase.description}</p>
+            <h2 className="text-base font-semibold text-zinc-100">{selectedPhase.name}</h2>
+            <p className="text-xs text-zinc-400 mt-0.5">{selectedPhase.description}</p>
           </div>
-
-          <div className="bg-slate-950 px-4 py-2 rounded-xl border border-slate-800 shrink-0 text-right text-xs">
-            <div className="text-slate-400">Phase Completion</div>
-            <div className="font-mono font-bold text-base text-emerald-400">
+          <div className="text-right text-xs">
+            <span className="text-zinc-500">Phase Completion: </span>
+            <span className="font-mono font-medium text-indigo-400">
               {completedPhaseTasks.length} / {totalPhaseTasks.length} ({phaseProgressPercent}%)
-            </div>
+            </span>
           </div>
         </div>
 
-        {/* Modules in Phase */}
-        <div className="space-y-6">
+        {/* Modules Timeline / Tree View */}
+        <div className="space-y-5">
           {phaseModules.length === 0 ? (
-            <div className="text-center py-8 text-slate-400 text-sm">
-              No modules match the selected filter. Change filters to view curriculum details.
+            <div className="text-center py-6 text-zinc-500 text-xs">
+              No modules match the selected filter.
             </div>
           ) : (
             phaseModules.map((mod) => {
@@ -134,29 +127,27 @@ export const RoadmapView: React.FC = () => {
               const domain = domains.find((d) => d.id === mod.domainId);
 
               return (
-                <div key={mod.id} className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        {domain && (
-                          <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-800 text-blue-400 border border-slate-700">
-                            {domain.shortName}
-                          </span>
-                        )}
-                        <h4 className="font-bold text-base text-slate-100">{mod.name}</h4>
-                      </div>
-                      <p className="text-xs text-slate-400 mt-1">{mod.description}</p>
+                <div key={mod.id} className="space-y-3">
+                  {/* Module Title Row */}
+                  <div className="flex items-center justify-between bg-zinc-900/80 px-3 py-2 rounded border border-zinc-800">
+                    <div className="flex items-center gap-2">
+                      <ChevronRight className="size-3.5 text-zinc-500" />
+                      {domain && (
+                        <span className="text-[10px] font-mono text-zinc-400 px-1.5 py-0.2 rounded bg-zinc-800">
+                          {domain.shortName}
+                        </span>
+                      )}
+                      <span className="font-semibold text-xs text-zinc-200">{mod.name}</span>
                     </div>
-
                     {mod.targetDate && (
-                      <span className="text-xs font-mono px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-amber-400 shrink-0">
+                      <span className="text-[11px] font-mono text-zinc-400">
                         Target: {mod.targetDate}
                       </span>
                     )}
                   </div>
 
-                  {/* Topics List */}
-                  <div className="space-y-3 pt-2">
+                  {/* Topics Indented List */}
+                  <div className="pl-4 space-y-2 border-l border-zinc-800">
                     {modTopics.map((top) => {
                       let topTasks = taskDefinitions.filter((t) => t.topicId === top.id);
 
@@ -169,48 +160,43 @@ export const RoadmapView: React.FC = () => {
                       if (topTasks.length === 0 && filterState !== 'all') return null;
 
                       return (
-                        <div key={top.id} className="bg-slate-900/60 border border-slate-800/80 rounded-lg p-3 space-y-2">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-semibold text-slate-200 flex items-center gap-1.5">
-                              <BookOpen className="size-3.5 text-indigo-400" />
-                              {top.name}
-                            </span>
-                            <span className="text-slate-400">
-                              Importance: <strong className="text-slate-200">{top.importance}/10</strong>
+                        <div key={top.id} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs py-1 px-2 text-zinc-400 font-medium">
+                            <span>{top.name}</span>
+                            <span className="text-[11px] text-zinc-500">
+                              Importance: <span className="font-mono text-zinc-300">{top.importance}/10</span>
                             </span>
                           </div>
 
-                          {/* Tasks under topic */}
-                          <div className="space-y-1.5 pt-1">
+                          {/* Task rows */}
+                          <div className="space-y-1 pl-2">
                             {topTasks.map((t) => {
                               const state = taskProgress[t.id]?.state || 'not_started';
                               return (
                                 <div
                                   key={t.id}
-                                  className="flex items-center justify-between text-xs p-2 rounded bg-slate-950 border border-slate-800/60"
+                                  className="app-table-row flex items-center justify-between text-xs py-1.5 px-2 rounded"
                                 >
                                   <div className="flex items-center gap-2">
                                     {state === 'completed' ? (
                                       <CheckCircle2 className="size-3.5 text-emerald-400" />
                                     ) : (
-                                      <Circle className="size-3.5 text-slate-600" />
+                                      <Circle className="size-3.5 text-zinc-600" />
                                     )}
                                     <span
                                       className={`font-medium ${
-                                        state === 'completed' ? 'line-through text-slate-400' : 'text-slate-200'
+                                        state === 'completed' ? 'line-through text-zinc-500' : 'text-zinc-200'
                                       }`}
                                     >
                                       {t.title}
                                     </span>
                                   </div>
 
-                                  <div className="flex items-center gap-3 text-slate-400">
-                                    <span className="flex items-center gap-1 font-mono text-[11px]">
+                                  <div className="flex items-center gap-3 text-[11px] text-zinc-500">
+                                    <span className="flex items-center gap-1 font-mono">
                                       <Clock className="size-3" /> {t.estimatedMinutes}m
                                     </span>
-                                    <span className="uppercase text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800">
-                                      {t.taskType}
-                                    </span>
+                                    <span className="capitalize">{t.taskType}</span>
                                   </div>
                                 </div>
                               );

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { usePlacement } from '../../context/PlacementContext';
 import { DSAAttemptModal } from './DSAAttemptModal';
 import type { DSAProblem, DSAAttempt, DSAProgress } from '../../types';
-import { Code2, ExternalLink, Calendar, RotateCcw, PlusCircle, History } from 'lucide-react';
+import { ExternalLink, Filter, PlusCircle, History } from 'lucide-react';
 import { Button } from '../ui/button';
 
 export const DSAView: React.FC = () => {
@@ -11,20 +11,6 @@ export const DSAView: React.FC = () => {
   const [isAttemptModalOpen, setIsAttemptModalOpen] = useState<boolean>(false);
   const [filterDifficulty, setFilterDifficulty] = useState<string>('all');
   const [showHistoryForId, setShowHistoryForId] = useState<string | null>(null);
-
-  const boxColors: Record<number, string> = {
-    1: 'bg-rose-500/10 text-rose-300 border-rose-500/30 glow-rose',
-    2: 'bg-amber-500/10 text-amber-300 border-amber-500/30 glow-amber',
-    3: 'bg-blue-500/10 text-blue-300 border-blue-500/30 glow-blue',
-    4: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30 glow-emerald',
-  };
-
-  const boxIntervals: Record<number, string> = {
-    1: '1 day interval',
-    2: '3 days interval',
-    3: '7 days interval',
-    4: '14 days interval',
-  };
 
   const filteredProblems = dsaProblems.filter((p) => {
     if (filterDifficulty !== 'all' && p.difficulty !== filterDifficulty) return false;
@@ -45,69 +31,84 @@ export const DSAView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
         <div>
-          <div className="inline-flex items-center gap-2 text-xs font-extrabold text-blue-400 uppercase tracking-widest px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
-            <Code2 className="size-3.5" />
-            <span>Spaced Repetition & Practice</span>
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mt-1">
-            DSA Problem Bank & Leitner Boxes
-          </h2>
-          <p className="text-sm text-slate-400 font-medium mt-1">
-            Algorithmic problems backed by a deterministic 4-box Leitner spaced repetition system.
+          <h1 className="text-xl font-bold tracking-tight text-zinc-100 flex items-center gap-2">
+            DSA Problem Tracker
+          </h1>
+          <p className="text-xs text-zinc-400 mt-0.5">
+            Algorithmic practice backed by a deterministic 4-box Leitner spaced repetition system (1, 3, 7, 14 days)
           </p>
         </div>
 
         {/* Filter Controls */}
-        <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-700/80 rounded-2xl p-2 text-xs shadow-inner">
-          <span className="text-slate-400 font-medium px-2">Difficulty:</span>
+        <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-md px-2.5 py-1 text-xs">
+          <Filter className="size-3.5 text-zinc-400" />
+          <span className="text-zinc-500 font-medium">Difficulty:</span>
           <select
             value={filterDifficulty}
             onChange={(e) => setFilterDifficulty(e.target.value)}
-            className="bg-slate-950 text-slate-100 font-bold p-1.5 rounded-xl border border-slate-800 focus:outline-none"
+            className="bg-transparent text-zinc-200 font-medium focus:outline-none cursor-pointer text-xs"
           >
-            <option value="all">All Difficulties</option>
-            <option value="easy">Easy</option>
-            <option value="medium">Medium</option>
-            <option value="hard">Hard</option>
+            <option value="all" className="bg-zinc-900">All</option>
+            <option value="easy" className="bg-zinc-900">Easy</option>
+            <option value="medium" className="bg-zinc-900">Medium</option>
+            <option value="hard" className="bg-zinc-900">Hard</option>
           </select>
         </div>
       </div>
 
-      {/* Leitner Box Legend */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[1, 2, 3, 4].map((boxNum) => (
-          <div key={boxNum} className="glass-card p-4 rounded-2xl space-y-2">
-            <div className="flex items-center justify-between font-bold text-white text-sm">
-              <span>Box {boxNum}</span>
-              <span className={`text-[10px] px-2 py-0.5 rounded-full border font-mono font-bold ${boxColors[boxNum]}`}>
-                {boxIntervals[boxNum]}
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400 font-medium leading-snug">
-              {boxNum === 1
-                ? 'Daily review for weak / new problems.'
-                : boxNum === 2
-                ? 'Review every 3 days.'
-                : boxNum === 3
-                ? 'Review every week.'
-                : 'Mastered (review bi-weekly).'}
-            </p>
+      {/* Leitner System Quick Bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+        <div className="app-surface p-2.5">
+          <div className="flex justify-between text-zinc-400 text-[11px]">
+            <span>Box 1</span>
+            <span className="font-mono text-zinc-300">1 Day</span>
           </div>
-        ))}
+          <p className="text-[11px] text-zinc-500 mt-0.5">Daily practice / new</p>
+        </div>
+        <div className="app-surface p-2.5">
+          <div className="flex justify-between text-zinc-400 text-[11px]">
+            <span>Box 2</span>
+            <span className="font-mono text-zinc-300">3 Days</span>
+          </div>
+          <p className="text-[11px] text-zinc-500 mt-0.5">Review every 3d</p>
+        </div>
+        <div className="app-surface p-2.5">
+          <div className="flex justify-between text-zinc-400 text-[11px]">
+            <span>Box 3</span>
+            <span className="font-mono text-zinc-300">7 Days</span>
+          </div>
+          <p className="text-[11px] text-zinc-500 mt-0.5">Review weekly</p>
+        </div>
+        <div className="app-surface p-2.5">
+          <div className="flex justify-between text-zinc-400 text-[11px]">
+            <span>Box 4</span>
+            <span className="font-mono text-zinc-300">14 Days</span>
+          </div>
+          <p className="text-[11px] text-zinc-500 mt-0.5">Mastered</p>
+        </div>
       </div>
 
       {/* Problem Catalog Table */}
-      <div className="glass-card rounded-3xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
-          <h3 className="font-bold text-base text-white">Problem Catalog</h3>
-          <span className="text-xs text-slate-400 font-mono font-semibold">{filteredProblems.length} Problems</span>
+      <div className="app-surface overflow-hidden">
+        <div className="px-4 py-2.5 border-b border-zinc-800 flex items-center justify-between text-xs font-semibold text-zinc-300">
+          <span>Problem Catalog</span>
+          <span className="font-mono text-zinc-400 font-normal">{filteredProblems.length} Problems</span>
         </div>
 
-        <div className="divide-y divide-white/5">
+        {/* Table Header */}
+        <div className="hidden sm:grid grid-cols-12 px-4 py-2 bg-zinc-900/60 border-b border-zinc-800/80 text-[11px] font-medium text-zinc-500 uppercase tracking-wider">
+          <div className="col-span-5">Problem</div>
+          <div className="col-span-3">Pattern</div>
+          <div className="col-span-2">Difficulty</div>
+          <div className="col-span-2 text-right">Box / Action</div>
+        </div>
+
+        {/* Table Rows */}
+        <div className="divide-y divide-zinc-800/60">
           {filteredProblems.map((prob) => {
             const prog = dsaProgress[prob.id];
             const currentBox = prog?.currentBox || 1;
@@ -115,115 +116,88 @@ export const DSAView: React.FC = () => {
             const isShowingHistory = showHistoryForId === prob.id;
 
             return (
-              <div key={prob.id} className="p-5 space-y-3 hover:bg-slate-900/50 transition-colors">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span
-                        className={`text-[10px] uppercase font-extrabold px-2.5 py-0.5 rounded-full border ${
-                          prob.difficulty === 'easy'
-                            ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
-                            : prob.difficulty === 'medium'
-                            ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
-                            : 'bg-rose-500/10 text-rose-300 border-rose-500/30'
-                        }`}
+              <div key={prob.id} className="app-table-row p-3 sm:px-4 sm:py-2.5 space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-12 items-center gap-2">
+                  {/* Problem Name & Link */}
+                  <div className="sm:col-span-5 flex items-center gap-2">
+                    <span className="font-semibold text-xs text-zinc-100">{prob.title}</span>
+                    {prob.leetcodeUrl && (
+                      <a
+                        href={prob.leetcodeUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-zinc-500 hover:text-indigo-400 transition-colors"
                       >
-                        {prob.difficulty}
-                      </span>
-                      <span className="text-xs font-bold text-slate-300 bg-slate-900 px-2.5 py-0.5 rounded-xl border border-slate-800">
-                        {prob.pattern}
-                      </span>
-                    </div>
-
-                    <h4 className="font-bold text-white text-base sm:text-lg flex items-center gap-2">
-                      {prob.title}
-                      {prob.leetcodeUrl && (
-                        <a
-                          href={prob.leetcodeUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-slate-400 hover:text-blue-400 transition-colors"
-                        >
-                          <ExternalLink className="size-4" />
-                        </a>
-                      )}
-                    </h4>
+                        <ExternalLink className="size-3" />
+                      </a>
+                    )}
                   </div>
 
-                  <div className="flex items-center gap-4 text-xs">
+                  {/* Pattern */}
+                  <div className="sm:col-span-3 text-xs text-zinc-400">
+                    {prob.pattern}
+                  </div>
+
+                  {/* Difficulty */}
+                  <div className="sm:col-span-2 text-xs">
+                    <span
+                      className={`capitalize text-[11px] font-medium px-1.5 py-0.2 rounded border ${
+                        prob.difficulty === 'easy'
+                          ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800/60'
+                          : prob.difficulty === 'medium'
+                          ? 'bg-amber-950/60 text-amber-300 border-amber-800/60'
+                          : 'bg-rose-950/60 text-rose-300 border-rose-800/60'
+                      }`}
+                    >
+                      {prob.difficulty}
+                    </span>
+                  </div>
+
+                  {/* Box / Next Review & Action */}
+                  <div className="sm:col-span-2 flex items-center justify-end gap-2">
                     {prog ? (
-                      <div className="text-right space-y-1">
-                        <div className="flex items-center gap-2 justify-end">
-                          <span className="text-slate-400 font-medium">Leitner:</span>
-                          <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border ${boxColors[currentBox]}`}>
-                            Box {currentBox}
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1 justify-end font-semibold">
-                          <Calendar className="size-3.5 text-amber-400" />
-                          Next: {prog.nextReviewAt}
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="text-slate-500 italic font-medium flex items-center gap-1">
-                        <RotateCcw className="size-3.5" /> Unpracticed
+                      <span className="text-[11px] font-mono text-zinc-400">
+                        Box {currentBox}
                       </span>
+                    ) : (
+                      <span className="text-[11px] text-zinc-600 font-mono">New</span>
                     )}
 
-                    <div className="flex items-center gap-2">
-                      {attempts.length > 0 && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setShowHistoryForId(isShowingHistory ? null : prob.id)}
-                          className="text-xs text-slate-400 hover:text-slate-200 font-medium"
-                        >
-                          <History className="size-3.5 mr-1 text-indigo-400" /> {attempts.length} Attempts
-                        </Button>
-                      )}
-
-                      <Button
-                        size="sm"
-                        onClick={() => handleOpenAttempt(prob)}
-                        className="text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-md shadow-blue-500/20"
+                    {attempts.length > 0 && (
+                      <button
+                        onClick={() => setShowHistoryForId(isShowingHistory ? null : prob.id)}
+                        className="text-zinc-500 hover:text-zinc-300 p-1"
+                        title="View Attempt History"
                       >
-                        <PlusCircle className="size-3.5 mr-1" /> Log Attempt
-                      </Button>
-                    </div>
+                        <History className="size-3.5" />
+                      </button>
+                    )}
+
+                    <Button
+                      size="xs"
+                      onClick={() => handleOpenAttempt(prob)}
+                      className="h-6 text-[11px] font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700/80 px-2"
+                    >
+                      <PlusCircle className="size-3 mr-1" /> Log
+                    </Button>
                   </div>
                 </div>
 
-                {/* History Drawer */}
+                {/* Inline History Log */}
                 {isShowingHistory && (
-                  <div className="p-4 rounded-2xl bg-slate-950/90 border border-white/5 space-y-2.5 text-xs">
-                    <div className="font-bold text-slate-200 flex items-center gap-1.5">
-                      <History className="size-4 text-indigo-400" /> Attempt History Log
-                    </div>
-                    <div className="space-y-2">
+                  <div className="p-3 rounded bg-zinc-900 border border-zinc-800 space-y-2 text-xs">
+                    <div className="font-medium text-zinc-300 text-[11px]">Attempt History Log</div>
+                    <div className="space-y-1">
                       {attempts.map((att) => (
                         <div
                           key={att.id}
-                          className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-white/5 text-xs"
+                          className="flex items-center justify-between p-1.5 rounded bg-zinc-950 text-[11px]"
                         >
-                          <div className="flex items-center gap-2.5">
-                            <span
-                              className={`font-bold uppercase px-2 py-0.5 rounded-full text-[10px] ${
-                                att.result === 'pass'
-                                  ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30'
-                                  : att.result === 'partial'
-                                  ? 'bg-amber-500/10 text-amber-300 border border-amber-500/30'
-                                  : 'bg-rose-500/10 text-rose-300 border border-rose-500/30'
-                              }`}
-                            >
-                              {att.result}
-                            </span>
-                            <span className="text-slate-300">Assistance: <strong className="text-white">{att.assistanceLevel}</strong></span>
-                            {att.notes && <span className="text-slate-400 italic max-w-xs truncate font-serif">"{att.notes}"</span>}
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-zinc-300 uppercase">{att.result}</span>
+                            <span className="text-zinc-500">· Assistance: {att.assistanceLevel}</span>
                           </div>
-
-                          <div className="text-right text-slate-400 font-mono text-[11px]">
-                            {att.timeTakenMinutes}m • {att.date}
-                          </div>
+                          <span className="font-mono text-zinc-500">{att.timeTakenMinutes}m · {att.date}</span>
                         </div>
                       ))}
                     </div>
