@@ -170,6 +170,20 @@ export interface DSAProgress {
 
 export type SkillFreshnessState = 'untested' | 'fresh' | 'aging' | 'stale';
 
+export interface UserSettings {
+  placementHorizonDate: string; // YYYY-MM-DD
+  targetPlacementGoal: string;
+  targetPhaseId: string;
+  dailyStudyMinutes: number; // 30 - 480
+  dsaDailyCap: number; // 1 - 15
+  placementMode: PlacementMode;
+  theme: 'dark' | 'high_contrast' | 'slate_dark';
+  densityMode: 'compact' | 'comfortable';
+  showExplanationTooltips: boolean;
+  dailyCheckInReminder: boolean;
+  reminderTime: string; // HH:mm format
+}
+
 export interface TopicSkillState {
   topicId: string;
   domainId: DomainId;

@@ -15,6 +15,7 @@ import type {
   DailyTaskAssignment,
   EvidenceLog,
   PlacementMode,
+  UserSettings,
 } from '../types';
 import {
   DOMAINS,
@@ -24,7 +25,7 @@ import {
   TASK_DEFINITIONS,
   DSA_PROBLEMS,
 } from '../data/seedData';
-import { StorageAdapter, type AppStorageState } from '../storage/storageAdapter';
+import { StorageAdapter, DEFAULT_USER_SETTINGS, type AppStorageState } from '../storage/storageAdapter';
 
 export type RoutePath = 'dashboard' | 'roadmap' | 'dsa' | 'skills' | 'companies' | 'analytics' | 'settings';
 
@@ -40,6 +41,9 @@ interface PlacementContextType {
   todayDate: string;
   currentMode: PlacementMode;
   setPlacementMode: (mode: PlacementMode) => void;
+  userSettings: UserSettings;
+  updateUserSettings: (newSettings: Partial<UserSettings>) => void;
+  resetUserSettingsOnly: () => void;
   phases: Phase[];
   modules: Module[];
   topics: Topic[];
@@ -162,8 +166,42 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setAppState((prev) => ({
       ...prev,
       currentMode: mode,
+      userSettings: {
+        ...prev.userSettings,
+        placementMode: mode,
+      },
     }));
   };
+
+  const updateUserSettings = (newSettings: Partial<UserSettings>) => {
+    setAppState((prev) => ({
+      ...prev,
+      currentMode: newSettings.placementMode ?? prev.currentMode,
+      userSettings: {
+        ...(prev.userSettings || DEFAULT_USER_SETTINGS),
+        ...newSettings,
+      },
+    }));
+  };
+
+  const resetUserSettingsOnly = () => {
+    setAppState((prev) => ({
+      ...prev,
+      currentMode: DEFAULT_USER_SETTINGS.placementMode,
+      userSettings: DEFAULT_USER_SETTINGS,
+    }));
+  };
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const settings = appState.userSettings || DEFAULT_USER_SETTINGS;
+    if (settings.theme) {
+      root.setAttribute('data-theme', settings.theme);
+    }
+    if (settings.densityMode) {
+      root.setAttribute('data-density', settings.densityMode);
+    }
+  }, [appState.userSettings]);
 
   const activePhase = PHASES[0];
 
@@ -400,6 +438,9 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         todayDate,
         currentMode: appState.currentMode,
         setPlacementMode,
+        userSettings: appState.userSettings || DEFAULT_USER_SETTINGS,
+        updateUserSettings,
+        resetUserSettingsOnly,
         phases: PHASES,
         modules: MODULES,
         topics: TOPICS,

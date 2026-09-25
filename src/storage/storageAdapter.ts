@@ -6,6 +6,7 @@ import type {
   DailyCheckIn,
   DailyTaskAssignment,
   PlacementMode,
+  UserSettings,
 } from '../types';
 import {
   TASK_PROGRESS,
@@ -18,11 +19,26 @@ export const STORAGE_KEY = 'placementos_v1_state';
 export const CURRENT_SCHEMA_VERSION = '1.0.0';
 export const CURRENT_APP_VERSION = '1.0.0';
 
+export const DEFAULT_USER_SETTINGS: UserSettings = {
+  placementHorizonDate: '2027-05-31',
+  targetPlacementGoal: 'Software Engineer (SDE-1)',
+  targetPhaseId: 'phase-1',
+  dailyStudyMinutes: 120,
+  dsaDailyCap: 5,
+  placementMode: 'normal',
+  theme: 'dark',
+  densityMode: 'compact',
+  showExplanationTooltips: true,
+  dailyCheckInReminder: true,
+  reminderTime: '20:00',
+};
+
 export interface AppStorageState {
   schemaVersion: string;
   appVersion: string;
   lastSavedAt: string;
   currentMode: PlacementMode;
+  userSettings: UserSettings;
   taskProgress: Record<string, TaskProgress>;
   dsaProgress: Record<string, DSAProgress>;
   skillStates: Record<string, TopicSkillState>;
@@ -55,6 +71,7 @@ export function getDefaultStorageState(): AppStorageState {
     appVersion: CURRENT_APP_VERSION,
     lastSavedAt: new Date().toISOString(),
     currentMode: 'normal',
+    userSettings: DEFAULT_USER_SETTINGS,
     taskProgress: taskProgressMap,
     dsaProgress: dsaProgressMap,
     skillStates: skillStateMap,
@@ -138,6 +155,10 @@ export const StorageAdapter = {
 
         const migratedState: AppStorageState = {
           ...parsed,
+          userSettings: {
+            ...DEFAULT_USER_SETTINGS,
+            ...(parsed.userSettings || {}),
+          },
           taskProgress: mergedTaskProgress,
           skillStates: mergedSkillStates,
           dsaProgress: mergedDsaProgress,
