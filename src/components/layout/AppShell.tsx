@@ -13,6 +13,7 @@ import {
   Calendar,
   Layers,
   Terminal,
+  Target,
 } from 'lucide-react';
 
 interface AppShellProps {
@@ -27,6 +28,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
     { id: 'roadmap', label: 'Roadmap', icon: Map },
     { id: 'dsa', label: 'DSA Bank', icon: Code2 },
     { id: 'skills', label: 'Skills Matrix', icon: Sparkles },
+    { id: 'practice', label: 'Practice Hub', icon: Target },
     { id: 'companies', label: 'Companies', icon: Building2 },
     { id: 'analytics', label: 'Analytics & Review', icon: BarChart3 },
     { id: 'settings', label: 'Settings', icon: Settings },
@@ -38,6 +40,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       case 'roadmap': return 'Master Roadmap & Trajectory';
       case 'dsa': return 'DSA Bank & Spaced Repetition';
       case 'skills': return 'Skills Matrix & Readiness';
+      case 'practice': return 'Placement Assessment & Practice Hub';
       case 'companies': return 'Target Companies & Overlays';
       case 'analytics': return 'Analytics & Telemetry Review';
       case 'settings': return 'System Settings & Storage';

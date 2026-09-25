@@ -413,3 +413,38 @@ export function calculateEvidenceScore(
   const score = Math.round(base * multiplier) + (confidence - 3) * 5;
   return Math.min(100, Math.max(0, score));
 }
+
+export interface PracticeSignals {
+  assessmentDue: boolean;
+  weakTopic: boolean;
+  lowAccuracy: boolean;
+  staleDomain: boolean;
+  interviewPracticeDue: boolean;
+}
+
+/**
+ * Deterministic Practice Signals calculation for placement readiness.
+ */
+export function evaluatePracticeSignals(
+  practiceAttempts: { accuracyPct: number; completedAt: string }[] = [],
+  skillStates: Record<string, TopicSkillState> = {},
+  companyOverlays: CompanyOverlay[] = []
+): PracticeSignals {
+  const recentAttempts = practiceAttempts.slice(0, 5);
+  const lowAccuracy = recentAttempts.some((a) => a.accuracyPct < 60);
+  const staleDomain = Object.values(skillStates).some((sk) => sk.freshness === 'stale');
+  const weakTopic = Object.values(skillStates).some((sk) => sk.evidenceStrength < 40);
+
+  const hasUpcomingInterviews = companyOverlays.some((c) =>
+    ['interview_scheduled', 'oa_scheduled'].includes(c.applicationStatus)
+  );
+
+  return {
+    assessmentDue: recentAttempts.length === 0 || staleDomain,
+    weakTopic,
+    lowAccuracy,
+    staleDomain,
+    interviewPracticeDue: hasUpcomingInterviews,
+  };
+}
+

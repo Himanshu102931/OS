@@ -294,19 +294,80 @@ export interface EvidenceLog {
   score: number; // 0 - 100
   confidence: 1 | 2 | 3 | 4 | 5;
   timestamp: string; // ISO timestamp
-  sourceType: 'daily_assignment' | 'dsa_attempt' | 'test' | 'mock_interview' | 'project_feature';
+  sourceType: 'daily_assignment' | 'dsa_attempt' | 'test' | 'mock_interview' | 'project_feature' | 'practice_session';
   sourceId: string;
   details?: string;
 }
 
-export interface EvidenceLog {
+// --- Practice & Assessment Subsystem Types ---
+
+export type PracticeCategory =
+  | 'aptitude'
+  | 'verbal'
+  | 'sql'
+  | 'core_cs'
+  | 'project_defense'
+  | 'mock_interview';
+
+export type QuestionType =
+  | 'mcq'
+  | 'short_answer'
+  | 'sql_scenario'
+  | 'defense_prompt'
+  | 'interview_question';
+
+export interface PracticeQuestion {
   id: string;
-  topicId: string;
+  category: PracticeCategory;
   domainId: DomainId;
-  score: number; // 0 - 100
-  confidence: 1 | 2 | 3 | 4 | 5;
-  timestamp: string; // ISO timestamp
-  sourceType: 'daily_assignment' | 'dsa_attempt' | 'test' | 'mock_interview' | 'project_feature';
-  sourceId: string;
-  details?: string;
+  topicId: string;
+  questionType: QuestionType;
+  prompt: string;
+  options?: string[]; // 0-indexed string choices for MCQ
+  correctAnswer?: number | string; // Option index or text match
+  explanation?: string;
+  hint?: string;
+  categoryTag?: string; // e.g. "percentages", "joins", "os_memory", "behavioral"
 }
+
+export interface PracticeSessionDefinition {
+  id: string;
+  title: string;
+  description: string;
+  category: PracticeCategory;
+  domainId: DomainId;
+  topicId?: string;
+  estimatedMinutes: number;
+  questionCount: number;
+  passingScorePct: number;
+  questions: PracticeQuestion[];
+}
+
+export interface PracticeUserAnswer {
+  questionId: string;
+  selectedOption?: number;
+  userResponse?: string;
+  isCorrect?: boolean;
+  usedHint?: boolean;
+  confidence?: 1 | 2 | 3 | 4 | 5;
+}
+
+export interface PracticeAttempt {
+  id: string;
+  sessionId: string;
+  sessionTitle: string;
+  category: PracticeCategory;
+  domainId: DomainId;
+  topicId?: string;
+  date: string; // YYYY-MM-DD
+  completedAt: string; // ISO timestamp
+  totalTimeSeconds: number;
+  scorePct: number;
+  accuracyPct: number;
+  correctCount: number;
+  totalQuestions: number;
+  userAnswers: PracticeUserAnswer[];
+  evidenceLogId?: string;
+  notes?: string;
+}
+

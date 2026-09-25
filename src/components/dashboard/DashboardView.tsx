@@ -5,8 +5,10 @@ import { MorningPlanningModal } from '../daily/MorningPlanningModal';
 import { EveningReflectionModal } from '../daily/EveningReflectionModal';
 import { FocusModeModal } from '../daily/FocusModeModal';
 import { TaskLearningWorkspaceDrawer } from '../common/TaskLearningWorkspaceDrawer';
+import { PracticeRunnerModal } from '../practice/PracticeRunnerModal';
 import { getEvaluatedCandidates, type CandidateTask } from '../../engine/adaptiveEngine';
-import type { TaskProgress, TaskDefinition } from '../../types';
+import { getRecommendedPracticeSession } from '../../engine/practiceEngine';
+import type { TaskProgress, TaskDefinition, PracticeSessionDefinition } from '../../types';
 import {
   Sun,
   Moon,
@@ -25,6 +27,8 @@ import {
   CheckCircle2,
   Sparkles,
   Compass,
+  Target,
+  Play,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 
@@ -47,11 +51,15 @@ export const DashboardView: React.FC = () => {
     commitDailyPlan,
     sealDayExecution,
     decomposeTask,
+    practiceSessions,
+    practiceAttempts,
+    recordPracticeAttempt,
   } = usePlacement();
 
   const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
   const [isEveningModalOpen, setIsEveningModalOpen] = useState(false);
   const [isFocusModalOpen, setIsFocusModalOpen] = useState(false);
+  const [activePracticeSession, setActivePracticeSession] = useState<PracticeSessionDefinition | null>(null);
   const [isPlanExpanded, setIsPlanExpanded] = useState(false);
   const [showTelemetryDetails, setShowTelemetryDetails] = useState(false);
   const [workspaceTask, setWorkspaceTask] = useState<{ task: TaskDefinition; candidate?: CandidateTask } | null>(null);
@@ -90,6 +98,14 @@ export const DashboardView: React.FC = () => {
   const nextBestActionCandidate = evaluatedCandidates[0];
   const nextBestActionTask = nextBestActionCandidate?.task;
   const nextActionState = nextBestActionTask ? taskProgress[nextBestActionTask.id]?.state || 'not_started' : 'not_started';
+
+  // Practice recommendation call for Today page
+  const practiceRecommendation = getRecommendedPracticeSession(
+    practiceSessions,
+    practiceAttempts,
+    skillStates,
+    companyOverlays
+  );
 
   const completedCount = Object.values(taskProgress).filter((tp) => tp.state === 'completed').length;
   const totalTasks = taskDefinitions.length;
@@ -306,7 +322,46 @@ export const DashboardView: React.FC = () => {
         </div>
       )}
 
-      {/* 3. UP NEXT / TODAY'S PLAN */}
+      {/* 3. PRIMARY PRACTICE DRILL RECOMMENDATION (At most ONE callout) */}
+      {practiceRecommendation && (
+        <section className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Target className="size-4 text-[#E5A93C]" />
+              <span className="text-xs font-bold text-[#F1F5F9]">
+                {practiceRecommendation.session.estimatedMinutes} min · {practiceRecommendation.session.title}
+              </span>
+            </div>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-[#1B2028] text-[#FFC665] border border-[#262D38] font-mono">
+              {practiceRecommendation.categoryTag}
+            </span>
+          </div>
+
+          <p className="text-xs text-[#8E98A8]">
+            <span className="text-[#FFC665] font-semibold">Why this drill? </span>
+            {practiceRecommendation.reason}
+          </p>
+
+          <div className="flex items-center justify-between pt-2 border-t border-[#262D38]">
+            <button
+              onClick={() => setRoute('practice')}
+              className="text-xs text-[#8E98A8] hover:text-[#F1F5F9] font-medium flex items-center gap-1"
+            >
+              Explore All Practice Drills <ArrowRight className="size-3" />
+            </button>
+
+            <Button
+              size="xs"
+              onClick={() => setActivePracticeSession(practiceRecommendation.session)}
+              className="h-8 text-xs font-bold bg-[#1B2028] hover:bg-[#222833] text-[#FFC665] border border-[#E5A93C]/40 rounded-md px-3"
+            >
+              <Play className="size-3 mr-1" /> Start Drill
+            </Button>
+          </div>
+        </section>
+      )}
+
+      {/* 4. UP NEXT / TODAY'S PLAN */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-[#F1F5F9]">
@@ -371,7 +426,7 @@ export const DashboardView: React.FC = () => {
         )}
       </section>
 
-      {/* 4. THIS WEEK PROGRESS SUMMARY */}
+      {/* 5. THIS WEEK PROGRESS SUMMARY */}
       <section className="bg-[#14171D] border border-[#262D38] rounded-lg p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="space-y-1 flex-1 w-full">
           <div className="flex justify-between text-xs text-[#8E98A8] font-medium">
@@ -390,7 +445,7 @@ export const DashboardView: React.FC = () => {
         </div>
       </section>
 
-      {/* 5. PROGRESSIVE DISCLOSURE: SYSTEM INSIGHTS & TELEMETRY */}
+      {/* 6. PROGRESSIVE DISCLOSURE: SYSTEM INSIGHTS & TELEMETRY */}
       <section className="pt-2">
         <button
           onClick={() => setShowTelemetryDetails(!showTelemetryDetails)}
@@ -452,6 +507,17 @@ export const DashboardView: React.FC = () => {
           </div>
         )}
       </section>
+
+      {/* Practice Runner Modal for Today Page */}
+      <PracticeRunnerModal
+        session={activePracticeSession}
+        isOpen={!!activePracticeSession}
+        todayISO={todayDate}
+        onClose={() => setActivePracticeSession(null)}
+        onCompleteSession={(attempt, evidenceLog) => {
+          recordPracticeAttempt(attempt, evidenceLog);
+        }}
+      />
 
       {/* Focus Mode Overlay */}
       <FocusModeModal

@@ -7,6 +7,7 @@ import type {
   DailyTaskAssignment,
   PlacementMode,
   UserSettings,
+  PracticeAttempt,
 } from '../types';
 import {
   TASK_PROGRESS,
@@ -45,6 +46,7 @@ export interface AppStorageState {
   companyOverlays: CompanyOverlay[];
   dailyCheckIns: DailyCheckIn[];
   dailyTaskAssignments: DailyTaskAssignment[];
+  practiceAttempts?: PracticeAttempt[];
 }
 
 /**
@@ -78,6 +80,7 @@ export function getDefaultStorageState(): AppStorageState {
     companyOverlays: COMPANY_OVERLAYS,
     dailyCheckIns: [],
     dailyTaskAssignments: [],
+    practiceAttempts: [],
   };
 }
 
@@ -121,13 +124,10 @@ export const StorageAdapter = {
       const parsed = JSON.parse(raw);
 
       if (validateStorageState(parsed)) {
-        // Idempotent migration: Merge default task progress & skills for newly added curriculum items
         const defaults = getDefaultStorageState();
         const mergedTaskProgress = { ...defaults.taskProgress, ...parsed.taskProgress };
         const mergedSkillStates = { ...defaults.skillStates, ...parsed.skillStates };
 
-        // Safe idempotent migration for DSA progress objects:
-        // Preserves existing progress, box, attempts, review dates, notes, and evidence while filling missing new fields
         const mergedDsaProgress: Record<string, DSAProgress> = {};
         Object.keys(defaults.dsaProgress).forEach((probId) => {
           const defaultItem = defaults.dsaProgress[probId];
@@ -152,7 +152,6 @@ export const StorageAdapter = {
           }
         });
 
-
         const migratedState: AppStorageState = {
           ...parsed,
           userSettings: {
@@ -162,6 +161,7 @@ export const StorageAdapter = {
           taskProgress: mergedTaskProgress,
           skillStates: mergedSkillStates,
           dsaProgress: mergedDsaProgress,
+          practiceAttempts: parsed.practiceAttempts || [],
         };
         this.saveState(migratedState);
         return migratedState;
@@ -199,46 +199,7 @@ export const StorageAdapter = {
   },
 
   /**
-   * Clears state from localStorage and resets application state to defaults.
-   */
-  resetState(): AppStorageState {
-    try {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.removeItem(STORAGE_KEY);
-      }
-    } catch (err) {
-      console.error('[PlacementOS] Error clearing localStorage:', err);
-    }
-    const defaults = getDefaultStorageState();
-    this.saveState(defaults);
-    return defaults;
-  },
-
-  /**
-   * Exports full state object as a formatted JSON backup string.
-   */
-  exportJSON(state: AppStorageState): string {
-    return JSON.stringify(state, null, 2);
-  },
-
-  /**
-   * Imports state from a JSON string backup with schema validation.
-   */
-  importJSON(jsonString: string): { success: boolean; state?: AppStorageState; error?: string } {
-    try {
-      const parsed = JSON.parse(jsonString);
-      if (!validateStorageState(parsed)) {
-        return { success: false, error: 'Invalid backup file structure or missing required schema fields.' };
-      }
-      this.saveState(parsed);
-      return { success: true, state: parsed };
-    } catch (err) {
-      return { success: false, error: `JSON Parse Error: ${err instanceof Error ? err.message : String(err)}` };
-    }
-  },
-
-  /**
-   * Returns estimated total byte size of stored PlacementOS data in localStorage.
+   * Calculates size of stored JSON string in bytes.
    */
   getStorageBytes(): number {
     try {
@@ -248,5 +209,52 @@ export const StorageAdapter = {
     } catch {
       return 0;
     }
+  },
+
+  /**
+   * Clears stored JSON state in localStorage.
+   */
+  clearState(): boolean {
+    try {
+      if (typeof localStorage === 'undefined') return true;
+      localStorage.removeItem(STORAGE_KEY);
+      return true;
+    } catch (err) {
+      console.error('[PlacementOS] Failed to clear localStorage state:', err);
+      return false;
+    }
+  },
+
+  /**
+   * Exports state object to formatted JSON string.
+   */
+  exportJSON(state: AppStorageState): string {
+    return JSON.stringify(state, null, 2);
+  },
+
+  /**
+   * Imports state from JSON string with validation.
+   */
+  importJSON(jsonString: string): { success: boolean; state?: AppStorageState; error?: string } {
+    try {
+      const parsed = JSON.parse(jsonString);
+      if (validateStorageState(parsed)) {
+        this.saveState(parsed);
+        return { success: true, state: parsed };
+      }
+      return { success: false, error: 'Invalid backup format or missing schema properties' };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to parse JSON string';
+      return { success: false, error: msg };
+    }
+  },
+
+  /**
+   * Resets local storage state to defaults.
+   */
+  resetState(): AppStorageState {
+    const defaults = getDefaultStorageState();
+    this.saveState(defaults);
+    return defaults;
   },
 };
