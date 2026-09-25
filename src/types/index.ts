@@ -43,6 +43,13 @@ export interface Module {
   order: number;
 }
 
+export interface TopicEducationalMetadata {
+  overview?: string;
+  whyItMatters?: string;
+  learningObjectives?: string[];
+  successCriteria?: string[];
+}
+
 export interface Topic {
   id: string;
   moduleId: string;
@@ -51,6 +58,7 @@ export interface Topic {
   description: string;
   targetDate?: string;
   importance: number; // 1 - 10 scale
+  educationalMetadata?: TopicEducationalMetadata;
 }
 
 export interface TaskLearningMetadata {
