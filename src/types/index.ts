@@ -89,6 +89,19 @@ export interface TaskDefinition {
   learningMetadata?: TaskLearningMetadata;
 }
 
+export type AccessTier = 'FREE' | 'PREMIUM' | 'UNKNOWN';
+export type ProgressionTier = 'STARTER' | 'CORE' | 'CHALLENGE';
+export type LeitnerBox = 1 | 2 | 3 | 4;
+export type AttemptResult = 'pass' | 'partial' | 'fail';
+export type AssistanceLevel = 'none' | 'hint' | 'solution';
+export type SelfCheckRating = 'correct' | 'incorrect' | 'unsure';
+
+export interface LearningHint {
+  whatToRecognize: string;
+  keyIdea: string;
+  commonTrap: string;
+}
+
 export interface SkillDefinition {
   id: string;
   domainId: DomainId;
@@ -98,13 +111,26 @@ export interface SkillDefinition {
 }
 
 export interface DSAProblem {
-  id: string;
+  id: string; // 'dsa-001' .. 'dsa-150'
+  leetcodeNumber: number;
   title: string;
   domainId: DomainId;
   topicId: string;
   difficulty: 'easy' | 'medium' | 'hard';
-  leetcodeUrl?: string;
-  pattern: string;
+  leetcodeUrl: string;
+  accessTier: AccessTier;
+  alternativeResourceUrl?: string;
+  primaryPattern: string;
+  secondaryPatterns?: string[];
+  dataStructure: string;
+  algorithmicTechnique: string;
+  recommendedPhase: number;
+  progressionTier: ProgressionTier;
+  prerequisites: string[]; // Problem IDs
+  isAnchor: boolean;
+  estimatedTimeMinutes: number;
+  learningHint?: LearningHint;
+  pattern?: string; // Backwards compatibility helper
 }
 
 // --- Mutable Runtime State Types ---
@@ -122,10 +148,22 @@ export interface TaskProgress {
 
 export interface DSAProgress {
   problemId: string;
-  currentBox: 1 | 2 | 3 | 4;
-  nextReviewAt: string; // YYYY-MM-DD
+  currentBox: LeitnerBox;
+  nextReviewAt?: string; // YYYY-MM-DD
   lastAttemptAt?: string; // ISO timestamp
   attemptCount: number;
+  totalAttempts?: number;
+  successfulAttempts?: number;
+  passedIndependently?: boolean;
+  consecutiveAssistedPasses?: number;
+  assistedProvisional?: boolean;
+  consecutiveFailures?: number;
+  remediationRequired?: boolean;
+  patternLessonViewed?: boolean;
+  patternLessonCompleted?: boolean;
+  remediationSelfCheckPassed?: boolean;
+  evidenceStrength?: number;
+  notes?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -187,15 +225,64 @@ export interface CompanyOverlay {
 
 // --- Historical Records Types ---
 
+export interface PatternSelfCheckEvidence {
+  patternRecognition: SelfCheckRating;
+  timeComplexity: SelfCheckRating;
+  spaceComplexity: SelfCheckRating;
+}
+
 export interface DSAAttempt {
   id: string;
   problemId: string;
-  date: string; // YYYY-MM-DD
-  result: 'pass' | 'partial' | 'fail';
-  assistanceLevel: 'none' | 'hint' | 'solution';
+  date: string; // YYYY-MM-DD or ISO timestamp
+  result: AttemptResult;
+  assistanceLevel: AssistanceLevel;
   timeTakenMinutes: number;
   notes?: string;
+  selfCheck?: PatternSelfCheckEvidence;
+  selfCheckEvidence?: PatternSelfCheckEvidence;
   createdAt: string;
+}
+
+export interface PatternMetadata {
+  id?: string;
+  patternId: string;
+  name: string;
+  title?: string;
+  overview: string;
+  whyItMatters: string;
+  recognitionSignals: string[];
+  coreIntuition: string;
+  codeTemplate: string;
+  commonMistakes: string[];
+  expectedTimeComplexity: string;
+  expectedSpaceComplexity: string;
+  primaryResourceId: string;
+  secondaryResourceId?: string;
+}
+
+export interface LearningResource {
+  id: string;
+  title: string;
+  provider: 'NeetCode' | 'LeetCode' | 'TakeUForward' | 'LintCode' | 'GeeksforGeeks';
+  type: 'video' | 'article' | 'interactive_problem';
+  url: string;
+  accessTier: AccessTier;
+  accessStatus?: AccessTier;
+  estimatedMinutes: number;
+  purpose: string;
+}
+
+export interface EvidenceLog {
+  id: string;
+  topicId: string;
+  domainId: DomainId;
+  score: number; // 0 - 100
+  confidence: 1 | 2 | 3 | 4 | 5;
+  timestamp: string; // ISO timestamp
+  sourceType: 'daily_assignment' | 'dsa_attempt' | 'test' | 'mock_interview' | 'project_feature';
+  sourceId: string;
+  details?: string;
 }
 
 export interface EvidenceLog {

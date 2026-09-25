@@ -139,10 +139,13 @@ export function calculateSpacedRepetition(
   todayStr?: string
 ): number {
   if (dsaProgress && todayStr) {
-    const daysUntilReview = getDaysDifference(dsaProgress.nextReviewAt, todayStr);
-    if (daysUntilReview <= 0) return 100;
-    if (daysUntilReview === 1) return 50;
-    return 0;
+    if (dsaProgress.remediationRequired) return 100;
+    if (dsaProgress.nextReviewAt) {
+      const daysUntilReview = getDaysDifference(dsaProgress.nextReviewAt, todayStr);
+      if (daysUntilReview <= 0) return 100;
+      if (daysUntilReview === 1) return 50;
+      return 0;
+    }
   }
   return task.taskType === 'review' ? 70 : 0;
 }

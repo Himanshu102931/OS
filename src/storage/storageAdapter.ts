@@ -108,7 +108,33 @@ export const StorageAdapter = {
         const defaults = getDefaultStorageState();
         const mergedTaskProgress = { ...defaults.taskProgress, ...parsed.taskProgress };
         const mergedSkillStates = { ...defaults.skillStates, ...parsed.skillStates };
-        const mergedDsaProgress = { ...defaults.dsaProgress, ...parsed.dsaProgress };
+
+        // Safe idempotent migration for DSA progress objects:
+        // Preserves existing progress, box, attempts, review dates, notes, and evidence while filling missing new fields
+        const mergedDsaProgress: Record<string, DSAProgress> = {};
+        Object.keys(defaults.dsaProgress).forEach((probId) => {
+          const defaultItem = defaults.dsaProgress[probId];
+          const userItem = parsed.dsaProgress[probId];
+          if (userItem) {
+            mergedDsaProgress[probId] = {
+              ...defaultItem,
+              ...userItem,
+              currentBox: userItem.currentBox ?? defaultItem.currentBox,
+              attemptCount: userItem.attemptCount ?? defaultItem.attemptCount,
+              passedIndependently: userItem.passedIndependently ?? defaultItem.passedIndependently ?? false,
+              consecutiveAssistedPasses: userItem.consecutiveAssistedPasses ?? defaultItem.consecutiveAssistedPasses ?? 0,
+              assistedProvisional: userItem.assistedProvisional ?? defaultItem.assistedProvisional ?? false,
+              consecutiveFailures: userItem.consecutiveFailures ?? defaultItem.consecutiveFailures ?? 0,
+              remediationRequired: userItem.remediationRequired ?? defaultItem.remediationRequired ?? false,
+              patternLessonViewed: userItem.patternLessonViewed ?? defaultItem.patternLessonViewed ?? false,
+              patternLessonCompleted: userItem.patternLessonCompleted ?? defaultItem.patternLessonCompleted ?? false,
+              remediationSelfCheckPassed: userItem.remediationSelfCheckPassed ?? defaultItem.remediationSelfCheckPassed ?? false,
+            };
+          } else {
+            mergedDsaProgress[probId] = defaultItem;
+          }
+        });
+
 
         const migratedState: AppStorageState = {
           ...parsed,

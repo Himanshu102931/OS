@@ -70,6 +70,7 @@ interface PlacementContextType {
     updatedProgress: DSAProgress,
     evidenceScore: number
   ) => void;
+  updateDSAProgress: (updatedProgress: DSAProgress) => void;
   updateSkillState: (updatedSkillState: TopicSkillState) => void;
   saveCompanyOverlay: (company: CompanyOverlay) => void;
   decomposeTask: (parentTask: TaskDefinition, subtasks: TaskDefinition[]) => void;
@@ -291,6 +292,16 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   };
 
+  const updateDSAProgress = (updatedProgress: DSAProgress) => {
+    setAppState((prev) => ({
+      ...prev,
+      dsaProgress: {
+        ...prev.dsaProgress,
+        [updatedProgress.problemId]: updatedProgress,
+      },
+    }));
+  };
+
   const updateSkillState = (updatedSkillState: TopicSkillState) => {
     setAppState((prev) => ({
       ...prev,
@@ -408,6 +419,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         commitDailyPlan,
         sealDayExecution,
         logDSAAttempt,
+        updateDSAProgress,
         updateSkillState,
         saveCompanyOverlay,
         decomposeTask,

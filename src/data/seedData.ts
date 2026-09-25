@@ -5,11 +5,14 @@ import type {
   Topic,
   TaskDefinition,
   TaskProgress,
-  DSAProblem,
   DSAProgress,
   CompanyOverlay,
   TopicSkillState,
 } from '../types';
+import { DSA_PROBLEMS, PATTERN_LESSONS, LEARNING_RESOURCES } from './dsaDataset';
+
+export { DSA_PROBLEMS, PATTERN_LESSONS, LEARNING_RESOURCES };
+
 
 export const DOMAINS: DomainDefinition[] = [
   {
@@ -944,137 +947,65 @@ export const TASK_PROGRESS: TaskProgress[] = [
   },
 ];
 
-export const DSA_PROBLEMS: DSAProblem[] = [
-  {
-    id: 'dsa-prob-1',
-    title: 'Two Sum',
-    domainId: 'dsa',
-    topicId: 'topic-dsa-hashtable',
-    difficulty: 'easy',
-    leetcodeUrl: 'https://leetcode.com/problems/two-sum/',
-    pattern: 'Hash Map Lookup',
-  },
-  {
-    id: 'dsa-prob-2',
-    title: 'Container With Most Water',
-    domainId: 'dsa',
-    topicId: 'topic-dsa-arrays',
-    difficulty: 'medium',
-    leetcodeUrl: 'https://leetcode.com/problems/container-with-most-water/',
-    pattern: 'Two Pointers',
-  },
-  {
-    id: 'dsa-prob-3',
-    title: '3Sum',
-    domainId: 'dsa',
-    topicId: 'topic-dsa-arrays',
-    difficulty: 'medium',
-    leetcodeUrl: 'https://leetcode.com/problems/3sum/',
-    pattern: 'Sorting + Two Pointers',
-  },
-  {
-    id: 'dsa-prob-4',
-    title: 'Valid Anagram',
-    domainId: 'dsa',
-    topicId: 'topic-dsa-hashtable',
-    difficulty: 'easy',
-    leetcodeUrl: 'https://leetcode.com/problems/valid-anagram/',
-    pattern: 'Frequency Array / Map',
-  },
-  {
-    id: 'dsa-prob-5',
-    title: 'LRU Cache Design',
-    domainId: 'dsa',
-    topicId: 'topic-dsa-linkedlist',
-    difficulty: 'hard',
-    leetcodeUrl: 'https://leetcode.com/problems/lru-cache/',
-    pattern: 'Doubly Linked List + Hash Map',
-  },
-  {
-    id: 'dsa-prob-6',
-    title: 'Reverse Linked List',
-    domainId: 'dsa',
-    topicId: 'topic-dsa-linkedlist',
-    difficulty: 'easy',
-    leetcodeUrl: 'https://leetcode.com/problems/reverse-linked-list/',
-    pattern: 'In-Place Pointer Iteration',
-  },
-  {
-    id: 'dsa-prob-7',
-    title: 'Linked List Cycle Detection',
-    domainId: 'dsa',
-    topicId: 'topic-dsa-linkedlist',
-    difficulty: 'easy',
-    leetcodeUrl: 'https://leetcode.com/problems/linked-list-cycle/',
-    pattern: 'Floyd Slow & Fast Pointer',
-  },
-  {
-    id: 'dsa-prob-8',
-    title: 'Binary Tree Level Order Traversal',
-    domainId: 'dsa',
-    topicId: 'topic-dsa-trees',
-    difficulty: 'medium',
-    leetcodeUrl: 'https://leetcode.com/problems/binary-tree-level-order-traversal/',
-    pattern: 'Queue BFS',
-  },
-  {
-    id: 'dsa-prob-9',
-    title: 'Lowest Common Ancestor of BST',
-    domainId: 'dsa',
-    topicId: 'topic-dsa-trees',
-    difficulty: 'medium',
-    leetcodeUrl: 'https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-search-tree/',
-    pattern: 'BST Property Traversal',
-  },
-  {
-    id: 'dsa-prob-10',
-    title: 'Number of Islands',
-    domainId: 'dsa',
-    topicId: 'topic-dsa-graphs',
-    difficulty: 'medium',
-    leetcodeUrl: 'https://leetcode.com/problems/number-of-islands/',
-    pattern: '2D Grid Matrix BFS/DFS',
-  },
-  {
-    id: 'dsa-prob-11',
-    title: 'Climbing Stairs',
-    domainId: 'dsa',
-    topicId: 'topic-dsa-dp',
-    difficulty: 'easy',
-    leetcodeUrl: 'https://leetcode.com/problems/climbing-stairs/',
-    pattern: '1D Dynamic Programming',
-  },
-  {
-    id: 'dsa-prob-12',
-    title: 'Coin Change',
-    domainId: 'dsa',
-    topicId: 'topic-dsa-dp',
-    difficulty: 'medium',
-    leetcodeUrl: 'https://leetcode.com/problems/coin-change/',
-    pattern: 'Unbounded Knapsack DP',
-  },
-];
-
-export const INITIAL_DSA_PROGRESS: DSAProgress[] = [
-  {
-    problemId: 'dsa-prob-1',
-    currentBox: 2,
-    nextReviewAt: '2026-09-24',
-    lastAttemptAt: '2026-09-21T10:00:00Z',
-    attemptCount: 2,
-    createdAt: '2026-09-15T00:00:00Z',
-    updatedAt: '2026-09-21T10:00:00Z',
-  },
-  {
-    problemId: 'dsa-prob-2',
+export const INITIAL_DSA_PROGRESS: DSAProgress[] = DSA_PROBLEMS.map((prob) => {
+  if (prob.id === 'dsa-001') {
+    return {
+      problemId: 'dsa-001',
+      currentBox: 2,
+      nextReviewAt: '2026-09-24',
+      lastAttemptAt: '2026-09-21T10:00:00Z',
+      attemptCount: 2,
+      passedIndependently: true,
+      consecutiveAssistedPasses: 0,
+      assistedProvisional: false,
+      consecutiveFailures: 0,
+      remediationRequired: false,
+      patternLessonViewed: false,
+      patternLessonCompleted: false,
+      remediationSelfCheckPassed: false,
+      evidenceStrength: 0.85,
+      createdAt: '2026-09-15T00:00:00Z',
+      updatedAt: '2026-09-21T10:00:00Z',
+    };
+  }
+  if (prob.id === 'dsa-002') {
+    return {
+      problemId: 'dsa-002',
+      currentBox: 1,
+      nextReviewAt: '2026-09-25',
+      lastAttemptAt: '2026-09-24T07:30:00Z',
+      attemptCount: 1,
+      passedIndependently: false,
+      consecutiveAssistedPasses: 1,
+      assistedProvisional: true,
+      consecutiveFailures: 0,
+      remediationRequired: false,
+      patternLessonViewed: false,
+      patternLessonCompleted: false,
+      remediationSelfCheckPassed: false,
+      evidenceStrength: 0.6,
+      createdAt: '2026-09-24T07:30:00Z',
+      updatedAt: '2026-09-24T07:30:00Z',
+    };
+  }
+  return {
+    problemId: prob.id,
     currentBox: 1,
-    nextReviewAt: '2026-09-25',
-    lastAttemptAt: '2026-09-24T07:30:00Z',
-    attemptCount: 1,
-    createdAt: '2026-09-24T07:30:00Z',
-    updatedAt: '2026-09-24T07:30:00Z',
-  },
-];
+    attemptCount: 0,
+    passedIndependently: false,
+    consecutiveAssistedPasses: 0,
+    assistedProvisional: false,
+    consecutiveFailures: 0,
+    remediationRequired: false,
+    patternLessonViewed: false,
+    patternLessonCompleted: false,
+    remediationSelfCheckPassed: false,
+    evidenceStrength: 0,
+    createdAt: '2026-09-24T00:00:00Z',
+    updatedAt: '2026-09-24T00:00:00Z',
+  };
+});
+
 
 export const INITIAL_SKILL_STATES: TopicSkillState[] = [
   {

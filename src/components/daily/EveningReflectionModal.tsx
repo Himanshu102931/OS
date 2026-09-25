@@ -209,7 +209,7 @@ export const EveningReflectionModal: React.FC<EveningReflectionModalProps> = ({
             currentBox: transition.nextBox,
             nextReviewAt: nextReviewStr,
             lastAttemptAt: new Date().toISOString(),
-            attemptCount: existingDsaProg.attemptCount + 1,
+            attemptCount: (existingDsaProg?.attemptCount || 0) + 1,
             updatedAt: new Date().toISOString(),
           };
         }
