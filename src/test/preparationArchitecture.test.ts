@@ -9,7 +9,7 @@ import {
 import { PRACTICE_SESSIONS } from '../data/practiceDataset';
 import { evaluatePracticeAttempt, getRecommendedPracticeSession } from '../engine/practiceEngine';
 import { evaluatePracticeSignals } from '../engine/adaptiveEngine';
-import type { PracticeUserAnswer, TaskProgress, TopicSkillState, PreparationTopicProgress } from '../types';
+import type { PracticeUserAnswer, TaskProgress, TopicSkillState, PreparationTopicProgress, CompanyOverlay, DomainId } from '../types';
 import { StorageAdapter, getDefaultStorageState } from '../storage/storageAdapter';
 
 
@@ -335,18 +335,18 @@ describe('Today Page Practice Integration', () => {
   });
 
   it('prioritizes company-required domains for practice', () => {
-    const companyOverlays = [{
+    const companyOverlays: CompanyOverlay[] = [{
       id: 'comp-test',
       companyName: 'TestCorp',
       targetRole: 'SDE',
-      applicationStatus: 'oa_scheduled' as const,
+      applicationStatus: 'oa_scheduled',
       eventDate: '2026-10-15',
-      requiredDomains: ['sql'] as const,
+      requiredDomains: ['sql'] as DomainId[],
       requiredTopics: ['prep-sql'],
       requiredLanguages: ['sql'],
     }];
 
-    const rec = getRecommendedPracticeSession(PRACTICE_SESSIONS, [], {}, companyOverlays as any);
+    const rec = getRecommendedPracticeSession(PRACTICE_SESSIONS, [], {}, companyOverlays);
     expect(rec).not.toBeNull();
     expect(rec?.session.domainId).toBe('sql');
     expect(rec?.reason).toContain('company');
