@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PREPARATION_SECTIONS, PREPARATION_TOPICS, getTopicsBySection } from '../../data/preparationDataset';
 import type { PreparationTopic, PreparationSection } from '../../types';
 import { usePlacement } from '../../context/PlacementContext';
@@ -16,9 +16,32 @@ import {
 } from 'lucide-react';
 
 export const PreparationHubView: React.FC = () => {
-  const { skillStates, practiceSessions } = usePlacement();
+  const { skillStates, practiceSessions, routeState, setRoute } = usePlacement();
   const [selectedTopic, setSelectedTopic] = useState<PreparationTopic | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+
+  // Auto-select topic from URL on mount
+  useEffect(() => {
+    if (routeState.route === 'preparation' && routeState.preparationTopicId) {
+      const topic = PREPARATION_TOPICS.find(t => t.id === routeState.preparationTopicId);
+      if (topic) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSelectedTopic(topic);
+      }
+    } else if (routeState.route !== 'preparation') {
+      setSelectedTopic(null);
+    }
+  }, [routeState.route, routeState.preparationTopicId]);
+
+  const handleTopicSelect = (topic: PreparationTopic) => {
+    setSelectedTopic(topic);
+    setRoute('preparation', topic.id);
+  };
+
+  const handleBackToHub = () => {
+    setSelectedTopic(null);
+    setRoute('preparation');
+  };
 
   const sectionIcons: Record<string, React.FC<{ className?: string }>> = {
     coding: Code2,
@@ -68,7 +91,7 @@ export const PreparationHubView: React.FC = () => {
       <div className="space-y-6">
         <TopicWorkspace
           topic={selectedTopic}
-          onBackToHub={() => setSelectedTopic(null)}
+          onBackToHub={handleBackToHub}
           onStartSession={handleStartSession}
         />
 
@@ -156,7 +179,7 @@ export const PreparationHubView: React.FC = () => {
                   {topics.map((topic) => (
                     <button
                       key={topic.id}
-                      onClick={() => setSelectedTopic(topic)}
+                      onClick={() => handleTopicSelect(topic)}
                       className="w-full p-2.5 bg-[#1B2028]/60 hover:bg-[#1B2028] border border-[#262D38] hover:border-[#3B4556] rounded text-left flex items-center justify-between text-xs transition-all group/btn"
                     >
                       <span className="text-[#8E98A8] group-hover/btn:text-[#F1F5F9] font-medium">{topic.title}</span>
@@ -171,7 +194,7 @@ export const PreparationHubView: React.FC = () => {
 
               {/* Primary Section Action */}
               <button
-                onClick={() => setSelectedTopic(currentTopic)}
+                onClick={() => handleTopicSelect(currentTopic)}
                 className="w-full py-2.5 px-4 rounded-[4px] bg-[#1B2028] hover:bg-[#262D38] border border-[#3B4556] text-[#F1F5F9] font-semibold text-xs transition-all flex items-center justify-center gap-2"
               >
                 <span>Enter {section.title} Workspace</span>

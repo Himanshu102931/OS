@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { usePlacement } from '../../context/PlacementContext';
 import { TaskLearningWorkspaceDrawer } from '../common/TaskLearningWorkspaceDrawer';
 import type { Topic, TaskDefinition } from '../../types';
+import { PREPARATION_TOPICS } from '../../data/preparationDataset';
 import {
   Clock,
   Filter,
@@ -279,7 +280,9 @@ export const RoadmapView: React.FC = () => {
                 <button
                   onClick={() => {
                     setActiveTopic(null);
-                    setRoute('preparation');
+                    // Find the preparation topic linked to this roadmap topic
+                    const prepTopic = PREPARATION_TOPICS.find(pt => pt.roadmapTopicId === activeTopic.id);
+                    setRoute('preparation', prepTopic?.id);
                   }}
                   className="px-2.5 py-1 text-xs bg-[#1B2028] border border-[#262D38] text-[#E5A93C] rounded hover:bg-[#262D38] font-medium flex items-center gap-1.5 transition-all"
                 >

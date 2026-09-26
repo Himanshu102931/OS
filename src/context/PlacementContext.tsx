@@ -32,6 +32,11 @@ import { StorageAdapter, DEFAULT_USER_SETTINGS, type AppStorageState } from '../
 
 export type RoutePath = 'dashboard' | 'roadmap' | 'dsa' | 'skills' | 'practice' | 'preparation' | 'project' | 'companies' | 'analytics' | 'settings';
 
+export interface RouteState {
+  route: RoutePath;
+  preparationTopicId?: string;
+}
+
 
 interface AppExtendedStorageState extends AppStorageState {
   customTaskDefinitions?: TaskDefinition[];
@@ -41,7 +46,8 @@ interface AppExtendedStorageState extends AppStorageState {
 
 interface PlacementContextType {
   currentRoute: RoutePath;
-  setRoute: (route: RoutePath) => void;
+  routeState: RouteState;
+  setRoute: (route: RoutePath, preparationTopicId?: string) => void;
   todayDate: string;
   currentMode: PlacementMode;
   setPlacementMode: (mode: PlacementMode) => void;
@@ -105,7 +111,7 @@ function getTodayISO(): string {
 const PlacementContext = createContext<PlacementContextType | undefined>(undefined);
 
 export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentRoute, setCurrentRoute] = useState<RoutePath>('dashboard');
+  const [routeState, setRouteState] = useState<RouteState>({ route: 'dashboard' });
   const [todayDate, setTodayDate] = useState<string>(getTodayISO);
 
   // Periodically check local calendar date rollover (e.g. crossing midnight)
@@ -156,11 +162,14 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#/', '').toLowerCase();
-      if (['dashboard', 'roadmap', 'dsa', 'skills', 'practice', 'preparation', 'project', 'companies', 'analytics', 'settings'].includes(hash)) {
-
-        setCurrentRoute(hash as RoutePath);
+      const parts = hash.split('/');
+      const route = parts[0] as RoutePath;
+      
+      if (['dashboard', 'roadmap', 'dsa', 'skills', 'practice', 'preparation', 'project', 'companies', 'analytics', 'settings'].includes(route)) {
+        const preparationTopicId = parts[1];
+        setRouteState({ route, preparationTopicId });
       } else {
-        setCurrentRoute('dashboard');
+        setRouteState({ route: 'dashboard' });
       }
     };
 
@@ -169,9 +178,10 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  const setRoute = (route: RoutePath) => {
-    window.location.hash = `#/${route}`;
-    setCurrentRoute(route);
+  const setRoute = (route: RoutePath, preparationTopicId?: string) => {
+    const hash = preparationTopicId ? `#/${route}/${preparationTopicId}` : `#/${route}`;
+    window.location.hash = hash;
+    setRouteState({ route, preparationTopicId });
   };
 
   const setPlacementMode = (mode: PlacementMode) => {
@@ -515,7 +525,8 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   return (
     <PlacementContext.Provider
       value={{
-        currentRoute,
+        currentRoute: routeState.route,
+        routeState,
         setRoute,
         todayDate,
         currentMode: appState.currentMode,
