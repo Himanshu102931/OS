@@ -51,24 +51,24 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
   return (
     <div className="min-h-screen flex flex-col font-sans bg-[#0D0F12] text-[#F1F5F9] selection:bg-[#E5A93C]/30 selection:text-white">
       {/* Top Header Bar */}
-      <header className="sticky top-0 z-40 bg-[#14171D]/95 backdrop-blur-md border-b border-[#262D38] px-4 sm:px-6 py-2.5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-40 bg-[#14171D]/95 backdrop-blur-md border-b border-[#262D38] px-4 sm:px-8 py-3">
+        <div className="max-w-[1500px] mx-auto flex items-center justify-between gap-4">
           {/* Brand & Page Context */}
           <div className="flex items-center gap-3">
-            <div className="size-7 rounded-[4px] bg-[#1B2028] border border-[#262D38] flex items-center justify-center text-[#E5A93C]">
-              <Terminal className="size-4" />
+            <div className="size-8 rounded-[4px] bg-[#1B2028] border border-[#262D38] flex items-center justify-center text-[#E5A93C]">
+              <Terminal className="size-4.5" />
             </div>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm text-[#F1F5F9] tracking-tight">PlacementOS</span>
+            <div className="flex items-center gap-2.5">
+              <span className="font-semibold text-base text-[#F1F5F9] tracking-tight">PlacementOS</span>
               <span className="text-[#5C6675]">/</span>
-              <span className="text-xs font-medium text-[#8E98A8]">{getPageTitle(currentRoute)}</span>
+              <span className="text-sm font-medium text-[#8E98A8]">{getPageTitle(currentRoute)}</span>
             </div>
           </div>
 
           {/* Global Header Controls */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3.5">
             {/* Mode Selector */}
-            <div className="flex items-center gap-1.5 bg-[#1B2028] border border-[#262D38] rounded-[4px] px-2.5 py-1 text-xs">
+            <div className="flex items-center gap-1.5 bg-[#1B2028] border border-[#262D38] rounded-[4px] px-3 py-1.5 text-xs">
               <span className="text-[#8E98A8] font-medium text-[11px]">Mode:</span>
               <select
                 value={currentMode}
@@ -83,25 +83,25 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
             </div>
 
             {/* Active Phase Badge */}
-            <div className="hidden lg:flex items-center gap-1.5 bg-[#1B2028] border border-[#262D38] rounded-[4px] px-2.5 py-1 text-xs text-[#8E98A8]">
+            <div className="hidden lg:flex items-center gap-1.5 bg-[#1B2028] border border-[#262D38] rounded-[4px] px-3 py-1.5 text-xs text-[#8E98A8]">
               <Layers className="size-3.5 text-[#E5A93C]" />
-              <span className="text-[#F1F5F9] font-medium text-[11px]">{activePhase.name}</span>
+              <span className="text-[#F1F5F9] font-medium text-xs">{activePhase.name}</span>
             </div>
 
             {/* Today Date */}
-            <div className="flex items-center gap-1.5 bg-[#1B2028] border border-[#262D38] rounded-[4px] px-2.5 py-1 text-xs text-[#8E98A8]">
+            <div className="flex items-center gap-1.5 bg-[#1B2028] border border-[#262D38] rounded-[4px] px-3 py-1.5 text-xs text-[#8E98A8]">
               <Calendar className="size-3.5 text-[#8E98A8]" />
-              <span className="font-mono text-[#F1F5F9] text-[11px]">{todayDate}</span>
+              <span className="font-mono text-[#F1F5F9] text-xs">{todayDate}</span>
             </div>
           </div>
         </div>
       </header>
 
       {/* Main App Container */}
-      <div className="flex-1 max-w-7xl w-full mx-auto flex flex-col md:flex-row">
+      <div className="flex-1 max-w-[1500px] w-full mx-auto flex flex-col md:flex-row">
         {/* Sidebar Navigation */}
-        <aside className="w-full md:w-56 border-b md:border-b-0 md:border-r border-[#262D38] bg-[#14171D] p-3 shrink-0 flex flex-col justify-between">
-          <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0">
+        <aside className="w-full md:w-60 lg:w-64 border-b md:border-b-0 md:border-r border-[#262D38] bg-[#14171D] p-3.5 shrink-0 flex flex-col justify-between">
+          <nav className="flex md:flex-col gap-1.5 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentRoute === item.id;
@@ -109,7 +109,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
                 <button
                   key={item.id}
                   onClick={() => setRoute(item.id)}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-[4px] text-xs font-medium transition-all text-left whitespace-nowrap ${
+                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-[4px] text-xs font-medium transition-all text-left whitespace-nowrap ${
                     isActive
                       ? 'bg-[#1B2028] text-[#F1F5F9] border border-[#3B4556] font-semibold shadow-sm'
                       : 'text-[#8E98A8] hover:text-[#F1F5F9] hover:bg-[#1B2028]/60 border border-transparent'
@@ -136,7 +136,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
         </aside>
 
         {/* Main Content Area */}
-        <main className="flex-1 p-4 sm:p-6 min-w-0 bg-[#0D0F12]">
+        <main className="flex-1 p-5 sm:p-7 md:p-8 min-w-0 bg-[#0D0F12]">
           {children}
         </main>
       </div>

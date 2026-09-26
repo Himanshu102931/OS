@@ -70,7 +70,7 @@ export const RoadmapView: React.FC = () => {
     : undefined;
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto font-sans">
+    <div className="space-y-6 max-w-7xl xl:max-w-[1400px] mx-auto font-sans">
       {/* Header & Phase Switcher */}
       <div className="space-y-4 pb-4 border-b border-[#262D38]">
         <div>

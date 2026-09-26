@@ -150,7 +150,7 @@ const PracticeRunnerModalContent: React.FC<InnerContentProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-[#09090B]/95 backdrop-blur-md flex items-center justify-center p-4 font-sans transition-all">
-      <div className="w-full max-w-2xl bg-[#14171D] border border-[#262D38] rounded-xl shadow-2xl p-6 sm:p-8 space-y-6 relative overflow-hidden max-h-[92vh] flex flex-col justify-between">
+      <div className="w-full max-w-3xl bg-[#14171D] border border-[#262D38] rounded-xl shadow-2xl p-6 sm:p-8 space-y-6 relative overflow-hidden max-h-[92vh] flex flex-col justify-between">
         {/* Top Bar */}
         <div className="flex items-center justify-between border-b border-[#262D38] pb-4">
           <div className="flex items-center gap-2">

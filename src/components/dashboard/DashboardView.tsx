@@ -166,7 +166,7 @@ export const DashboardView: React.FC = () => {
   const visiblePlanTasks = isPlanExpanded ? assignedPlanTasks : assignedPlanTasks.slice(0, 3);
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto font-sans">
+    <div className="space-y-8 max-w-6xl xl:max-w-[1350px] mx-auto font-sans">
       {/* Toast Notification for Task Completion */}
       {toastInfo && (
         <div className="fixed bottom-6 right-6 z-50 bg-[#1B2028] border border-[#10B981]/50 text-[#F1F5F9] p-3.5 rounded-lg shadow-2xl flex items-center gap-4 text-xs animate-fade-in">

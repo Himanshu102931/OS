@@ -123,7 +123,7 @@ export const TaskLearningWorkspaceDrawer: React.FC<TaskLearningWorkspaceDrawerPr
         aria-labelledby="learning-workspace-title"
         className="fixed inset-0 z-50 flex justify-end bg-[#0D0F12]/80 backdrop-blur-sm animate-fade-in"
       >
-        <div className="bg-[#14171D] border-l border-[#262D38] w-full max-w-2xl h-full flex flex-col shadow-2xl overflow-hidden font-mono">
+        <div className="bg-[#14171D] border-l border-[#262D38] w-full max-w-3xl lg:max-w-4xl h-full flex flex-col shadow-2xl overflow-hidden font-mono">
           {/* Header */}
           <div className="p-5 border-b border-[#262D38] flex items-start justify-between gap-4 bg-[#1B2028]">
             <div className="space-y-1">
@@ -437,7 +437,7 @@ export const TaskLearningWorkspaceDrawer: React.FC<TaskLearningWorkspaceDrawerPr
       aria-labelledby="learning-workspace-title"
       className="fixed inset-0 z-50 flex justify-end bg-[#0D0F12]/80 backdrop-blur-sm animate-fade-in"
     >
-      <div className="bg-[#14171D] border-l border-[#262D38] w-full max-w-2xl h-full flex flex-col shadow-2xl overflow-hidden font-mono">
+      <div className="bg-[#14171D] border-l border-[#262D38] w-full max-w-3xl lg:max-w-4xl h-full flex flex-col shadow-2xl overflow-hidden font-mono">
         {/* Drawer Header */}
         <div className="p-5 border-b border-[#262D38] flex items-start justify-between gap-4 bg-[#1B2028]">
           <div className="space-y-1">

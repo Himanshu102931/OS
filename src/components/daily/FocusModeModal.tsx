@@ -68,7 +68,7 @@ export const FocusModeModal: React.FC<FocusModeModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-[#09090B]/95 backdrop-blur-md flex items-center justify-center p-4 transition-all duration-300 font-sans">
-      <div className="w-full max-w-2xl bg-[#14171D] border border-[#262D38] rounded-xl shadow-2xl p-6 sm:p-8 space-y-6 relative overflow-hidden">
+      <div className="w-full max-w-3xl bg-[#14171D] border border-[#262D38] rounded-xl shadow-2xl p-6 sm:p-8 space-y-6 relative overflow-hidden">
         {/* Subtle Ambient Accent */}
         <div className="absolute -top-24 -right-24 size-64 bg-[#E5A93C]/5 rounded-full blur-3xl pointer-events-none" />
 

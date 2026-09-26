@@ -74,7 +74,7 @@ export const SettingsView: React.FC = () => {
   const formattedKB = (storageBytes / 1024).toFixed(2);
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto font-sans">
+    <div className="space-y-6 max-w-6xl xl:max-w-[1300px] mx-auto font-sans">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#262D38]">
         <div>

@@ -74,7 +74,7 @@ export const AnalyticsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto font-sans">
+    <div className="space-y-6 max-w-7xl xl:max-w-[1400px] mx-auto font-sans">
       {/* Header & Window Selector */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#262D38]">
         <div>
