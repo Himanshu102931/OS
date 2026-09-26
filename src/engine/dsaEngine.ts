@@ -79,7 +79,7 @@ export function isProblemUnlocked(
  * Box 3 = 7 days
  * Box 4 = 14 days
  */
-export function getLeitnerIntervalDays(box: LeitnerBox): number {
+function getLeitnerIntervalDays(box: LeitnerBox): number {
   switch (box) {
     case 1:
       return 1;

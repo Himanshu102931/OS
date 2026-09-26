@@ -13,10 +13,10 @@ import type {
   SkillFreshnessState,
 } from '../types';
 
-export type ReadinessStatus = 'ready' | 'on_track' | 'at_risk' | 'needs_baseline';
+type ReadinessStatus = 'ready' | 'on_track' | 'at_risk' | 'needs_baseline';
 export type EvidenceClassification = 'demonstrated' | 'inferred' | 'insufficient';
 
-export interface EvidenceItemSummary {
+interface EvidenceItemSummary {
   id: string;
   title: string;
   sourceType: 'task' | 'dsa_problem' | 'dsa_attempt' | 'manual_override' | 'evidence_log';

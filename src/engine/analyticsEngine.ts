@@ -15,7 +15,7 @@ import { calculateTopicReadiness, calculateDomainReadinessList } from './skillsE
 
 export type TimeWindow = '7d' | '30d' | 'phase' | 'all';
 
-export interface ReviewPrompt {
+interface ReviewPrompt {
   id: string;
   type: 'overdue_review' | 'stale_evidence' | 'repeated_postpone' | 'remediation_needed' | 'low_independence';
   severity: 'high' | 'medium' | 'info';
@@ -26,7 +26,7 @@ export interface ReviewPrompt {
   targetId?: string;
 }
 
-export interface ActivityTelemetry {
+interface ActivityTelemetry {
   completedTasksCount: number;
   totalTasksInWindow: number;
   dsaAttemptsCount: number;
@@ -40,7 +40,7 @@ export interface ActivityTelemetry {
   consistencyRate: number; // 0 - 100%
 }
 
-export interface QualityTelemetry {
+interface QualityTelemetry {
   independentSolveRatio: number; // 0 - 100%
   assistedSolveRatio: number; // 0 - 100%
   remediationCount: number;
@@ -48,7 +48,7 @@ export interface QualityTelemetry {
   boxDistribution: { 1: number; 2: number; 3: number; 4: number };
 }
 
-export interface ProgressTelemetry {
+interface ProgressTelemetry {
   roadmapCompletionRate: number; // 0 - 100%
   activePhaseCompletionRate: number; // 0 - 100%
   overallDomainReadiness: number; // 0 - 100%
@@ -56,7 +56,7 @@ export interface ProgressTelemetry {
   totalPatternsCount: number;
 }
 
-export interface GapNeglectTelemetry {
+interface GapNeglectTelemetry {
   overdueDsaCount: number;
   staleEvidenceTopicsCount: number;
   repeatedlyPostponedTasksCount: number;

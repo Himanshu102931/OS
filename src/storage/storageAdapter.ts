@@ -17,9 +17,9 @@ import {
   COMPANY_OVERLAYS,
 } from '../data/seedData';
 
-export const STORAGE_KEY = 'placementos_v1_state';
-export const CURRENT_SCHEMA_VERSION = '1.0.0';
-export const CURRENT_APP_VERSION = '1.0.0';
+const STORAGE_KEY = 'placementos_v1_state';
+const CURRENT_SCHEMA_VERSION = '1.0.0';
+const CURRENT_APP_VERSION = '1.0.0';
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   placementHorizonDate: '2027-05-31',

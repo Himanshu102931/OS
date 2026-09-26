@@ -102,14 +102,6 @@ export interface LearningHint {
   commonTrap: string;
 }
 
-export interface SkillDefinition {
-  id: string;
-  domainId: DomainId;
-  topicId: string;
-  name: string;
-  description: string;
-}
-
 export interface DSAProblem {
   id: string; // 'dsa-001' .. 'dsa-150'
   leetcodeNumber: number;
@@ -130,7 +122,6 @@ export interface DSAProblem {
   isAnchor: boolean;
   estimatedTimeMinutes: number;
   learningHint?: LearningHint;
-  pattern?: string; // Backwards compatibility helper
 }
 
 // --- Mutable Runtime State Types ---

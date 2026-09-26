@@ -17,7 +17,7 @@ import {
   type EvidenceClassification,
 } from './skillsEngine';
 
-export type CompanyRequirementStatus =
+type CompanyRequirementStatus =
   | 'covered'
   | 'evidence_present'
   | 'developing'

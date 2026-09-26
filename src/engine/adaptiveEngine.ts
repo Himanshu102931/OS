@@ -31,7 +31,7 @@ export interface CandidateTask {
 /**
  * Calculates date difference in full calendar days (target - today).
  */
-export function getDaysDifference(targetDateStr: string, todayStr: string): number {
+function getDaysDifference(targetDateStr: string, todayStr: string): number {
   const target = new Date(targetDateStr);
   const today = new Date(todayStr);
   const diffTime = target.getTime() - today.getTime();

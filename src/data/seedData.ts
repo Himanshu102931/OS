@@ -9,9 +9,9 @@ import type {
   CompanyOverlay,
   TopicSkillState,
 } from '../types';
-import { DSA_PROBLEMS, PATTERN_LESSONS, LEARNING_RESOURCES } from './dsaDataset';
+import { DSA_PROBLEMS } from './dsaDataset';
 
-export { DSA_PROBLEMS, PATTERN_LESSONS, LEARNING_RESOURCES };
+export { DSA_PROBLEMS };
 
 
 export const DOMAINS: DomainDefinition[] = [

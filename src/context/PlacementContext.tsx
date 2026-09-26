@@ -33,7 +33,7 @@ import { StorageAdapter, DEFAULT_USER_SETTINGS, type AppStorageState } from '../
 
 export type RoutePath = 'dashboard' | 'roadmap' | 'dsa' | 'skills' | 'practice' | 'preparation' | 'project' | 'companies' | 'analytics' | 'settings';
 
-export interface RouteState {
+interface RouteState {
   route: RoutePath;
   preparationTopicId?: string;
 }
