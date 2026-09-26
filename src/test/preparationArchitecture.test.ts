@@ -7,6 +7,7 @@ import {
   getTopicsBySection,
 } from '../data/preparationDataset';
 import { PRACTICE_SESSIONS } from '../data/practiceDataset';
+import { TOPICS, MODULES, PHASES } from '../data/seedData';
 import { evaluatePracticeAttempt, getRecommendedPracticeSession } from '../engine/practiceEngine';
 import { evaluatePracticeSignals } from '../engine/adaptiveEngine';
 import type { PracticeUserAnswer, TaskProgress, TopicSkillState, PreparationTopicProgress, CompanyOverlay, DomainId } from '../types';
@@ -129,9 +130,11 @@ describe('Preparation Architecture & Universal Engine (Phase 1)', () => {
   });
 
   it('links preparation topics bidirectionally to roadmap topics', () => {
+    const roadmapTopicIds = new Set(TOPICS.map((t) => t.id));
     PREPARATION_TOPICS.forEach((prepTopic) => {
       if (prepTopic.roadmapTopicId) {
         expect(prepTopic.roadmapTopicId).toMatch(/^topic-/);
+        expect(roadmapTopicIds.has(prepTopic.roadmapTopicId)).toBe(true);
       }
     });
   });
@@ -283,20 +286,52 @@ describe('Storage Persistence & Migration', () => {
 });
 
 describe('Roadmap ↔ Preparation Navigation', () => {
-  it('every preparation topic with roadmapTopicId links to valid roadmap topic format', () => {
-    PREPARATION_TOPICS.forEach(topic => {
+  it('every preparation roadmapTopicId resolves to a real roadmap topic', () => {
+    const roadmapTopicIds = new Set(TOPICS.map((t) => t.id));
+    PREPARATION_TOPICS.forEach((topic) => {
       if (topic.roadmapTopicId) {
-        expect(topic.roadmapTopicId).toMatch(/^topic-/);
+        expect(roadmapTopicIds.has(topic.roadmapTopicId)).toBe(true);
       }
     });
   });
 
-  it('roadmap topics have corresponding preparation topics', () => {
-    const roadmapTopicIds = new Set(PREPARATION_TOPICS.map(t => t.roadmapTopicId).filter(Boolean));
-    expect(roadmapTopicIds.size).toBeGreaterThan(0);
-    roadmapTopicIds.forEach(id => {
-      if (id) expect(id).toMatch(/^topic-/);
+  it('maps each linked roadmap topic to at most one preparation topic (no duplicates)', () => {
+    const linked = PREPARATION_TOPICS.map((t) => t.roadmapTopicId).filter(Boolean) as string[];
+    expect(linked.length).toBeGreaterThanOrEqual(11);
+    expect(new Set(linked).size).toBe(linked.length);
+  });
+
+  it('supports the reverse Roadmap → Preparation lookup used by RoadmapView', () => {
+    // Mirrors RoadmapView: PREPARATION_TOPICS.find(pt => pt.roadmapTopicId === activeTopic.id)
+    const sampleRoadmapIds = ['topic-py-basics', 'topic-sql-joins', 'topic-mock-screener', 'topic-mock-final'];
+    sampleRoadmapIds.forEach((roadmapId) => {
+      const prepTopic = PREPARATION_TOPICS.find((pt) => pt.roadmapTopicId === roadmapId);
+      expect(prepTopic).toBeDefined();
+      expect(prepTopic?.roadmapTopicId).toBe(roadmapId);
     });
+  });
+
+  it('recommendedPhase matches the phase of the linked roadmap topic', () => {
+    PREPARATION_TOPICS.forEach((topic) => {
+      if (!topic.roadmapTopicId) return;
+      const roadmapTopic = TOPICS.find((t) => t.id === topic.roadmapTopicId);
+      const roadmapModule = MODULES.find((m) => m.id === roadmapTopic?.moduleId);
+      expect(roadmapModule).toBeDefined();
+      expect(topic.recommendedPhase).toBe(roadmapModule?.phaseId);
+    });
+  });
+
+  it('recommendedPhase values exist in PHASES and follow foundation → interview ordering', () => {
+    const phaseIds = PHASES.map((p) => p.id);
+    PREPARATION_TOPICS.forEach((topic) => {
+      expect(phaseIds).toContain(topic.recommendedPhase);
+    });
+
+    // Foundation topics land in phase-1; mocks ramp up to phases 3 and 4.
+    expect(getPreparationTopic('prep-lang')?.recommendedPhase).toBe('phase-1');
+    expect(getPreparationTopic('prep-sql')?.recommendedPhase).toBe('phase-1');
+    expect(getPreparationTopic('prep-interview-tech')?.recommendedPhase).toBe('phase-3');
+    expect(getPreparationTopic('prep-interview-career')?.recommendedPhase).toBe('phase-4');
   });
 });
 
@@ -394,5 +429,174 @@ describe('No Roadmap Double-Counting', () => {
     // Roadmap taskProgress unchanged
     expect(taskProgress['task-101'].state).toBe('not_started');
     expect(skillStates['prep-apt-quant'].evidenceStrength).toBe(100);
+  });
+});
+
+describe('Curriculum Structure — 13 Topics / 4 Sections', () => {
+  it('defines exactly 13 preparation topics', () => {
+    expect(PREPARATION_TOPICS).toHaveLength(13);
+  });
+
+  it('has exactly 4 sections with matching declared topicIds (bidirectional)', () => {
+    expect(PREPARATION_SECTIONS).toHaveLength(4);
+    const expectedCounts: Record<string, number> = {
+      coding: 2,
+      core_cs: 5,
+      aptitude_communication: 4,
+      interview_career: 2,
+    };
+
+    PREPARATION_SECTIONS.forEach((section) => {
+      const actualIds = PREPARATION_TOPICS.filter((t) => t.sectionId === section.id).map((t) => t.id);
+      expect(actualIds).toEqual(section.topicIds);
+      expect(actualIds).toHaveLength(expectedCounts[section.id]);
+    });
+
+    PREPARATION_TOPICS.forEach((topic) => {
+      const declaredSection = PREPARATION_SECTIONS.find((s) => s.topicIds.includes(topic.id));
+      expect(declaredSection?.id).toBe(topic.sectionId);
+    });
+  });
+
+  it('uses unique topic ids and unique section ids', () => {
+    const topicIds = PREPARATION_TOPICS.map((t) => t.id);
+    expect(new Set(topicIds).size).toBe(topicIds.length);
+
+    const sectionIds = PREPARATION_SECTIONS.map((s) => s.id);
+    expect(new Set(sectionIds).size).toBe(sectionIds.length);
+  });
+
+  it('splits technical mocks and resume/career into separate topics', () => {
+    expect(getPreparationTopic('prep-interview-tech')).toBeDefined();
+    expect(getPreparationTopic('prep-interview-career')).toBeDefined();
+    // Legacy merged id must never appear
+    expect(getPreparationTopic('prep-interview')).toBeUndefined();
+
+    const interviewTopics = getTopicsBySection('interview_career');
+    expect(interviewTopics.map((t) => t.id)).toEqual(['prep-interview-tech', 'prep-interview-career']);
+    expect(interviewTopics[0].title).not.toBe(interviewTopics[1].title);
+  });
+
+  it('marks high-priority topics in every section', () => {
+    PREPARATION_SECTIONS.forEach((section) => {
+      const topics = getTopicsBySection(section.id);
+      expect(topics.some((t) => t.priority === 'high')).toBe(true);
+    });
+    const highCount = PREPARATION_TOPICS.filter((t) => t.priority === 'high').length;
+    expect(highCount).toBeGreaterThanOrEqual(8);
+  });
+});
+
+describe('Full Curriculum Metadata (Step 3)', () => {
+  it('populates every required curriculum field on all 13 topics', () => {
+    PREPARATION_TOPICS.forEach((topic) => {
+      expect(topic.id).toBeTruthy();
+      expect(topic.sectionId).toBeTruthy();
+      expect(topic.domainId).toBeTruthy();
+      expect(topic.title).toBeTruthy();
+      expect(topic.description).toBeTruthy();
+      expect(topic.whyItMatters).toBeTruthy();
+      expect(topic.learningObjectives.length).toBeGreaterThanOrEqual(5);
+      expect(topic.subtopics.length).toBeGreaterThanOrEqual(4);
+      expect(['high', 'medium', 'low']).toContain(topic.priority);
+      expect(topic.recommendedPhase).toMatch(/^phase-[1-4]$/);
+      expect(topic.prerequisites.length).toBeGreaterThan(0);
+      expect(topic.recommendedResources.length).toBeGreaterThan(0);
+      expect(topic.stages.length).toBeGreaterThan(0);
+      expect(topic.estimatedMinutes).toBeGreaterThan(0);
+      expect(topic.targetLevel).toBeGreaterThanOrEqual(3);
+      expect(topic.practiceActivities.length).toBeGreaterThan(0);
+      expect(topic.assessmentTypes.length).toBeGreaterThan(0);
+      expect(topic.interviewCheckpoints.length).toBeGreaterThan(0);
+      expect(topic.completionCriteria.length).toBeGreaterThan(0);
+      expect(topic.evidenceCriteria.length).toBeGreaterThan(0);
+    });
+  });
+
+  it('keeps curriculum definitions free of user progress fields', () => {
+    PREPARATION_TOPICS.forEach((topic) => {
+      expect(topic).not.toHaveProperty('completedStages');
+      expect(topic).not.toHaveProperty('currentStage');
+      expect(topic).not.toHaveProperty('evidenceStrength');
+      expect(topic).not.toHaveProperty('freshness');
+    });
+  });
+
+  it('orders sections foundation → interview', () => {
+    expect(PREPARATION_SECTIONS.map((s) => s.id)).toEqual([
+      'coding',
+      'core_cs',
+      'aptitude_communication',
+      'interview_career',
+    ]);
+  });
+});
+
+describe('Practice Curriculum Mapping (Step 6)', () => {
+  const prepTopicIds = new Set(PREPARATION_TOPICS.map((t) => t.id));
+
+  it('every practice session topicId matches a real preparation topic', () => {
+    PRACTICE_SESSIONS.forEach((session) => {
+      expect(session.topicId).toBeDefined();
+      expect(prepTopicIds.has(session.topicId as string)).toBe(true);
+    });
+  });
+
+  it('every practice question topicId matches a real preparation topic (no orphans)', () => {
+    PRACTICE_SESSIONS.forEach((session) => {
+      session.questions.forEach((q) => {
+        expect(prepTopicIds.has(q.topicId)).toBe(true);
+      });
+    });
+  });
+
+  it('covers practice sessions across multiple preparation sections', () => {
+    const sessionTopicIds = new Set(PRACTICE_SESSIONS.map((s) => s.topicId));
+    const coveredSections = new Set(
+      PREPARATION_TOPICS.filter((t) => sessionTopicIds.has(t.id)).map((t) => t.sectionId)
+    );
+    expect(coveredSections.size).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('Today Adaptive Signals (Step 8 — verify existing integration)', () => {
+  it('detects weak/stale topics, assessment due, low accuracy, and interview practice due', () => {
+    const skillStates: Record<string, TopicSkillState> = {
+      'prep-os': { topicId: 'prep-os', domainId: 'os', freshness: 'stale', evidenceStrength: 20 },
+    };
+    const attempts = [{ accuracyPct: 45, completedAt: '2026-09-20T00:00:00Z' }];
+    const overlays: CompanyOverlay[] = [{
+      id: 'comp-int',
+      companyName: 'InterviewCorp',
+      targetRole: 'SDE',
+      applicationStatus: 'interview_scheduled',
+      eventDate: '2026-10-20',
+      requiredDomains: ['os'] as DomainId[],
+      requiredTopics: ['prep-os'],
+      requiredLanguages: ['os'],
+    }];
+
+    const signals = evaluatePracticeSignals(attempts, skillStates, overlays);
+    expect(signals.weakTopic).toBe(true);
+    expect(signals.staleDomain).toBe(true);
+    expect(signals.stalePreparationTopic).toBe(true);
+    expect(signals.assessmentDue).toBe(true);
+    expect(signals.lowAccuracy).toBe(true);
+    expect(signals.interviewPracticeDue).toBe(true);
+  });
+
+  it('stays quiet when attempts are fresh, accurate, and evidence is strong', () => {
+    const skillStates: Record<string, TopicSkillState> = {
+      'prep-sql': { topicId: 'prep-sql', domainId: 'sql', freshness: 'fresh', evidenceStrength: 85 },
+    };
+    const attempts = [{ accuracyPct: 88, completedAt: '2026-09-26T00:00:00Z' }];
+
+    const signals = evaluatePracticeSignals(attempts, skillStates, []);
+    expect(signals.weakTopic).toBe(false);
+    expect(signals.staleDomain).toBe(false);
+    expect(signals.stalePreparationTopic).toBe(false);
+    expect(signals.assessmentDue).toBe(false);
+    expect(signals.lowAccuracy).toBe(false);
+    expect(signals.interviewPracticeDue).toBe(false);
   });
 });

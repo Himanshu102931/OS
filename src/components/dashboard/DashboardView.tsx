@@ -6,7 +6,7 @@ import { EveningReflectionModal } from '../daily/EveningReflectionModal';
 import { FocusModeModal } from '../daily/FocusModeModal';
 import { TaskLearningWorkspaceDrawer } from '../common/TaskLearningWorkspaceDrawer';
 import { PracticeRunnerModal } from '../practice/PracticeRunnerModal';
-import { getEvaluatedCandidates, type CandidateTask } from '../../engine/adaptiveEngine';
+import { getEvaluatedCandidates, evaluatePracticeSignals, type CandidateTask } from '../../engine/adaptiveEngine';
 import { getRecommendedPracticeSession } from '../../engine/practiceEngine';
 import type { TaskProgress, TaskDefinition, PracticeSessionDefinition } from '../../types';
 import {
@@ -106,6 +106,16 @@ export const DashboardView: React.FC = () => {
     skillStates,
     companyOverlays
   );
+
+  // Existing deterministic practice signals (weak/stale/assessment/accuracy/interview)
+  const practiceSignals = evaluatePracticeSignals(practiceAttempts, skillStates, companyOverlays);
+  const activeSignalChips = [
+    { key: 'assessmentDue', label: 'Assessment due', active: practiceSignals.assessmentDue },
+    { key: 'weakTopic', label: 'Weak topic', active: practiceSignals.weakTopic },
+    { key: 'stalePreparationTopic', label: 'Evidence aging', active: practiceSignals.stalePreparationTopic },
+    { key: 'lowAccuracy', label: 'Low accuracy', active: practiceSignals.lowAccuracy },
+    { key: 'interviewPracticeDue', label: 'Interview practice due', active: practiceSignals.interviewPracticeDue },
+  ].filter((c) => c.active);
 
   const completedCount = Object.values(taskProgress).filter((tp) => tp.state === 'completed').length;
   const totalTasks = taskDefinitions.length;
@@ -341,6 +351,19 @@ export const DashboardView: React.FC = () => {
             <span className="text-[#FFC665] font-semibold">Why this drill? </span>
             {practiceRecommendation.reason}
           </p>
+
+          {activeSignalChips.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {activeSignalChips.map((chip) => (
+                <span
+                  key={chip.key}
+                  className="px-2 py-0.5 text-[10px] font-mono uppercase rounded bg-[#1B2028] text-[#8E98A8] border border-[#262D38]"
+                >
+                  {chip.label}
+                </span>
+              ))}
+            </div>
+          )}
 
           <div className="flex items-center justify-between pt-2 border-t border-[#262D38]">
             <button

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import type { PreparationTopic, TopicStageId } from '../../types';
 import { usePlacement } from '../../context/PlacementContext';
+import { evaluateTopicPreparedness, applyStageCompletion } from '../../engine/preparationEngine';
+import { PHASES } from '../../data/seedData';
 import {
   BookOpen,
   Compass,
@@ -28,14 +30,47 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
   onBackToHub,
   onStartSession,
 }) => {
-  const { setRoute, skillStates, practiceSessions, practiceAttempts, evidenceLogs } = usePlacement();
+  const {
+    setRoute,
+    skillStates,
+    practiceSessions,
+    practiceAttempts,
+    evidenceLogs,
+    preparationTopicProgress,
+    updatePreparationTopicProgress,
+  } = usePlacement();
   const [activeStage, setActiveStage] = useState<TopicStageId>(topic.stages[0] || 'orient');
 
   const topicSkill = skillStates[topic.id] || {
     topicId: topic.id,
     domainId: topic.domainId,
-    freshness: 'untested',
+    freshness: 'untested' as const,
     evidenceStrength: 0,
+  };
+
+  const topicProgress = preparationTopicProgress[topic.id];
+
+  // Reusable preparedness model (coverage / application / assessment / evidence)
+  const preparedness = evaluateTopicPreparedness({
+    topic,
+    progress: topicProgress,
+    skillState: {
+      evidenceStrength: topicSkill.evidenceStrength,
+      freshness: topicSkill.freshness,
+    },
+    attempts: practiceAttempts,
+  });
+
+  const recommendedPhase = PHASES.find((p) => p.id === topic.recommendedPhase);
+
+  const handleMarkStageComplete = () => {
+    const updated = applyStageCompletion(
+      topic,
+      topicProgress,
+      activeStage,
+      new Date().toISOString()
+    );
+    updatePreparationTopicProgress(updated);
   };
 
   // Topic specific sessions
@@ -74,8 +109,11 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
   };
 
   const navigateToRoadmap = () => {
-    setRoute('roadmap');
+    setRoute('roadmap', topic.roadmapTopicId);
   };
+
+  const isStageCompleted = (stage: TopicStageId) =>
+    topicProgress?.completedStages.includes(stage) ?? false;
 
   const getFreshnessBadgeClass = (freshness: string) => {
     switch (freshness) {
@@ -125,10 +163,26 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
       <div className="bg-[#14171D] border border-[#262D38] rounded-[6px] p-5 sm:p-6 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2.5 mb-1.5">
+            <div className="flex flex-wrap items-center gap-2.5 mb-1.5">
               <h1 className="text-xl sm:text-2xl font-bold text-[#F1F5F9] tracking-tight">{topic.title}</h1>
+              <span className="px-2 py-0.5 text-[11px] font-mono rounded border uppercase font-medium bg-[#E5A93C]/15 text-[#E5A93C] border-[#E5A93C]/30">
+                {preparedness.readiness.replace('_', ' ')}
+              </span>
               <span className={`px-2 py-0.5 text-[11px] font-mono rounded border uppercase font-medium ${getFreshnessBadgeClass(topicSkill.freshness)}`}>
                 {topicSkill.freshness}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-mono text-[#5C6675] mb-2">
+              <span className={topic.priority === 'high' ? 'text-[#E5A93C]' : ''}>
+                {topic.priority.toUpperCase()} PRIORITY
+              </span>
+              <span>•</span>
+              <span>{recommendedPhase?.name || topic.recommendedPhase}</span>
+              <span>•</span>
+              <span>~{topic.estimatedMinutes} min</span>
+              <span>•</span>
+              <span>
+                Level {preparedness.currentLevel} / {preparedness.targetLevel} target
               </span>
             </div>
             <p className="text-sm text-[#8E98A8] leading-relaxed max-w-3xl">{topic.description}</p>
@@ -140,18 +194,47 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
           </div>
         </div>
 
+        {/* Preparedness Model: four proof pillars + missing proof */}
+        <div className="pt-3 border-t border-[#262D38]/80 space-y-3">
+          <div className="flex flex-wrap gap-2 text-[11px] font-mono">
+            {[
+              { label: 'Covered', ok: preparedness.covered, detail: `${preparedness.coveragePct}%` },
+              { label: 'Practiced', ok: preparedness.practiced, detail: `${preparedness.attemptCount} attempts` },
+              { label: 'Assessed', ok: preparedness.assessmentPerformance !== null && preparedness.assessmentPerformance >= 70, detail: preparedness.assessmentPerformance !== null ? `${preparedness.assessmentPerformance}% best` : 'no attempt' },
+              { label: 'Retained', ok: preparedness.evidenceStrength >= 60 && preparedness.evidenceFreshness !== 'stale' && preparedness.evidenceFreshness !== 'untested', detail: `${preparedness.evidenceStrength}/100` },
+              { label: 'Interview', ok: preparedness.interviewProof, detail: preparedness.interviewProof ? 'proven' : 'missing' },
+            ].map((pillar) => (
+              <span
+                key={pillar.label}
+                className={`px-2 py-1 rounded border ${
+                  pillar.ok
+                    ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/30'
+                    : 'bg-[#1B2028] text-[#8E98A8] border-[#262D38]'
+                }`}
+              >
+                {pillar.ok ? '✓' : '○'} {pillar.label}
+                <span className="text-[#5C6675] ml-1">{pillar.detail}</span>
+              </span>
+            ))}
+          </div>
+          {preparedness.missingProof.length > 0 && (
+            <ul className="space-y-1">
+              {preparedness.missingProof.map((gap, i) => (
+                <li key={i} className="text-[11px] text-[#8E98A8] flex items-start gap-1.5">
+                  <span className="text-[#F59E0B] shrink-0">•</span>
+                  <span>{gap}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         {/* Current Primary Action Bar (Progressive Disclosure) */}
         <div className="pt-3 border-t border-[#262D38]/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#1B2028]/40 -mx-5 -mb-5 sm:-mx-6 sm:-mb-6 p-4 rounded-b-[6px]">
           <div className="flex items-center gap-2 text-xs">
             <Sparkles className="size-4 text-[#E5A93C]" />
             <span className="text-[#8E98A8]">Next Recommended Action:</span>
-            <span className="text-[#F1F5F9] font-medium">
-              {topicSkill.evidenceStrength === 0
-                ? 'Complete Initial Knowledge & Practice Drill'
-                : topicSkill.freshness === 'stale'
-                ? 'Refresh Stale Knowledge with Quick Practice'
-                : 'Take Advanced Practice Assessment'}
-            </span>
+            <span className="text-[#F1F5F9] font-medium">{preparedness.nextAction}</span>
           </div>
           {onStartSession && (
             <button
@@ -189,6 +272,25 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
 
       {/* Stage Content Panel */}
       <div className="bg-[#14171D] border border-[#262D38] rounded-[6px] p-5 sm:p-6">
+        {/* Stage completion control */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-4 mb-4 border-b border-[#262D38]">
+          <span className="text-[11px] font-mono uppercase tracking-wider text-[#5C6675]">
+            Stage: {stageLabels[activeStage]} · Curriculum {preparedness.coveragePct}% covered
+          </span>
+          {isStageCompleted(activeStage) ? (
+            <span className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded border bg-[#10B981]/10 text-[#10B981] border-[#10B981]/30">
+              <CheckCircle2 className="size-3.5" /> Stage completed
+            </span>
+          ) : (
+            <button
+              onClick={handleMarkStageComplete}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded bg-[#1B2028] border border-[#3B4556] text-[#F1F5F9] hover:border-[#E5A93C] hover:text-[#E5A93C] transition-all"
+            >
+              <CheckCircle2 className="size-3.5" />
+              <span>Mark {stageLabels[activeStage]} complete</span>
+            </button>
+          )}
+        </div>
         {/* Stage 1: ORIENT */}
         {activeStage === 'orient' && (
           <div className="space-y-6">
@@ -212,12 +314,49 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
                 ))}
               </div>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <h3 className="text-sm font-semibold text-[#F1F5F9] uppercase tracking-wider mb-2">What "Ready" Means</h3>
+                <ul className="space-y-1.5">
+                  {topic.completionCriteria.map((c, i) => (
+                    <li key={i} className="flex items-start gap-2 text-xs text-[#8E98A8]">
+                      <CheckCircle2 className="size-3.5 text-[#E5A93C] shrink-0 mt-0.5" />
+                      <span>{c}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-[#F1F5F9] uppercase tracking-wider mb-2">Evidence Required</h3>
+                <ul className="space-y-1.5">
+                  {topic.evidenceCriteria.map((c, i) => (
+                    <li key={i} className="flex items-start gap-2 text-xs text-[#8E98A8]">
+                      <ShieldCheck className="size-3.5 text-[#10B981] shrink-0 mt-0.5" />
+                      <span>{c}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           </div>
         )}
 
         {/* Stage 2: LEARN */}
         {activeStage === 'learn' && (
           <div className="space-y-6">
+            <div>
+              <h3 className="text-sm font-semibold text-[#F1F5F9] uppercase tracking-wider mb-3">Curriculum Subtopics</h3>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
+                {topic.subtopics.map((sub, i) => (
+                  <li key={i} className="flex items-start gap-2 text-xs text-[#8E98A8]">
+                    <span className="text-[#5C6675] font-mono shrink-0">{String(i + 1).padStart(2, '0')}</span>
+                    <span>{sub}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
             <div>
               <h3 className="text-sm font-semibold text-[#F1F5F9] uppercase tracking-wider mb-3 flex items-center gap-2">
                 <BookOpen className="size-4 text-[#E5A93C]" />
@@ -265,10 +404,22 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
         {/* Stage 3: APPLY */}
         {activeStage === 'apply' && (
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-[#F1F5F9] uppercase tracking-wider mb-2 flex items-center gap-2">
-              <Layers className="size-4 text-[#E5A93C]" />
-              <span>Available Practice & Execution Modules</span>
-            </h3>
+            <div>
+              <h3 className="text-sm font-semibold text-[#F1F5F9] uppercase tracking-wider mb-2 flex items-center gap-2">
+                <Layers className="size-4 text-[#E5A93C]" />
+                <span>Practice Activities</span>
+              </h3>
+              <ul className="space-y-1.5">
+                {topic.practiceActivities.map((act, i) => (
+                  <li key={i} className="flex items-start gap-2 text-xs text-[#8E98A8]">
+                    <CheckCircle2 className="size-3.5 text-[#10B981] shrink-0 mt-0.5" />
+                    <span>{act}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-[#F1F5F9] uppercase tracking-wider mb-2">Available Practice & Execution Modules</h3>
             {matchingSessions.length === 0 ? (
               <p className="text-xs text-[#8E98A8]">No dedicated practice module defined yet for this topic.</p>
             ) : (
@@ -298,6 +449,7 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
                 ))}
               </div>
             )}
+            </div>
           </div>
         )}
 
@@ -318,6 +470,17 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
                 <ArrowRight className="size-4" />
               </button>
             )}
+            <div className="text-left max-w-md mx-auto pt-3 border-t border-[#262D38]">
+              <h4 className="text-[11px] font-mono uppercase tracking-wider text-[#5C6675] mb-2">Assessment Types</h4>
+              <ul className="space-y-1.5">
+                {topic.assessmentTypes.map((t, i) => (
+                  <li key={i} className="flex items-start gap-2 text-xs text-[#8E98A8]">
+                    <Target className="size-3.5 text-[#E5A93C] shrink-0 mt-0.5" />
+                    <span>{t}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         )}
 
@@ -365,6 +528,19 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
               <div className="p-3 bg-[#14171D] border border-[#262D38] rounded text-xs text-[#F1F5F9]">
                 <strong className="text-[#E5A93C] block mb-1">Common Interview Question:</strong>
                 "Explain the core trade-offs and edge cases when working with {topic.title}."
+              </div>
+              <div>
+                <h4 className="text-[11px] font-mono uppercase tracking-wider text-[#5C6675] mb-2">
+                  Interview Checkpoints
+                </h4>
+                <ul className="space-y-1.5">
+                  {topic.interviewCheckpoints.map((cp, i) => (
+                    <li key={i} className="flex items-start gap-2 text-xs text-[#8E98A8]">
+                      <MessageSquare className="size-3.5 text-[#E5A93C] shrink-0 mt-0.5" />
+                      <span>{cp}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           </div>

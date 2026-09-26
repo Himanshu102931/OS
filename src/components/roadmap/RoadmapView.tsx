@@ -14,12 +14,18 @@ import {
 import { Button } from '../ui/button';
 
 export const RoadmapView: React.FC = () => {
-  const { phases, modules, topics, taskDefinitions, taskProgress, domains, skillStates, updateTaskState, setRoute } = usePlacement();
+  const { phases, modules, topics, taskDefinitions, taskProgress, domains, skillStates, updateTaskState, setRoute, routeState } = usePlacement();
 
+  // Deep link support: '#/roadmap/<topic-id>' (used by Preparation → Roadmap)
+  const linkedTopicId = routeState.route === 'roadmap' ? routeState.preparationTopicId : undefined;
+  const linkedTopic = linkedTopicId ? topics.find((t) => t.id === linkedTopicId) : undefined;
+  const linkedTopicPhaseId = linkedTopic
+    ? modules.find((m) => m.id === linkedTopic.moduleId)?.phaseId
+    : undefined;
 
-  const [selectedPhaseId, setSelectedPhaseId] = useState<string>('phase-1');
+  const [selectedPhaseId, setSelectedPhaseId] = useState<string>(linkedTopicPhaseId || 'phase-1');
   const [filterDomain, setFilterDomain] = useState<string>('all');
-  const [activeTopic, setActiveTopic] = useState<Topic | null>(null);
+  const [activeTopic, setActiveTopic] = useState<Topic | null>(linkedTopic || null);
   const [selectedWorkspaceTask, setSelectedWorkspaceTask] = useState<TaskDefinition | null>(null);
 
   // Module Collapsible State
@@ -70,6 +76,11 @@ export const RoadmapView: React.FC = () => {
 
   const topicModule = activeTopic
     ? modules.find((m) => m.id === activeTopic.moduleId)
+    : undefined;
+
+  // Bidirectional Roadmap ↔ Preparation link for the active topic
+  const linkedPrepTopic = activeTopic
+    ? PREPARATION_TOPICS.find((pt) => pt.roadmapTopicId === activeTopic.id)
     : undefined;
 
   return (
@@ -277,18 +288,19 @@ export const RoadmapView: React.FC = () => {
                 <h3 className="text-lg font-bold text-[#F1F5F9] mt-0.5">{activeTopic.name}</h3>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setActiveTopic(null);
-                    // Find the preparation topic linked to this roadmap topic
-                    const prepTopic = PREPARATION_TOPICS.find(pt => pt.roadmapTopicId === activeTopic.id);
-                    setRoute('preparation', prepTopic?.id);
-                  }}
-                  className="px-2.5 py-1 text-xs bg-[#1B2028] border border-[#262D38] text-[#E5A93C] rounded hover:bg-[#262D38] font-medium flex items-center gap-1.5 transition-all"
-                >
-                  <Target className="size-3.5" />
-                  <span>Open Preparation</span>
-                </button>
+                {linkedPrepTopic && (
+                  <button
+                    onClick={() => {
+                      setActiveTopic(null);
+                      setRoute('preparation', linkedPrepTopic.id);
+                    }}
+                    title={`Open ${linkedPrepTopic.title} in Preparation`}
+                    className="px-2.5 py-1 text-xs bg-[#1B2028] border border-[#262D38] text-[#E5A93C] rounded hover:bg-[#262D38] font-medium flex items-center gap-1.5 transition-all"
+                  >
+                    <Target className="size-3.5" />
+                    <span>Open Preparation</span>
+                  </button>
+                )}
                 <button
                   onClick={() => setActiveTopic(null)}
                   className="text-[#8E98A8] hover:text-[#F1F5F9] p-1 rounded-md"

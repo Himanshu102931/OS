@@ -183,9 +183,16 @@ export const PreparationHubView: React.FC = () => {
                       className="w-full p-2.5 bg-[#1B2028]/60 hover:bg-[#1B2028] border border-[#262D38] hover:border-[#3B4556] rounded text-left flex items-center justify-between text-xs transition-all group/btn"
                     >
                       <span className="text-[#8E98A8] group-hover/btn:text-[#F1F5F9] font-medium">{topic.title}</span>
-                      <div className="flex items-center gap-1 text-[11px] text-[#E5A93C]">
-                        <span>Open</span>
-                        <ChevronRight className="size-3.5" />
+                      <div className="flex items-center gap-2 text-[11px]">
+                        {topic.priority === 'high' && (
+                          <span className="px-1.5 py-0.5 text-[9px] font-mono uppercase rounded bg-[#E5A93C]/15 text-[#E5A93C] border border-[#E5A93C]/30">
+                            high
+                          </span>
+                        )}
+                        <span className="text-[#E5A93C] flex items-center gap-1">
+                          <span>Open</span>
+                          <ChevronRight className="size-3.5" />
+                        </span>
                       </div>
                     </button>
                   ))}

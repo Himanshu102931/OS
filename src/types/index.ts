@@ -409,6 +409,8 @@ export interface RecommendedResource {
   description?: string;
 }
 
+export type PreparationPriority = 'high' | 'medium' | 'low';
+
 export interface PreparationTopic {
   id: string;
   sectionId: PreparationSectionId;
@@ -417,12 +419,53 @@ export interface PreparationTopic {
   description: string;
   whyItMatters: string;
   learningObjectives: string[];
+  subtopics: string[];
+  priority: PreparationPriority;
+  recommendedPhase: string; // Phase ID from seedData PHASES ('phase-1' … 'phase-4')
   prerequisites: string[];
   recommendedResources: RecommendedResource[];
   stages: TopicStageId[];
-  roadmapTopicId?: string;
-  estimatedMinutes?: number;
-  targetLevel?: 1 | 2 | 3 | 4 | 5;
+  roadmapTopicId?: string; // Optional: not every preparation topic has a roadmap counterpart
+  estimatedMinutes: number;
+  targetLevel: 1 | 2 | 3 | 4 | 5;
+  practiceActivities: string[];
+  assessmentTypes: string[];
+  interviewCheckpoints: string[];
+  completionCriteria: string[];
+  evidenceCriteria: string[];
+}
+
+/**
+ * Ladder label for topic preparedness. Derived from the four proof pillars
+ * (coverage, application, assessment, retention/interview evidence) relative
+ * to the topic's target level — intentionally NOT a completion percentage.
+ */
+export type PreparationReadiness =
+  | 'not_started'
+  | 'learning'
+  | 'practicing'
+  | 'assessed'
+  | 'ready';
+
+/**
+ * Reusable preparedness evaluation for a single PreparationTopic.
+ * Coarse, deterministic values only — no fake precision.
+ */
+export interface TopicPreparedness {
+  topicId: string;
+  readiness: PreparationReadiness;
+  currentLevel: number; // 0–5 rung, contiguous: covered → practiced → assessed → retained → interview-proof
+  targetLevel: number; // topic.targetLevel (1–5)
+  covered: boolean;
+  coveragePct: number; // 0 | 50 | 100 (coarse)
+  practiced: boolean;
+  attemptCount: number;
+  assessmentPerformance: number | null; // best attempt accuracy (integer %), null when no attempt
+  evidenceStrength: number; // 0–100
+  evidenceFreshness: SkillFreshnessState;
+  interviewProof: boolean;
+  missingProof: string[];
+  nextAction: string;
 }
 
 export interface PreparationTopicProgress {
