@@ -8,6 +8,7 @@ import type {
   PlacementMode,
   UserSettings,
   PracticeAttempt,
+  PreparationTopicProgress,
 } from '../types';
 import {
   TASK_PROGRESS,
@@ -47,6 +48,7 @@ export interface AppStorageState {
   dailyCheckIns: DailyCheckIn[];
   dailyTaskAssignments: DailyTaskAssignment[];
   practiceAttempts?: PracticeAttempt[];
+  preparationTopicProgress: Record<string, PreparationTopicProgress>;
 }
 
 /**
@@ -81,6 +83,7 @@ export function getDefaultStorageState(): AppStorageState {
     dailyCheckIns: [],
     dailyTaskAssignments: [],
     practiceAttempts: [],
+    preparationTopicProgress: {},
   };
 }
 
@@ -96,6 +99,7 @@ export function validateStorageState(data: unknown): data is AppStorageState {
   if (!state.dsaProgress || typeof state.dsaProgress !== 'object') return false;
   if (!state.skillStates || typeof state.skillStates !== 'object') return false;
   if (!Array.isArray(state.companyOverlays)) return false;
+  if (state.preparationTopicProgress && typeof state.preparationTopicProgress !== 'object') return false;
 
   return true;
 }
@@ -162,6 +166,7 @@ export const StorageAdapter = {
           skillStates: mergedSkillStates,
           dsaProgress: mergedDsaProgress,
           practiceAttempts: parsed.practiceAttempts || [],
+          preparationTopicProgress: parsed.preparationTopicProgress || {},
         };
         this.saveState(migratedState);
         return migratedState;
@@ -239,8 +244,17 @@ export const StorageAdapter = {
     try {
       const parsed = JSON.parse(jsonString);
       if (validateStorageState(parsed)) {
-        this.saveState(parsed);
-        return { success: true, state: parsed };
+        const migratedState: AppStorageState = {
+          ...parsed,
+          userSettings: {
+            ...DEFAULT_USER_SETTINGS,
+            ...(parsed.userSettings || {}),
+          },
+          practiceAttempts: parsed.practiceAttempts || [],
+          preparationTopicProgress: parsed.preparationTopicProgress || {},
+        };
+        this.saveState(migratedState);
+        return { success: true, state: migratedState };
       }
       return { success: false, error: 'Invalid backup format or missing schema properties' };
     } catch (err: unknown) {
@@ -257,4 +271,9 @@ export const StorageAdapter = {
     this.saveState(defaults);
     return defaults;
   },
+
+  /**
+   * Validates storage state (exported for testing).
+   */
+  validateStorageState,
 };

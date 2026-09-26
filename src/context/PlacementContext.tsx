@@ -18,6 +18,7 @@ import type {
   UserSettings,
   PracticeSessionDefinition,
   PracticeAttempt,
+  PreparationTopicProgress,
 } from '../types';
 import {
   DOMAINS,
@@ -70,6 +71,7 @@ interface PlacementContextType {
   evidenceLogs: EvidenceLog[];
   practiceSessions: PracticeSessionDefinition[];
   practiceAttempts: PracticeAttempt[];
+  preparationTopicProgress: Record<string, PreparationTopicProgress>;
   activePhase: Phase;
   updateTaskState: (taskId: string, newState: TaskProgress['state']) => void;
   commitDailyPlan: (checkIn: DailyCheckIn, assignments: DailyTaskAssignment[]) => void;
@@ -92,6 +94,7 @@ interface PlacementContextType {
   ) => void;
   updateDSAProgress: (updatedProgress: DSAProgress) => void;
   updateSkillState: (updatedSkillState: TopicSkillState) => void;
+  updatePreparationTopicProgress: (updatedProgress: PreparationTopicProgress) => void;
   saveCompanyOverlay: (company: CompanyOverlay) => void;
   decomposeTask: (parentTask: TaskDefinition, subtasks: TaskDefinition[]) => void;
   resetApplicationData: () => void;
@@ -152,6 +155,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       dsaAttempts: loaded.dsaAttempts || [],
       evidenceLogs: loaded.evidenceLogs || [],
       practiceAttempts: loaded.practiceAttempts || [],
+      preparationTopicProgress: loaded.preparationTopicProgress || {},
     };
   });
 
@@ -437,6 +441,16 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }));
   };
 
+  const updatePreparationTopicProgress = (updatedProgress: PreparationTopicProgress) => {
+    setAppState((prev) => ({
+      ...prev,
+      preparationTopicProgress: {
+        ...prev.preparationTopicProgress,
+        [updatedProgress.topicId]: updatedProgress,
+      },
+    }));
+  };
+
   const saveCompanyOverlay = (company: CompanyOverlay) => {
     setAppState((prev) => {
       const filtered = prev.companyOverlays.filter((c) => c.id !== company.id);
@@ -512,6 +526,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           dsaAttempts: parsed.dsaAttempts || [],
           evidenceLogs: parsed.evidenceLogs || [],
           practiceAttempts: parsed.practiceAttempts || [],
+          preparationTopicProgress: parsed.preparationTopicProgress || {},
         });
         return { success: true };
       }
@@ -550,6 +565,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         evidenceLogs: appState.evidenceLogs || [],
         practiceSessions: PRACTICE_SESSIONS,
         practiceAttempts: appState.practiceAttempts || [],
+        preparationTopicProgress: appState.preparationTopicProgress || {},
         activePhase,
         updateTaskState,
         commitDailyPlan,
@@ -558,6 +574,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         recordPracticeAttempt,
         updateDSAProgress,
         updateSkillState,
+        updatePreparationTopicProgress,
         saveCompanyOverlay,
         decomposeTask,
         resetApplicationData,

@@ -421,6 +421,27 @@ export interface PreparationTopic {
   recommendedResources: RecommendedResource[];
   stages: TopicStageId[];
   roadmapTopicId?: string;
+  estimatedMinutes?: number;
+  targetLevel?: 1 | 2 | 3 | 4 | 5;
+}
+
+export interface PreparationTopicProgress {
+  topicId: string;
+  sectionId: PreparationSectionId;
+  domainId: DomainId;
+  currentStage: TopicStageId;
+  completedStages: TopicStageId[];
+  stageProgress: Record<TopicStageId, {
+    startedAt?: string;
+    completedAt?: string;
+    timeSpentMinutes: number;
+  }>;
+  lastAccessedAt: string;
+  totalTimeSpentMinutes: number;
+  evidenceStrength: number;
+  freshness: SkillFreshnessState;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type ProjectLabSectionId =
