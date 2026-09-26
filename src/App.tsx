@@ -5,7 +5,8 @@ import { DashboardView } from './components/dashboard/DashboardView';
 import { RoadmapView } from './components/roadmap/RoadmapView';
 import { DSAView } from './components/dsa/DSAView';
 import { SkillsView } from './components/skills/SkillsView';
-import { PracticeView } from './components/practice/PracticeView';
+import { PreparationHubView } from './components/preparation/PreparationHubView';
+import { ProjectLabView } from './components/project/ProjectLabView';
 import { CompaniesView } from './components/companies/CompaniesView';
 import { AnalyticsView } from './components/analytics/AnalyticsView';
 import { SettingsView } from './components/settings/SettingsView';
@@ -22,8 +23,11 @@ const MainContent: React.FC = () => {
       return <DSAView />;
     case 'skills':
       return <SkillsView />;
+    case 'preparation':
     case 'practice':
-      return <PracticeView />;
+      return <PreparationHubView />;
+    case 'project':
+      return <ProjectLabView />;
     case 'companies':
       return <CompaniesView />;
     case 'analytics':

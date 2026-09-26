@@ -8,11 +8,13 @@ import {
   ChevronRight,
   ChevronDown,
   X,
+  Target,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 
 export const RoadmapView: React.FC = () => {
-  const { phases, modules, topics, taskDefinitions, taskProgress, domains, skillStates, updateTaskState } = usePlacement();
+  const { phases, modules, topics, taskDefinitions, taskProgress, domains, skillStates, updateTaskState, setRoute } = usePlacement();
+
 
   const [selectedPhaseId, setSelectedPhaseId] = useState<string>('phase-1');
   const [filterDomain, setFilterDomain] = useState<string>('all');
@@ -273,12 +275,25 @@ export const RoadmapView: React.FC = () => {
                 <span className="text-xs text-[#E5A93C] font-semibold">{topicModule?.name}</span>
                 <h3 className="text-lg font-bold text-[#F1F5F9] mt-0.5">{activeTopic.name}</h3>
               </div>
-              <button
-                onClick={() => setActiveTopic(null)}
-                className="text-[#8E98A8] hover:text-[#F1F5F9] p-1 rounded-md"
-              >
-                <X className="size-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setActiveTopic(null);
+                    setRoute('preparation');
+                  }}
+                  className="px-2.5 py-1 text-xs bg-[#1B2028] border border-[#262D38] text-[#E5A93C] rounded hover:bg-[#262D38] font-medium flex items-center gap-1.5 transition-all"
+                >
+                  <Target className="size-3.5" />
+                  <span>Open Preparation</span>
+                </button>
+                <button
+                  onClick={() => setActiveTopic(null)}
+                  className="text-[#8E98A8] hover:text-[#F1F5F9] p-1 rounded-md"
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
+
             </div>
 
             <p className="text-xs text-[#8E98A8] leading-relaxed">{activeTopic.description}</p>

@@ -307,6 +307,8 @@ export type PracticeCategory =
   | 'sql'
   | 'core_cs'
   | 'project_defense'
+  | 'technical_interview'
+  | 'behavioral_interview'
   | 'mock_interview';
 
 export type QuestionType =
@@ -314,7 +316,11 @@ export type QuestionType =
   | 'short_answer'
   | 'sql_scenario'
   | 'defense_prompt'
-  | 'interview_question';
+  | 'interview_question'
+  | 'multiple_choice'
+  | 'query'
+  | 'explanation'
+  | 'self_evaluation';
 
 export interface PracticeQuestion {
   id: string;
@@ -370,4 +376,59 @@ export interface PracticeAttempt {
   evidenceLogId?: string;
   notes?: string;
 }
+
+// --- Preparation & Project Lab Architecture Types ---
+
+export type PreparationSectionId =
+  | 'coding'
+  | 'core_cs'
+  | 'aptitude_communication'
+  | 'interview_career';
+
+export interface PreparationSection {
+  id: PreparationSectionId;
+  title: string;
+  subtitle: string;
+  description: string;
+  topicIds: string[];
+}
+
+export type TopicStageId =
+  | 'orient'
+  | 'learn'
+  | 'apply'
+  | 'assess'
+  | 'review'
+  | 'interview'
+  | 'evidence';
+
+export interface RecommendedResource {
+  title: string;
+  url?: string;
+  type: string;
+  description?: string;
+}
+
+export interface PreparationTopic {
+  id: string;
+  sectionId: PreparationSectionId;
+  domainId: DomainId;
+  title: string;
+  description: string;
+  whyItMatters: string;
+  learningObjectives: string[];
+  prerequisites: string[];
+  recommendedResources: RecommendedResource[];
+  stages: TopicStageId[];
+  roadmapTopicId?: string;
+}
+
+export type ProjectLabSectionId =
+  | 'overview'
+  | 'architecture'
+  | 'implementation'
+  | 'practices'
+  | 'defense'
+  | 'evidence';
+
 

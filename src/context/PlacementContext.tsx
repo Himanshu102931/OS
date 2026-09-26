@@ -30,7 +30,8 @@ import {
 import { PRACTICE_SESSIONS } from '../data/practiceDataset';
 import { StorageAdapter, DEFAULT_USER_SETTINGS, type AppStorageState } from '../storage/storageAdapter';
 
-export type RoutePath = 'dashboard' | 'roadmap' | 'dsa' | 'skills' | 'practice' | 'companies' | 'analytics' | 'settings';
+export type RoutePath = 'dashboard' | 'roadmap' | 'dsa' | 'skills' | 'practice' | 'preparation' | 'project' | 'companies' | 'analytics' | 'settings';
+
 
 interface AppExtendedStorageState extends AppStorageState {
   customTaskDefinitions?: TaskDefinition[];
@@ -155,7 +156,8 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#/', '').toLowerCase();
-      if (['dashboard', 'roadmap', 'dsa', 'skills', 'practice', 'companies', 'analytics', 'settings'].includes(hash)) {
+      if (['dashboard', 'roadmap', 'dsa', 'skills', 'practice', 'preparation', 'project', 'companies', 'analytics', 'settings'].includes(hash)) {
+
         setCurrentRoute(hash as RoutePath);
       } else {
         setCurrentRoute('dashboard');

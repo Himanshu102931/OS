@@ -419,6 +419,7 @@ export interface PracticeSignals {
   weakTopic: boolean;
   lowAccuracy: boolean;
   staleDomain: boolean;
+  stalePreparationTopic: boolean;
   interviewPracticeDue: boolean;
 }
 
@@ -433,6 +434,7 @@ export function evaluatePracticeSignals(
   const recentAttempts = practiceAttempts.slice(0, 5);
   const lowAccuracy = recentAttempts.some((a) => a.accuracyPct < 60);
   const staleDomain = Object.values(skillStates).some((sk) => sk.freshness === 'stale');
+  const stalePreparationTopic = Object.values(skillStates).some((sk) => sk.freshness === 'stale' || sk.freshness === 'aging');
   const weakTopic = Object.values(skillStates).some((sk) => sk.evidenceStrength < 40);
 
   const hasUpcomingInterviews = companyOverlays.some((c) =>
@@ -444,7 +446,9 @@ export function evaluatePracticeSignals(
     weakTopic,
     lowAccuracy,
     staleDomain,
+    stalePreparationTopic,
     interviewPracticeDue: hasUpcomingInterviews,
   };
 }
+
 

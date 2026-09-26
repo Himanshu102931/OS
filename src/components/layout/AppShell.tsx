@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   Map,
   Code2,
-  Sparkles,
   Building2,
   BarChart3,
   Settings,
@@ -15,6 +14,7 @@ import {
   Terminal,
   Target,
 } from 'lucide-react';
+
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -26,11 +26,11 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
   const navItems: { id: RoutePath; label: string; icon: React.FC<{ className?: string }> }[] = [
     { id: 'dashboard', label: 'Today', icon: LayoutDashboard },
     { id: 'roadmap', label: 'Roadmap', icon: Map },
-    { id: 'dsa', label: 'DSA Bank', icon: Code2 },
-    { id: 'skills', label: 'Skills Matrix', icon: Sparkles },
-    { id: 'practice', label: 'Practice Hub', icon: Target },
+    { id: 'dsa', label: 'DSA', icon: Code2 },
+    { id: 'preparation', label: 'Preparation', icon: Target },
+    { id: 'project', label: 'Project Lab', icon: Terminal },
     { id: 'companies', label: 'Companies', icon: Building2 },
-    { id: 'analytics', label: 'Analytics & Review', icon: BarChart3 },
+    { id: 'analytics', label: 'Review', icon: BarChart3 },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -40,13 +40,16 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       case 'roadmap': return 'Master Roadmap & Trajectory';
       case 'dsa': return 'DSA Bank & Spaced Repetition';
       case 'skills': return 'Skills Matrix & Readiness';
-      case 'practice': return 'Placement Assessment & Practice Hub';
+      case 'preparation':
+      case 'practice': return 'Preparation Hub & Workspace';
+      case 'project': return 'Project Lab & Engineering Defense';
       case 'companies': return 'Target Companies & Overlays';
-      case 'analytics': return 'Analytics & Telemetry Review';
+      case 'analytics': return 'Analytics & Review';
       case 'settings': return 'System Settings & Storage';
       default: return 'PlacementOS';
     }
   };
+
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-[#0D0F12] text-[#F1F5F9] selection:bg-[#E5A93C]/30 selection:text-white">
