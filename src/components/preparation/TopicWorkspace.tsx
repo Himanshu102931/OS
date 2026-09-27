@@ -3,6 +3,7 @@ import type { PreparationTopic, TopicStageId } from '../../types';
 import { usePlacement } from '../../context/PlacementContext';
 import { evaluateTopicPreparedness, applyStageCompletion } from '../../engine/preparationEngine';
 import { PHASES } from '../../data/seedData';
+import { getPreparationTopic } from '../../data/preparationDataset';
 import {
   BookOpen,
   Compass,
@@ -40,6 +41,7 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
     updatePreparationTopicProgress,
   } = usePlacement();
   const [activeStage, setActiveStage] = useState<TopicStageId>(topic.stages[0] || 'orient');
+  const [openCardKey, setOpenCardKey] = useState<string | null>(null);
 
   const topicSkill = skillStates[topic.id] || {
     topicId: topic.id,
@@ -313,6 +315,29 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
                   </span>
                 ))}
               </div>
+              {topic.prerequisiteTopicIds.length > 0 && (
+                <div className="mt-3">
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-[#5C6675] block mb-1.5">
+                    Study these first
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {topic.prerequisiteTopicIds.map((prereqId) => {
+                      const prereqTopic = getPreparationTopic(prereqId);
+                      if (!prereqTopic) return null;
+                      return (
+                        <button
+                          key={prereqId}
+                          onClick={() => setRoute('preparation', prereqId)}
+                          className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-[#1B2028] border border-[#3B4556] rounded text-[#E5A93C] hover:border-[#E5A93C] hover:bg-[#262D38] transition-all"
+                        >
+                          <span>{prereqTopic.title}</span>
+                          <ArrowRight className="size-3" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -347,13 +372,45 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
           <div className="space-y-6">
             <div>
               <h3 className="text-sm font-semibold text-[#F1F5F9] uppercase tracking-wider mb-3">Curriculum Subtopics</h3>
-              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
-                {topic.subtopics.map((sub, i) => (
-                  <li key={i} className="flex items-start gap-2 text-xs text-[#8E98A8]">
-                    <span className="text-[#5C6675] font-mono shrink-0">{String(i + 1).padStart(2, '0')}</span>
-                    <span>{sub}</span>
-                  </li>
-                ))}
+              <p className="text-[11px] text-[#5C6675] mb-3">Open any subtopic for its learning card: what it is, why it matters, an example, practice, and proof.</p>
+              <ul className="space-y-1.5">
+                {topic.subtopics.map((sub, i) => {
+                  const card = topic.subtopicCards[i];
+                  const cardKey = `${topic.id}:${i}`;
+                  const isOpen = openCardKey === cardKey && Boolean(card);
+                  return (
+                    <li key={i} className="border border-[#262D38] rounded bg-[#1B2028]">
+                      <button
+                        onClick={() => setOpenCardKey(isOpen ? null : cardKey)}
+                        className={`w-full flex items-start gap-2 px-3 py-2 text-left text-xs transition-all ${
+                          isOpen ? 'text-[#E5A93C]' : 'text-[#8E98A8] hover:text-[#F1F5F9]'
+                        }`}
+                      >
+                        <span className="text-[#5C6675] font-mono shrink-0">{String(i + 1).padStart(2, '0')}</span>
+                        <span className="flex-1">{sub}</span>
+                        <ChevronRight className={`size-3.5 shrink-0 mt-0.5 transition-transform ${isOpen ? 'rotate-90 text-[#E5A93C]' : 'text-[#5C6675]'}`} />
+                      </button>
+                      {isOpen && card && (
+                        <div className="px-3 pb-3 pt-1 border-t border-[#262D38] space-y-2">
+                          {([
+                            { label: 'What', text: card.what, color: 'text-[#E5A93C]' },
+                            { label: 'Why', text: card.why, color: 'text-[#E5A93C]' },
+                            { label: 'Example', text: card.example, color: 'text-[#10B981]' },
+                            { label: 'Practice', text: card.practice, color: 'text-[#F59E0B]' },
+                            { label: 'Proof', text: card.proof, color: 'text-[#10B981]' },
+                          ]).map((field) => (
+                            <div key={field.label} className="flex items-start gap-2 text-xs">
+                              <span className={`font-mono text-[10px] uppercase tracking-wider w-16 shrink-0 pt-0.5 ${field.color}`}>
+                                {field.label}
+                              </span>
+                              <span className="text-[#8E98A8] leading-relaxed">{field.text}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
 

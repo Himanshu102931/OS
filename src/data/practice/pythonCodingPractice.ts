@@ -1,0 +1,275 @@
+import { makeSession } from './bank';
+
+/**
+ * Phase 2B — CODING section practice banks.
+ * Covers `prep-lang` (Python fundamentals) and `prep-coding-ds` (DSA problem solving).
+ */
+
+const PYTHON_SESSIONS = [
+  makeSession({
+    id: 'practice-python-01',
+    title: 'Python Fundamentals Drill',
+    description: 'Core language checks: mutability, data structures, slicing, comprehensions, and function arguments.',
+    category: 'coding',
+    domainId: 'python',
+    topicId: 'prep-lang',
+    minutes: 15,
+    passing: 70,
+    questions: [
+      {
+        id: 'q-py-01',
+        tag: 'Mutability',
+        prompt: 'Which Python object type is immutable?',
+        options: ['list', 'dict', 'tuple', 'set'],
+        answer: 2,
+        explanation: 'Tuples are fixed once created. list, dict and set all support in-place mutation.',
+        hint: 'Ask which structure you cannot append to.',
+      },
+      {
+        id: 'q-py-02',
+        tag: 'Dictionaries',
+        prompt: 'Which requirement must a dictionary key satisfy?',
+        options: [
+          'It must be a string',
+          'It must be hashable and immutable',
+          'It must be an integer',
+          'It must be declared before insertion',
+        ],
+        answer: 1,
+        explanation:
+          'Keys are stored in a hash table, so they must be hashable. Immutable built-ins (str, int, tuple) qualify; list and dict do not.',
+        hint: 'Think about how dict lookup finds a bucket.',
+      },
+      {
+        id: 'q-py-03',
+        tag: 'Collections',
+        prompt: 'What is printed by `print(len({1, 2, 2, 3, 3, 3}))`?',
+        options: ['6', '3', '2', 'TypeError'],
+        answer: 1,
+        explanation: 'Set literals drop duplicates, so {1, 2, 2, 3, 3, 3} stores exactly three elements.',
+        hint: 'Sets store unique members only.',
+      },
+      {
+        id: 'q-py-04',
+        tag: 'Slicing',
+        prompt: 'What does `s = "placement"; s[2:5]` return?',
+        options: ['"ace"', '"pla"', '"acem"', '"lam"'],
+        answer: 0,
+        explanation: 'Indexing is zero-based and the end index is exclusive: characters at 2, 3, 4 are a, c, e.',
+        hint: 'Start at index 2, stop before index 5.',
+      },
+      {
+        id: 'q-py-05',
+        tag: 'Operators',
+        prompt: 'In Python 3, what is the type of the result of `7 / 2`?',
+        options: ['int', 'float', 'decimal.Decimal', 'It raises ZeroDivisionError'],
+        answer: 1,
+        explanation: '`/` is true division and always returns float; use `//` when you want floor division.',
+        hint: 'Single slash vs double slash.',
+      },
+      {
+        id: 'q-py-06',
+        tag: 'Comprehensions',
+        prompt: 'What is the output of `[x * x for x in range(4)]`?',
+        options: ['[1, 4, 9, 16]', '[0, 1, 4, 9]', '[0, 2, 4, 6]', '[4, 3, 2, 1]'],
+        answer: 1,
+        explanation: 'range(4) yields 0,1,2,3 and each value is squared: 0,1,4,9.',
+        hint: 'range(4) starts at 0.',
+      },
+      {
+        id: 'q-py-07',
+        tag: 'Functions',
+        prompt: 'What do `*args` and `**kwargs` collect inside a function definition?',
+        options: [
+          'Keyword arguments only',
+          'Positional arguments only',
+          '`*args` collects extra positionals into a tuple, `**kwargs` collects extra keywords into a dict',
+          'They are placeholders and collect nothing',
+        ],
+        answer: 2,
+        explanation: 'Starred packing mirrors tuple/dict creation: one star packs positionals, two stars pack keywords.',
+        hint: 'One star = tuple, two stars = dict.',
+      },
+      {
+        id: 'q-py-08',
+        tag: 'Pitfalls',
+        prompt: 'Why is `def add(item, bucket=[])` considered a bug?',
+        options: [
+          'Default lists are illegal syntax',
+          'The default list is created once at function definition, so calls share the same growing list',
+          'It copies the list on every call',
+          'Lists cannot be passed by value',
+        ],
+        answer: 1,
+        explanation:
+          'Default argument expressions are evaluated once when the def executes. The fix is `bucket=None` followed by `bucket = bucket or []`.',
+        hint: 'When is the default value evaluated — at call time or definition time?',
+      },
+      {
+        id: 'q-py-09',
+        tag: 'Iteration',
+        prompt: 'Which statement about `sorted(data)` and `data.sort()` is correct?',
+        options: [
+          'Both sort in place and return None',
+          '`sorted` returns a new list; `list.sort()` sorts in place and returns None',
+          '`sorted` sorts in place; `list.sort()` returns a copy',
+          'Both return a new sorted list',
+        ],
+        answer: 1,
+        explanation: '`sorted()` works on any iterable and returns a new list, while the method mutates the list itself.',
+        hint: 'One allocates, one mutates.',
+      },
+      {
+        id: 'q-py-10',
+        tag: 'Practice Coding',
+        type: 'short_answer',
+        prompt: 'Write a function that takes a sentence and returns a dict of word frequencies. State its time complexity.',
+        explanation:
+          'Split into tokens, then one pass through the list updating a dict: `freq[w] = freq.get(w, 0) + 1`. Time O(N) in tokens, space O(K) for K unique words.',
+        hint: 'Use `str.split()` and `dict.get(key, 0)`.',
+      },
+    ],
+  }),
+];
+
+const CODING_SESSIONS = [
+  makeSession({
+    id: 'practice-coding-01',
+    title: 'DSA Complexity & Problem Solving Set',
+    description: 'Complexity analysis, core data structures, traversal strategy, and dry-run reasoning used in online assessments.',
+    category: 'coding',
+    domainId: 'dsa',
+    topicId: 'prep-coding-ds',
+    minutes: 20,
+    passing: 70,
+    questions: [
+      {
+        id: 'q-dsa-01',
+        tag: 'Complexity',
+        prompt: 'What is the worst-case time complexity of binary search on a sorted array of N elements?',
+        options: ['O(1)', 'O(log N)', 'O(N)', 'O(N log N)'],
+        answer: 1,
+        explanation: 'Each comparison halves the search space, so the recurrence T(N) = T(N/2) + 1 resolves to O(log N).',
+        hint: 'How many times can you halve N before you reach 1?',
+      },
+      {
+        id: 'q-dsa-02',
+        tag: 'Complexity',
+        prompt: 'When does Quick Sort degrade to O(N²)?',
+        options: [
+          'When the input is already sorted and the first element is chosen as pivot',
+          'When the input contains duplicate values only',
+          'When N is a power of two',
+          'When sorting a linked list',
+        ],
+        answer: 0,
+        explanation:
+          'A consistently bad pivot splits N-1 / 0, giving T(N) = T(N-1) + O(N) = O(N²). Sorted input plus first-element pivot is the classic case.',
+        hint: 'Look for the worst possible partition split.',
+      },
+      {
+        id: 'q-dsa-03',
+        tag: 'Stacks',
+        prompt: 'A stack holds the sequence 3, 7, 1 (1 on top). After one pop and one push of 5, what is on top?',
+        options: ['3', '7', '1', '5'],
+        answer: 3,
+        explanation: 'Pop removes 1 (the top), leaving 3, 7 with 7 on top. Push 5 then places 5 above 7, so 5 becomes the new top.',
+        hint: 'Track the stack state step by step: pop first, then push.',
+      },
+      {
+        id: 'q-dsa-04',
+        tag: 'Graphs',
+        prompt: 'Which traversal guarantees the shortest path (fewest edges) from a source to every reachable node in an unweighted graph?',
+        options: ['Depth-First Search', 'Breadth-First Search', 'Post-order traversal', 'Dijkstra with unit weights and a stack'],
+        answer: 1,
+        explanation: 'BFS explores in layers of increasing distance, so the first visit to a node is via a minimum-edge path.',
+        hint: 'Think about layer-by-layer expansion.',
+      },
+      {
+        id: 'q-dsa-05',
+        tag: 'Trees',
+        prompt: 'What is the height of a perfectly balanced binary search tree holding N nodes?',
+        options: ['O(1)', 'O(log N)', 'O(N)', 'O(N log N)'],
+        answer: 1,
+        explanation: 'Each level roughly doubles node count, so log2(N) levels are needed — that is the height.',
+        hint: 'Nodes double level by level.',
+      },
+      {
+        id: 'q-dsa-06',
+        tag: 'Sorting',
+        prompt: 'What does "stable sort" mean?',
+        options: [
+          'The algorithm runs in O(N log N) time',
+          'Equal elements keep their original relative order',
+          'The algorithm sorts in place without extra memory',
+          'The algorithm never performs swaps',
+        ],
+        answer: 1,
+        explanation: 'Stability preserves the pre-sort order of records with equal keys — required when sorting by multiple keys in sequence.',
+        hint: 'Compare two equal records before and after sorting.',
+      },
+      {
+        id: 'q-dsa-07',
+        tag: 'Hashing',
+        prompt: 'Average-case lookup time in a well-sized hash table is:',
+        options: ['O(1)', 'O(log N)', 'O(N)', 'O(N log N)'],
+        answer: 0,
+        explanation: 'With a good hash function and load factor control, each key lands in a near-empty bucket — a constant-time probe.',
+        hint: 'Worst case is O(N); the question asks for average case.',
+      },
+      {
+        id: 'q-dsa-08',
+        tag: 'Complexity',
+        prompt: 'What is the time complexity of visiting every edge exactly once in an adjacency-list graph with V vertices and E edges?',
+        options: ['O(V)', 'O(E)', 'O(V + E)', 'O(V × E)'],
+        answer: 2,
+        explanation: 'Every vertex is scanned once and every adjacency entry is touched once — the standard O(V + E) traversal bound.',
+        hint: 'Count both vertex scans and edge visits.',
+      },
+      {
+        id: 'q-dsa-09',
+        tag: 'Arrays vs Lists',
+        prompt: 'Compared with a dynamic array, what is the main advantage of a linked list?',
+        options: [
+          'Faster random access by index',
+          'O(1) insertion/deletion given a node reference, with no shifting or resizing',
+          'Better cache locality during traversal',
+          'Lower memory usage per element',
+        ],
+        answer: 1,
+        explanation:
+          'Array insertion costs O(N) for shifting (or amortized O(1) appends plus occasional resizing); a linked list relinks pointers in O(1) when the position is known.',
+        hint: 'The advantage is about insertion, not access.',
+      },
+      {
+        id: 'q-dsa-10',
+        tag: 'Dry Run',
+        prompt: 'Trace this loop: `s = 0; for i in range(1, 5): s += i`. What is `s` after the loop?',
+        options: ['10', '15', '4', '6'],
+        answer: 0,
+        explanation: 'range(1, 5) yields 1, 2, 3, 4 — the upper bound is exclusive — so s = 1+2+3+4 = 10.',
+        hint: 'The stop value 5 is not included.',
+      },
+      {
+        id: 'q-dsa-11',
+        tag: 'Practice Coding',
+        type: 'short_answer',
+        prompt: 'Write pseudocode to test whether a string is a palindrome while ignoring case and non-alphanumeric characters. State its complexity.',
+        explanation:
+          'Filter to alphanumerics and lowercase, then two pointers move inward while characters match: O(N) time, O(N) space (or O(1) extra if you filter in place).',
+        hint: 'Sanitise the input first, then compare mirrored indices.',
+      },
+      {
+        id: 'q-dsa-12',
+        tag: 'Practice Coding',
+        type: 'short_answer',
+        prompt: 'You must find the pair in a sorted array whose sum equals a target. Describe the approach, its complexity, and why it beats brute force.',
+        explanation:
+          'Two pointers at both ends: move left up when the sum is too small, right down when too large. O(N) time, O(1) space versus O(N²) for the double loop.',
+        hint: 'The array being sorted is the key property.',
+      },
+    ],
+  }),
+];
+
+export const CODING_SECTION_SESSIONS = [...PYTHON_SESSIONS, ...CODING_SESSIONS];

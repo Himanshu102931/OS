@@ -1,4 +1,15 @@
 import type { PracticeSessionDefinition } from '../types';
+import { CODING_SECTION_SESSIONS } from './practice/pythonCodingPractice';
+import { SQL_SESSIONS } from './practice/sqlPractice';
+import { DBMS_SESSIONS } from './practice/dbmsPractice';
+import { OOP_SESSIONS } from './practice/oopPractice';
+import { OS_SESSIONS } from './practice/osPractice';
+import { CN_SESSIONS } from './practice/cnPractice';
+import { QUANT_SESSIONS } from './practice/quantPractice';
+import { REASONING_SESSIONS } from './practice/reasoningPractice';
+import { VERBAL_SESSIONS } from './practice/verbalPractice';
+import { COMMUNICATION_SESSIONS } from './practice/communicationPractice';
+import { INTERVIEW_SESSIONS } from './practice/interviewPractice';
 
 export const PRACTICE_SESSIONS: PracticeSessionDefinition[] = [
   // 1. APTITUDE (Quantitative & Logical)
@@ -505,5 +516,18 @@ export const PRACTICE_SESSIONS: PracticeSessionDefinition[] = [
       },
     ],
   },
+
+  // Phase 2B — content expansion banks (appended only, existing indices preserved)
+  ...CODING_SECTION_SESSIONS,
+  ...SQL_SESSIONS,
+  ...DBMS_SESSIONS,
+  ...OOP_SESSIONS,
+  ...OS_SESSIONS,
+  ...CN_SESSIONS,
+  ...QUANT_SESSIONS,
+  ...REASONING_SESSIONS,
+  ...VERBAL_SESSIONS,
+  ...COMMUNICATION_SESSIONS,
+  ...INTERVIEW_SESSIONS,
 ];
 

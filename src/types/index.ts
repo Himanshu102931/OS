@@ -297,10 +297,13 @@ export type PracticeCategory =
   | 'verbal'
   | 'sql'
   | 'core_cs'
+  | 'coding'
+  | 'communication'
   | 'project_defense'
   | 'technical_interview'
   | 'behavioral_interview'
-  | 'mock_interview';
+  | 'mock_interview'
+  | 'resume';
 
 export type QuestionType =
   | 'mcq'
@@ -398,9 +401,24 @@ export interface RecommendedResource {
   url?: string;
   type: string;
   description?: string;
+  /** Curation role: 1 primary + 1 secondary + at most 1 optional practice link. */
+  role: 'primary' | 'secondary' | 'practice';
 }
 
 export type PreparationPriority = 'high' | 'medium' | 'low';
+
+/**
+ * One progressive-disclosure learning card for a single subtopic.
+ * Every card answers the same five questions in short, high-yield form:
+ * WHAT → WHY → EXAMPLE → PRACTICE → PROOF.
+ */
+export interface SubtopicLearningCard {
+  what: string;
+  why: string;
+  example: string;
+  practice: string;
+  proof: string;
+}
 
 export interface PreparationTopic {
   id: string;
@@ -410,10 +428,16 @@ export interface PreparationTopic {
   description: string;
   whyItMatters: string;
   learningObjectives: string[];
+  /** Ordered, human-readable subtopic headings. */
   subtopics: string[];
+  /** Ordered parallel to `subtopics` — the learning card shown in the Learn stage. */
+  subtopicCards: SubtopicLearningCard[];
   priority: PreparationPriority;
   recommendedPhase: string; // Phase ID from seedData PHASES ('phase-1' … 'phase-4')
+  /** Free-text prerequisite labels shown in the Orient stage. */
   prerequisites: string[];
+  /** Resolvable PreparationTopic ids that must be worked through first. */
+  prerequisiteTopicIds: string[];
   recommendedResources: RecommendedResource[];
   stages: TopicStageId[];
   roadmapTopicId?: string; // Optional: not every preparation topic has a roadmap counterpart
