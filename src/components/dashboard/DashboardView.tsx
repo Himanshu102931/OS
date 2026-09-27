@@ -5,6 +5,7 @@ import { MorningPlanningModal } from '../daily/MorningPlanningModal';
 import { EveningReflectionModal } from '../daily/EveningReflectionModal';
 import { FocusModeModal } from '../daily/FocusModeModal';
 import { PracticeRunnerModal } from '../practice/PracticeRunnerModal';
+import { TodayControlVisual } from './TodayControlVisual';
 import { getEvaluatedCandidates, evaluatePracticeSignals } from '../../engine/adaptiveEngine';
 import { getRecommendedPracticeSession } from '../../engine/practiceEngine';
 import {
@@ -323,111 +324,124 @@ export const DashboardView: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. PRIMARY ACTION FOCUS CARD */}
+      {/* 2. PRIMARY ACTION + DAILY CONTROL VISUAL */}
       {nextBestActionTask ? (
-        <section className="bg-gradient-to-br from-[#1B2028] to-[#14171D] p-6 sm:p-7 border border-[#E5A93C]/40 rounded-xl space-y-5 shadow-lg relative overflow-hidden glow-border">
+        <section className="bg-gradient-to-br from-[#1B2028] to-[#14171D] border border-[#E5A93C]/40 rounded-xl shadow-lg relative overflow-hidden glow-border">
           {/* Ambient visual overlay */}
           <div className="ambient-overlay absolute inset-0 bg-gradient-to-br from-[#E5A93C]/5 via-transparent to-transparent pointer-events-none" />
 
-          <div className="flex items-center justify-between flex-wrap gap-2 relative">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#E5A93C]/15 border border-[#E5A93C]/30 text-xs font-bold text-[#FFC665]">
-                <Sparkles className="size-3.5 text-[#E5A93C]" /> PRIMARY ACTION
-              </span>
-              <span className="text-xs text-[#8E98A8]">
-                {nextBestActionTask.estimatedMinutes} mins
-              </span>
-            </div>
+          <div className="flex flex-col lg:flex-row gap-0">
+            {/* LEFT: Primary Action Card */}
+            <div className="flex-1 p-6 sm:p-7 space-y-5 relative z-10">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#E5A93C]/15 border border-[#E5A93C]/30 text-xs font-bold text-[#FFC665]">
+                    <Sparkles className="size-3.5 text-[#E5A93C]" /> PRIMARY ACTION
+                  </span>
+                  <span className="text-xs text-[#8E98A8]">
+                    {nextBestActionTask.estimatedMinutes} mins
+                  </span>
+                </div>
 
-            {getDomain(nextBestActionTask.domainId) && (
-              <span className="text-xs text-[#FFC665] bg-[#14171D] border border-[#262D38] px-2.5 py-1 rounded-md font-medium">
-                {getDomain(nextBestActionTask.domainId)?.name}
-              </span>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#F1F5F9] tracking-tight leading-snug">
-              {nextBestActionTask.title}
-            </h2>
-            <p className="text-sm text-[#8E98A8] leading-relaxed max-w-2xl">
-              {nextBestActionTask.description}
-            </p>
-          </div>
-
-          {/* Human Reasoning ("Why this?") */}
-          {nextBestActionCandidate?.breakdown && (
-            <div className="pt-3 border-t border-[#262D38]/80 flex items-start gap-2 text-xs">
-              <HelpCircle className="size-4 text-[#E5A93C] shrink-0 mt-0.5" />
-              <div>
-                <span className="font-semibold text-[#FFC665]">Why this task? </span>
-                <span className="text-[#8E98A8]">
-                  {nextBestActionCandidate.breakdown.explanation}
-                </span>
+                {getDomain(nextBestActionTask.domainId) && (
+                  <span className="text-xs text-[#FFC665] bg-[#14171D] border border-[#262D38] px-2.5 py-1 rounded-md font-medium">
+                    {getDomain(nextBestActionTask.domainId)?.name}
+                  </span>
+                )}
               </div>
-            </div>
-          )}
 
-          {/* Action Row */}
-          <div className="pt-4 border-t border-[#262D38]/80 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <button
-                onClick={() => openTaskLearning(nextBestActionTask)}
-                className="text-xs text-[#8E98A8] hover:text-[#F1F5F9] font-medium flex items-center gap-1.5 transition-colors"
-              >
-                <BookOpen className="size-3.5 text-[#E5A93C]" />{' '}
-                {getLearningDestinationLabel(getTaskLearningRoute(nextBestActionTask), 'primary')}
-              </button>
+              <div className="space-y-1.5">
+                <h2 className="text-xl sm:text-2xl font-bold text-[#F1F5F9] tracking-tight leading-snug">
+                  {nextBestActionTask.title}
+                </h2>
+                <p className="text-sm text-[#8E98A8] leading-relaxed max-w-2xl">
+                  {nextBestActionTask.description}
+                </p>
+              </div>
 
-              {nextActionState !== 'completed' && (
-                <div className="flex items-center gap-1.5">
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    onClick={() => handlePostponeTask(nextBestActionTask.id)}
-                    title="Postpone to tomorrow"
-                    aria-label={`Postpone ${nextBestActionTask.title} to tomorrow`}
-                    className="h-7 text-[11px] font-medium text-[#8E98A8] hover:text-[#FFC665] hover:bg-[#1B2028] rounded-[4px] px-2"
-                  >
-                    <Clock className="size-3 mr-1" /> Postpone
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    onClick={() => handleSkipTask(nextBestActionTask.id)}
-                    title="Skip without completing — records a recovery signal"
-                    aria-label={`Skip ${nextBestActionTask.title} without completing`}
-                    className="h-7 text-[11px] font-medium text-[#8E98A8] hover:text-[#FFC665] hover:bg-[#1B2028] rounded-[4px] px-2"
-                  >
-                    <SkipForward className="size-3 mr-1" /> Skip
-                  </Button>
+              {/* Human Reasoning ("Why this?") */}
+              {nextBestActionCandidate?.breakdown && (
+                <div className="pt-3 border-t border-[#262D38]/80 flex items-start gap-2 text-xs">
+                  <HelpCircle className="size-4 text-[#E5A93C] shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-[#FFC665]">Why this task? </span>
+                    <span className="text-[#8E98A8]">
+                      {nextBestActionCandidate.breakdown.explanation}
+                    </span>
+                  </div>
                 </div>
               )}
+
+              {/* Action Row */}
+              <div className="pt-4 border-t border-[#262D38]/80 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <button
+                    onClick={() => openTaskLearning(nextBestActionTask)}
+                    className="text-xs text-[#8E98A8] hover:text-[#F1F5F9] font-medium flex items-center gap-1.5 transition-colors"
+                  >
+                    <BookOpen className="size-3.5 text-[#E5A93C]" />{' '}
+                    {getLearningDestinationLabel(getTaskLearningRoute(nextBestActionTask), 'primary')}
+                  </button>
+
+                  {nextActionState !== 'completed' && (
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        onClick={() => handlePostponeTask(nextBestActionTask.id)}
+                        title="Postpone to tomorrow"
+                        aria-label={`Postpone ${nextBestActionTask.title} to tomorrow`}
+                        className="h-7 text-[11px] font-medium text-[#8E98A8] hover:text-[#FFC665] hover:bg-[#1B2028] rounded-[4px] px-2"
+                      >
+                        <Clock className="size-3 mr-1" /> Postpone
+                      </Button>
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        onClick={() => handleSkipTask(nextBestActionTask.id)}
+                        title="Skip without completing — records a recovery signal"
+                        aria-label={`Skip ${nextBestActionTask.title} without completing`}
+                        className="h-7 text-[11px] font-medium text-[#8E98A8] hover:text-[#FFC665] hover:bg-[#1B2028] rounded-[4px] px-2"
+                      >
+                        <SkipForward className="size-3 mr-1" /> Skip
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 justify-end">
+                  <Button
+                    size="sm"
+                    onClick={() => setIsFocusModalOpen(true)}
+                    className="h-10 px-5 font-bold text-xs bg-[#E5A93C] hover:bg-[#FFC665] text-[#432C00] rounded-md shadow-md transition-all active:scale-95"
+                  >
+                    <Sparkles className="size-4 mr-1.5 text-[#432C00]" /> Start Focus Mode
+                  </Button>
+
+                  {nextActionState === 'completed' ? (
+                    <span className="text-xs text-[#10B981] font-semibold flex items-center gap-1 px-3 py-2 bg-[#10B981]/10 rounded-md border border-[#10B981]/30">
+                      <Check className="size-4" /> Completed
+                    </span>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleUpdateTaskStateWithToast(nextBestActionTask.id, 'completed')}
+                      className="h-10 px-4 text-xs font-semibold border-[#262D38] bg-[#14171D] text-[#F1F5F9] hover:bg-[#1B2028] rounded-md"
+                    >
+                      <Check className="size-4 mr-1 text-[#10B981]" /> Complete
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 justify-end">
-              <Button
-                size="sm"
-                onClick={() => setIsFocusModalOpen(true)}
-                className="h-10 px-5 font-bold text-xs bg-[#E5A93C] hover:bg-[#FFC665] text-[#432C00] rounded-md shadow-md transition-all active:scale-95"
-              >
-                <Sparkles className="size-4 mr-1.5 text-[#432C00]" /> Start Focus Mode
-              </Button>
-
-              {nextActionState === 'completed' ? (
-                <span className="text-xs text-[#10B981] font-semibold flex items-center gap-1 px-3 py-2 bg-[#10B981]/10 rounded-md border border-[#10B981]/30">
-                  <Check className="size-4" /> Completed
-                </span>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleUpdateTaskStateWithToast(nextBestActionTask.id, 'completed')}
-                  className="h-10 px-4 text-xs font-semibold border-[#262D38] bg-[#14171D] text-[#F1F5F9] hover:bg-[#1B2028] rounded-md"
-                >
-                  <Check className="size-4 mr-1 text-[#10B981]" /> Complete
-                </Button>
-              )}
+            {/* RIGHT: PlacementOS Daily Control Visualization */}
+            <div className="lg:w-[38%] border-t lg:border-t-0 lg:border-l border-[#262D38]/60 p-4 sm:p-5 flex flex-col items-center justify-center relative z-10">
+              <div className="text-[10px] font-mono uppercase tracking-widest text-[#5C6675] mb-3 self-start">
+                Daily Control
+              </div>
+              <TodayControlVisual />
             </div>
           </div>
         </section>
