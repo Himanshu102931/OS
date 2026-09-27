@@ -288,3 +288,78 @@ describe('Stage Completion Recorder', () => {
     expect(result.readiness).toBe('learning');
   });
 });
+
+describe('Stage-driven interview proof (never required for unsupported stages)', () => {
+  const topicsWithoutInterview = PREPARATION_TOPICS.filter(
+    (t) => !t.stages.includes('interview')
+  );
+  const topicsWithInterview = PREPARATION_TOPICS.filter((t) => t.stages.includes('interview'));
+
+  it('includes every topic that was affected by the unprovable Interview requirement', () => {
+    ['prep-apt-quant', 'prep-apt-reasoning', 'prep-verbal'].forEach((id) => {
+      expect(topicsWithoutInterview.map((t) => t.id)).toContain(id);
+    });
+    expect(topicsWithInterview.length).toBeGreaterThan(0);
+  });
+
+  it('never demands interview proof for a topic without an Interview stage', () => {
+    expect(topicsWithoutInterview.length).toBeGreaterThan(0);
+    topicsWithoutInterview.forEach((topic) => {
+      const result = evaluateTopicPreparedness({ topic, attempts: [] });
+
+      expect(result.interviewProof, topic.id).toBe(true);
+      expect(result.missingProof.join(' '), topic.id).not.toContain('Interview');
+      expect(result.nextAction, topic.id).not.toContain('nterview');
+    });
+  });
+
+  it('still demands interview proof for topics that expose the Interview stage', () => {
+    expect(topicsWithInterview.length).toBeGreaterThan(0);
+    topicsWithInterview.forEach((topic) => {
+      const result = evaluateTopicPreparedness({ topic, attempts: [] });
+
+      expect(result.interviewProof, topic.id).toBe(false);
+      expect(result.missingProof.join(' '), topic.id).toContain('Interview');
+    });
+  });
+
+  it('points at the interview next-action only when the stage exists', () => {
+    const proveEverythingElse = (topicId: string, stages: (typeof ALL_STAGES)[number][]) =>
+      evaluateTopicPreparedness({
+        topic: getPreparationTopic(topicId)!,
+        progress: buildProgress(stages, {
+          topicId,
+          sectionId: getPreparationTopic(topicId)!.sectionId,
+          domainId: getPreparationTopic(topicId)!.domainId,
+          evidenceStrength: 80,
+          freshness: 'fresh',
+        }),
+        attempts: [buildAttempt(100, `att-full-${topicId}`, topicId)],
+        skillState: { evidenceStrength: 80, freshness: 'fresh' },
+      });
+
+    // Stage-less interview topics: every other pillar proven ⇒ no interview ask.
+    topicsWithoutInterview.forEach((topic) => {
+      const result = proveEverythingElse(
+        topic.id,
+        topic.stages.filter((s) => s !== 'interview')
+      );
+      expect(result.nextAction, topic.id).not.toContain('nterview');
+      expect(result.missingProof, topic.id).toHaveLength(0);
+      expect(result.currentLevel, topic.id).toBe(5);
+      expect(result.readiness, topic.id).toBe('ready');
+    });
+
+    // Interview-stage topics: identical inputs still require the interview rung.
+    topicsWithInterview.forEach((topic) => {
+      const result = proveEverythingElse(
+        topic.id,
+        topic.stages.filter((s) => s !== 'interview')
+      );
+      expect(result.interviewProof, topic.id).toBe(false);
+      expect(result.currentLevel, topic.id).toBe(4); // ladder stops at rung 4
+      expect(result.missingProof.join(' '), topic.id).toContain('Interview');
+      expect(result.nextAction, topic.id).toContain('interview');
+    });
+  });
+});

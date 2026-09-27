@@ -82,7 +82,13 @@ export function evaluateTopicPreparedness(input: PreparednessInput): TopicPrepar
   const retained =
     evidenceStrength >= RETENTION_MIN_EVIDENCE &&
     (evidenceFreshness === 'fresh' || evidenceFreshness === 'aging');
-  const interviewProof = isStageDone('interview');
+  // Interview proof — only meaningful for topics that actually expose the
+  // Interview stage. A topic must never be asked for proof of a stage it does
+  // not support, so for topics without one the pillar is vacuously satisfied.
+  // Generic rule (stage-driven, no topic-id special cases): the ladder itself
+  // (rungs 1–5) and targetLevel behaviour are unchanged.
+  const supportsInterviewStage = topic.stages.includes('interview');
+  const interviewProof = !supportsInterviewStage || isStageDone('interview');
 
   // Contiguous level rung — a level implies every lower rung is proven.
   let currentLevel = 0;

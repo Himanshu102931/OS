@@ -12,7 +12,9 @@ import type {
   DSAProblem,
   DSAProgress,
   TopicSkillState,
+  EvidenceLog,
 } from '../types';
+import { getPreparationTopicIdByRoadmapId } from '../data/preparationDataset';
 
 const mockDomain: DomainDefinition = {
   id: 'dsa',
@@ -229,5 +231,170 @@ describe('skillsEngine', () => {
     expect(domainsList[0].domainId).toBe('dsa');
     expect(domainsList[0].overallReadiness).toBe(80);
     expect(domainsList[0].topicsCount).toBe(1);
+  });
+});
+
+describe('skillsEngine — preparation → roadmap evidence bridge', () => {
+  const roadmapTopicId = 'topic-dsa-arrays';
+  const bridgedPrepTopicId = getPreparationTopicIdByRoadmapId(roadmapTopicId);
+
+  const prepSkillState: TopicSkillState = {
+    topicId: bridgedPrepTopicId!,
+    domainId: 'dsa',
+    freshness: 'fresh',
+    evidenceStrength: 40,
+    lastPracticedAt: '2026-09-25T10:00:00Z',
+  };
+
+  const prepEvidenceLog: EvidenceLog = {
+    id: 'ev-log-practice-bridge',
+    topicId: bridgedPrepTopicId!,
+    domainId: 'dsa',
+    score: 40,
+    confidence: 4,
+    timestamp: '2026-09-25T10:00:00Z',
+    sourceType: 'practice_session',
+    sourceId: 'practice-coding-01',
+    details: 'Practice assessment recorded from Preparation',
+  };
+
+  it('resolves the preparation topic that reports into a roadmap topic', () => {
+    expect(bridgedPrepTopicId).toBe('prep-coding-ds');
+    expect(getPreparationTopicIdByRoadmapId('topic-that-does-not-exist')).toBeUndefined();
+  });
+
+  it('surfaces preparation skill state and evidence on the roadmap topic', () => {
+    const readiness = calculateTopicReadiness(
+      mockTopic,
+      mockDomain,
+      [],
+      {},
+      [],
+      {},
+      [],
+      [prepEvidenceLog],
+      { [bridgedPrepTopicId!]: prepSkillState },
+      [],
+      '2026-09-25'
+    );
+
+    expect(readiness.evidenceStrength).toBe(40);
+    expect(readiness.freshness).toBe('fresh');
+
+    const logItems = readiness.supportingEvidence.filter((e) => e.id === prepEvidenceLog.id);
+    expect(logItems).toHaveLength(1); // canonical log, listed exactly once
+    expect(logItems[0].sourceType).toBe('evidence_log');
+
+    // A bridged preparation state is not a user manual override, and the same
+    // attempt is never represented twice under one topic.
+    expect(readiness.manualOverrideApplied).toBe(false);
+    expect(readiness.supportingEvidence.some((e) => e.sourceType === 'manual_override')).toBe(
+      false
+    );
+  });
+
+  it('keeps the roadmap topic’s own skill state authoritative', () => {
+    const ownState: TopicSkillState = {
+      topicId: roadmapTopicId,
+      domainId: 'dsa',
+      freshness: 'fresh',
+      evidenceStrength: 85,
+      lastPracticedAt: '2026-09-25T09:00:00Z',
+    };
+
+    const readiness = calculateTopicReadiness(
+      mockTopic,
+      mockDomain,
+      [],
+      {},
+      [],
+      {},
+      [],
+      [],
+      { [roadmapTopicId]: ownState, [bridgedPrepTopicId!]: prepSkillState },
+      [],
+      '2026-09-25'
+    );
+
+    expect(readiness.evidenceStrength).toBe(85); // own state wins over bridged 40
+    expect(readiness.manualOverrideApplied).toBe(true);
+  });
+
+  it('refreshes a roadmap topic from preparation evidence without eroding its own rating', () => {
+    const ownState: TopicSkillState = {
+      topicId: roadmapTopicId,
+      domainId: 'dsa',
+      freshness: 'stale',
+      evidenceStrength: 60,
+    };
+
+    const readiness = calculateTopicReadiness(
+      mockTopic,
+      mockDomain,
+      [],
+      {},
+      [],
+      {},
+      [],
+      [prepEvidenceLog],
+      { [roadmapTopicId]: ownState, [bridgedPrepTopicId!]: prepSkillState },
+      [],
+      '2026-09-25'
+    );
+
+    // Mapped preparation activity refreshes freshness…
+    expect(readiness.freshness).toBe('fresh');
+    // …while the topic's own rating is preserved (the bridged log is not treated
+    // as computed task/DSA evidence, so no 70/30 re-blend erodes it).
+    expect(readiness.evidenceStrength).toBe(60);
+    // Own rating item + the single canonical preparation log.
+    expect(readiness.supportingEvidence).toHaveLength(2);
+    expect(
+      readiness.supportingEvidence.filter((e) => e.id === prepEvidenceLog.id)
+    ).toHaveLength(1);
+    expect(readiness.manualOverrideApplied).toBe(true);
+  });
+
+  it('lists a preparation evidence log even when no skill state exists yet', () => {
+    const readiness = calculateTopicReadiness(
+      mockTopic,
+      mockDomain,
+      [],
+      {},
+      [],
+      {},
+      [],
+      [prepEvidenceLog],
+      {},
+      [],
+      '2026-09-25'
+    );
+
+    expect(readiness.supportingEvidence.map((e) => e.id)).toContain(prepEvidenceLog.id);
+    expect(readiness.freshness).toBe('fresh');
+    expect(readiness.evidenceStrength).toBe(0);
+  });
+
+  it('leaves roadmap topics without a preparation mapping untouched', () => {
+    const unmappedTopic: Topic = { ...mockTopic, id: 'topic-unmapped-check' };
+
+    const readiness = calculateTopicReadiness(
+      unmappedTopic,
+      mockDomain,
+      [],
+      {},
+      [],
+      {},
+      [],
+      [prepEvidenceLog],
+      { [bridgedPrepTopicId!]: prepSkillState },
+      [],
+      '2026-09-25'
+    );
+
+    expect(readiness.supportingEvidence).toHaveLength(0);
+    expect(readiness.evidenceStrength).toBe(0);
+    expect(readiness.freshness).toBe('untested');
+    expect(readiness.readinessStatus).toBe('needs_baseline');
   });
 });

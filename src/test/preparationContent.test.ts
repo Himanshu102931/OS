@@ -105,6 +105,11 @@ describe('Phase 2B — Prerequisites & Resources', () => {
       topic.recommendedResources.forEach((res) => {
         expect(res.title.trim().length).toBeGreaterThan(0);
         if (res.url) expect(res.url).toMatch(/^https?:\/\//);
+        // Contract: role 'practice' is an optional practice LINK — an entry with
+        // that role must be usable, so it must carry a URL (no dead resources).
+        if (res.role === 'practice') {
+          expect(res.url, `${topic.id}: practice resource "${res.title}" has no url`).toBeTruthy();
+        }
       });
     });
   });

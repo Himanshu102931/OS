@@ -12,6 +12,7 @@ import type {
   EvidenceLog,
   SkillFreshnessState,
 } from '../types';
+import { getPreparationTopicIdByRoadmapId } from '../data/preparationDataset';
 
 type ReadinessStatus = 'ready' | 'on_track' | 'at_risk' | 'needs_baseline';
 export type EvidenceClassification = 'demonstrated' | 'inferred' | 'insufficient';
@@ -104,9 +105,25 @@ export function calculateTopicReadiness(
 ): TopicReadiness {
   const topicTasks = tasks.filter((t) => t.topicId === topic.id);
   const topicDsaProblems = dsaProblems.filter((p) => p.topicId === topic.id);
-  const manualState = skillStates[topic.id];
+
+  // Preparation → roadmap bridge.
+  // Practice evidence is recorded against preparation topic ids, while this
+  // readiness is computed for a roadmap curriculum topic. Where a preparation
+  // topic declares this roadmap topic as its `roadmapTopicId`, that preparation
+  // evidence is read as evidence for this topic too. Read-only aliasing: the
+  // roadmap topic's own skill state always wins (existing roadmap / DSA / manual
+  // behaviour is untouched) and canonical logs are never duplicated.
+  const bridgedPrepTopicId = getPreparationTopicIdByRoadmapId(topic.id);
+  const ownSkillState = skillStates[topic.id];
+  const bridgedSkillState = bridgedPrepTopicId ? skillStates[bridgedPrepTopicId] : undefined;
+  const manualState = ownSkillState ?? bridgedSkillState;
+  const skillStateIsBridged = !ownSkillState && Boolean(bridgedSkillState);
 
   const supportingEvidence: EvidenceItemSummary[] = [];
+  // Evidence this topic itself earned (roadmap tasks, DSA work, its own logs,
+  // its own manual rating). Bridged preparation logs are listed as evidence but
+  // are not counted here, so they can never re-blend the topic's own score.
+  let ownEvidenceCount = 0;
   let latestActivityTimestamp: string | undefined = undefined;
 
   const updateLatestActivity = (ts?: string) => {
@@ -123,6 +140,7 @@ export function calculateTopicReadiness(
     if (prog && prog.state === 'completed') {
       completedTasksCount++;
       updateLatestActivity(prog.lastCompletedAt || prog.updatedAt);
+      ownEvidenceCount++;
       supportingEvidence.push({
         id: `task-${task.id}`,
         title: task.title,
@@ -161,6 +179,7 @@ export function calculateTopicReadiness(
 
         totalDsaScore += probScore;
 
+        ownEvidenceCount++;
         supportingEvidence.push({
           id: `dsa-prog-${prob.id}`,
           title: `#${prob.leetcodeNumber || ''} ${prob.title}`,
@@ -184,9 +203,19 @@ export function calculateTopicReadiness(
   }
 
   // 3. Evidence Logs & Manual Override
-  const topicEvidenceLogs = evidenceLogs.filter((log) => log.topicId === topic.id);
+  // Canonical logs only: a preparation log appears exactly once — either for its
+  // own preparation topic or, through the bridge, for the roadmap topic it
+  // reports into. Log ids are used as-is (no copies, no re-keying).
+  const topicEvidenceLogs = evidenceLogs.filter(
+    (log) =>
+      log.topicId === topic.id ||
+      (bridgedPrepTopicId !== undefined && log.topicId === bridgedPrepTopicId)
+  );
   for (const log of topicEvidenceLogs) {
     updateLatestActivity(log.timestamp);
+    if (log.topicId === topic.id) {
+      ownEvidenceCount++;
+    }
     supportingEvidence.push({
       id: log.id,
       title: `Evidence Record (${log.sourceType.replace('_', ' ')})`,
@@ -202,9 +231,16 @@ export function calculateTopicReadiness(
     if (manualState.lastPracticedAt) {
       updateLatestActivity(manualState.lastPracticedAt);
     }
-    // If user saved a manual rating, record it as supporting evidence
-    if (manualState.evidenceStrength > 0 || manualState.freshness !== 'untested') {
+    // If user saved a manual rating, record it as supporting evidence.
+    // A bridged preparation skill state is not a user override, and its
+    // canonical evidence log is already listed above — never list the same
+    // attempt twice under one topic.
+    if (
+      !skillStateIsBridged &&
+      (manualState.evidenceStrength > 0 || manualState.freshness !== 'untested')
+    ) {
       manualOverrideApplied = true;
+      ownEvidenceCount++;
       supportingEvidence.push({
         id: `manual-override-${topic.id}`,
         title: 'Manual Rating Override',
@@ -228,10 +264,13 @@ export function calculateTopicReadiness(
     rawScore = (completedTasksCount / topicTasks.length) * 100;
   }
 
-  // Integrate explicit evidence log or manual rating weight if present
+  // Integrate explicit evidence log or manual rating weight if present.
+  // Only this topic's own evidence can trigger the blend: a bridged preparation
+  // log is an external record, not a computed task/DSA score, so it must not
+  // re-blend (and thereby erode) the roadmap topic's own rating.
   if (manualState && manualState.evidenceStrength > 0) {
     // Blended weight: 70% calculated evidence + 30% manual override
-    rawScore = supportingEvidence.length > 1
+    rawScore = ownEvidenceCount > 1
       ? 0.7 * rawScore + 0.3 * manualState.evidenceStrength
       : manualState.evidenceStrength;
   }

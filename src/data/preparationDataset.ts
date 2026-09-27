@@ -746,7 +746,6 @@ export const PREPARATION_TOPICS: PreparationTopic[] = [
     recommendedResources: [
       { title: 'Head First Design Patterns (Selected Patterns)', type: 'book', role: 'primary' },
       { title: 'Refactoring Guru - Design Patterns', type: 'article', url: 'https://refactoring.guru/design-patterns', role: 'secondary' },
-      { title: 'SOLID Principles Code-Kata Worksheet', type: 'practice', role: 'practice' },
     ],
     stages: ['orient', 'learn', 'apply', 'assess', 'review', 'interview', 'evidence'],
     roadmapTopicId: 'topic-oop-solid',
@@ -1085,7 +1084,6 @@ export const PREPARATION_TOPICS: PreparationTopic[] = [
     recommendedResources: [
       { title: 'Computer Networks: A Top-Down Approach (Kurose & Ross)', type: 'book', role: 'primary' },
       { title: 'Cloudflare Learning Center: Networking Fundamentals', type: 'article', url: 'https://www.cloudflare.com/learning/', role: 'secondary' },
-      { title: 'Subnetting Speed-Drill Worksheet', type: 'practice', role: 'practice' },
     ],
     stages: ['orient', 'learn', 'apply', 'assess', 'review', 'interview', 'evidence'],
     roadmapTopicId: 'topic-cn-tcp',
@@ -1778,7 +1776,6 @@ export const PREPARATION_TOPICS: PreparationTopic[] = [
     recommendedResources: [
       { title: 'STAR Method Communication Handbook', type: 'article', role: 'primary' },
       { title: 'Technical Interview Communication Guide', type: 'article', role: 'secondary' },
-      { title: 'Self-Recorded Delivery Rubric Worksheet', type: 'practice', role: 'practice' },
     ],
     stages: ['orient', 'learn', 'apply', 'assess', 'review', 'interview', 'evidence'],
     roadmapTopicId: 'topic-comm-star',
@@ -2072,7 +2069,6 @@ export const PREPARATION_TOPICS: PreparationTopic[] = [
     recommendedResources: [
       { title: 'Resume Bullet Point Defense Playbook', type: 'article', role: 'primary' },
       { title: 'GitHub Docs: How to Write a Great README', type: 'documentation', url: 'https://docs.github.com/en/get-started/start-your-project/how-to-write-a-great-readme', role: 'secondary' },
-      { title: 'Application Tracker & GitHub Hygiene Checklist', type: 'practice', role: 'practice' },
     ],
     stages: ['orient', 'learn', 'apply', 'assess', 'review', 'interview', 'evidence'],
     roadmapTopicId: 'topic-mock-final',
@@ -2205,4 +2201,34 @@ export function getPreparationTopic(id: string): PreparationTopic | undefined {
 
 export function getTopicsBySection(sectionId: string): PreparationTopic[] {
   return PREPARATION_TOPICS.filter((t) => t.sectionId === sectionId);
+}
+
+/**
+ * Inverse index of `PreparationTopic.roadmapTopicId`: roadmap (curriculum)
+ * topic id → preparation topic id.
+ *
+ * Practice evidence is recorded against preparation topic ids (`prep-*`),
+ * while Skills / Companies / Analytics compute readiness for roadmap
+ * curriculum topics (`topic-*`). This index is the single bridge those readers
+ * use to attribute preparation evidence to the roadmap topic it reports into.
+ * It only reads existing state — no second evidence store, no copied logs.
+ */
+const PREPARATION_TOPIC_BY_ROADMAP_ID: Map<string, string> = PREPARATION_TOPICS.reduce(
+  (index, topic) => {
+    // First declaration wins if two preparation topics ever share a roadmap topic.
+    if (topic.roadmapTopicId && !index.has(topic.roadmapTopicId)) {
+      index.set(topic.roadmapTopicId, topic.id);
+    }
+    return index;
+  },
+  new Map<string, string>()
+);
+
+/**
+ * Preparation topic that reports into the given roadmap curriculum topic id.
+ * Returns undefined when nothing maps there — callers must treat that as
+ * "no bridge", never as an error.
+ */
+export function getPreparationTopicIdByRoadmapId(roadmapTopicId: string): string | undefined {
+  return PREPARATION_TOPIC_BY_ROADMAP_ID.get(roadmapTopicId);
 }

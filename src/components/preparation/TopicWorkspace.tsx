@@ -204,7 +204,17 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
               { label: 'Practiced', ok: preparedness.practiced, detail: `${preparedness.attemptCount} attempts` },
               { label: 'Assessed', ok: preparedness.assessmentPerformance !== null && preparedness.assessmentPerformance >= 70, detail: preparedness.assessmentPerformance !== null ? `${preparedness.assessmentPerformance}% best` : 'no attempt' },
               { label: 'Retained', ok: preparedness.evidenceStrength >= 60 && preparedness.evidenceFreshness !== 'stale' && preparedness.evidenceFreshness !== 'untested', detail: `${preparedness.evidenceStrength}/100` },
-              { label: 'Interview', ok: preparedness.interviewProof, detail: preparedness.interviewProof ? 'proven' : 'missing' },
+              // Interview proof is only shown for topics that expose the Interview
+              // stage — a topic can never be asked to prove a stage it lacks.
+              ...(topic.stages.includes('interview')
+                ? [
+                    {
+                      label: 'Interview',
+                      ok: preparedness.interviewProof,
+                      detail: preparedness.interviewProof ? 'proven' : 'missing',
+                    },
+                  ]
+                : []),
             ].map((pillar) => (
               <span
                 key={pillar.label}
