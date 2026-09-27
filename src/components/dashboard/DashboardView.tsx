@@ -1,13 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { usePlacement } from '../../context/PlacementContext';
 import { TaskCard } from '../common/TaskCard';
 import { MorningPlanningModal } from '../daily/MorningPlanningModal';
 import { EveningReflectionModal } from '../daily/EveningReflectionModal';
 import { FocusModeModal } from '../daily/FocusModeModal';
-import { TaskLearningWorkspaceDrawer } from '../common/TaskLearningWorkspaceDrawer';
 import { PracticeRunnerModal } from '../practice/PracticeRunnerModal';
-import { getEvaluatedCandidates, evaluatePracticeSignals, type CandidateTask } from '../../engine/adaptiveEngine';
+import { getEvaluatedCandidates, evaluatePracticeSignals } from '../../engine/adaptiveEngine';
 import { getRecommendedPracticeSession } from '../../engine/practiceEngine';
+import {
+  getTaskLearningRoute,
+  getLearningDestinationLabel,
+  buildCompletionNextStep,
+} from '../../engine/taskFlowEngine';
 import type { TaskProgress, TaskDefinition, PracticeSessionDefinition } from '../../types';
 import {
   Sun,
@@ -29,6 +33,7 @@ import {
   Compass,
   Target,
   Play,
+  ShieldCheck,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 
@@ -54,6 +59,7 @@ export const DashboardView: React.FC = () => {
     practiceSessions,
     practiceAttempts,
     recordPracticeAttempt,
+    evidenceLogs,
   } = usePlacement();
 
   const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
@@ -62,21 +68,14 @@ export const DashboardView: React.FC = () => {
   const [activePracticeSession, setActivePracticeSession] = useState<PracticeSessionDefinition | null>(null);
   const [isPlanExpanded, setIsPlanExpanded] = useState(false);
   const [showTelemetryDetails, setShowTelemetryDetails] = useState(false);
-  const [workspaceTask, setWorkspaceTask] = useState<{ task: TaskDefinition; candidate?: CandidateTask } | null>(null);
 
-  // Completion Toast State
-  const [toastInfo, setToastInfo] = useState<{
+  // Post-completion next-step state (evidence recorded + refreshed recommendation).
+  // Persists until dismissed, undone, or replaced by the next completion.
+  const [completionInfo, setCompletionInfo] = useState<{
     taskId: string;
     taskTitle: string;
     previousState: TaskProgress['state'];
   } | null>(null);
-
-  useEffect(() => {
-    if (toastInfo) {
-      const timer = setTimeout(() => setToastInfo(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [toastInfo]);
 
   const todayCheckIn = dailyCheckIns.find((c) => c.date === todayDate);
   const isDaySealed = todayCheckIn?.isSealed ?? false;
@@ -134,7 +133,7 @@ export const DashboardView: React.FC = () => {
     }
   }, [todayDate]);
 
-  // Task Completion Handler with Safety Toast & Undo
+  // Task Completion Handler with Next-Step State & Undo
   const handleUpdateTaskStateWithToast = (taskId: string, newState: TaskProgress['state']) => {
     const targetTask = taskDefinitions.find((t) => t.id === taskId);
     const prevState = taskProgress[taskId]?.state || 'not_started';
@@ -142,21 +141,37 @@ export const DashboardView: React.FC = () => {
     updateTaskState(taskId, newState);
 
     if (newState === 'completed' && targetTask) {
-      setToastInfo({
+      setCompletionInfo({
         taskId,
         taskTitle: targetTask.title,
         previousState: prevState,
       });
-    } else if (toastInfo?.taskId === taskId && newState !== 'completed') {
-      setToastInfo(null);
+    } else if (completionInfo?.taskId === taskId && newState !== 'completed') {
+      setCompletionInfo(null);
     }
   };
 
   const handleUndoCompletion = () => {
-    if (!toastInfo) return;
-    updateTaskState(toastInfo.taskId, toastInfo.previousState);
-    setToastInfo(null);
+    if (!completionInfo) return;
+    updateTaskState(completionInfo.taskId, completionInfo.previousState);
+    setCompletionInfo(null);
   };
+
+  // Single learning destination for a task: Preparation workspace when the
+  // topic has a curriculum bridge, otherwise the roadmap topic that owns it.
+  const openTaskLearning = (task: TaskDefinition) => {
+    const route = getTaskLearningRoute(task);
+    setRoute(route.route, route.linkedTopicId);
+  };
+
+  // Read-only: existing evidence event + refreshed adaptive recommendation.
+  const completionNextStep = completionInfo
+    ? buildCompletionNextStep({
+        completedTaskId: completionInfo.taskId,
+        evidenceLogs,
+        nextCandidates: evaluatedCandidates,
+      })
+    : null;
 
   // Build assigned tasks for today's plan if committed
   const assignedPlanTasks: { assignmentId: string; task: TaskDefinition; progress?: TaskProgress }[] = [];
@@ -177,26 +192,79 @@ export const DashboardView: React.FC = () => {
 
   return (
     <div className="space-y-8 max-w-6xl xl:max-w-[1350px] mx-auto font-sans">
-      {/* Toast Notification for Task Completion */}
-      {toastInfo && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#1B2028] border border-[#10B981]/50 text-[#F1F5F9] p-3.5 rounded-lg shadow-2xl flex items-center gap-4 text-xs animate-fade-in">
-          <div className="flex items-center gap-2 text-[#10B981]">
-            <CheckCircle2 className="size-4" />
-            <span>Task completed: <strong>{toastInfo.taskTitle}</strong></span>
-          </div>
-          <div className="flex items-center gap-2">
+      {/* Post-completion next-step state: evidence recorded + refreshed recommendation */}
+      {completionInfo && completionNextStep && (
+        <div
+          role="status"
+          className="fixed bottom-6 left-6 right-6 sm:left-auto sm:right-6 sm:w-[26rem] z-50 bg-[#1B2028] border border-[#10B981]/40 text-[#F1F5F9] rounded-lg shadow-2xl animate-fade-in overflow-hidden"
+        >
+          <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 border-b border-[#262D38]">
+            <div className="flex items-center gap-2 text-xs text-[#10B981] min-w-0">
+              <CheckCircle2 className="size-4 shrink-0" />
+              <span className="truncate">
+                Completed: <strong className="text-[#F1F5F9]">{completionInfo.taskTitle}</strong>
+              </span>
+            </div>
             <button
-              onClick={handleUndoCompletion}
-              className="px-2.5 py-1 rounded-md bg-[#10B981]/20 hover:bg-[#10B981]/30 text-[#10B981] font-semibold transition-colors flex items-center gap-1"
-            >
-              <RotateCcw className="size-3" /> Undo
-            </button>
-            <button
-              onClick={() => setToastInfo(null)}
-              className="text-[#8E98A8] hover:text-[#F1F5F9] p-0.5"
+              onClick={() => setCompletionInfo(null)}
+              aria-label="Dismiss completion summary"
+              className="text-[#8E98A8] hover:text-[#F1F5F9] p-0.5 shrink-0"
             >
               <X className="size-3.5" />
             </button>
+          </div>
+
+          {/* Evidence recorded (existing log, read-only) */}
+          <div className="px-3.5 py-2 border-b border-[#262D38]">
+            {completionNextStep.evidence ? (
+              <p className="text-[11px] text-[#8E98A8] flex items-center gap-1.5 min-w-0">
+                <ShieldCheck className="size-3.5 text-[#E5A93C] shrink-0" />
+                <span className="shrink-0">Evidence recorded</span>
+                <span className="text-[#FFC665] font-mono">+{completionNextStep.evidence.score}</span>
+                <span className="font-mono text-[#5C6675] truncate">
+                  · {completionNextStep.evidence.topicId}
+                </span>
+              </p>
+            ) : (
+              <p className="text-[11px] text-[#8E98A8]">No evidence event recorded for this task.</p>
+            )}
+          </div>
+
+          {/* Refreshed recommended next action */}
+          <div className="px-3.5 py-2.5 space-y-2.5">
+            {completionNextStep.nextTask ? (
+              <p className="text-[11px] text-[#8E98A8] leading-relaxed">
+                <span className="text-[#FFC665] font-semibold">Next: </span>
+                <span className="text-[#F1F5F9]">{completionNextStep.nextTask.title}</span>
+              </p>
+            ) : (
+              <p className="text-[11px] text-[#8E98A8] leading-relaxed">
+                No remaining candidates today — reflect and seal the day when you are done.
+              </p>
+            )}
+
+            <div className="flex items-center justify-between gap-2">
+              {completionNextStep.nextTask && completionNextStep.nextRoute ? (
+                <button
+                  onClick={() => openTaskLearning(completionNextStep.nextTask!)}
+                  className="text-xs text-[#FFC665] hover:text-[#F1F5F9] font-semibold flex items-center gap-1.5 transition-colors min-w-0"
+                >
+                  <span className="truncate">
+                    {completionNextStep.nextRoute.route === 'preparation' ? 'Open Next Step' : 'View in Roadmap'}
+                  </span>
+                  <ArrowRight className="size-3.5 shrink-0" />
+                </button>
+              ) : (
+                <span />
+              )}
+
+              <button
+                onClick={handleUndoCompletion}
+                className="px-2.5 py-1 rounded-md bg-[#10B981]/15 hover:bg-[#10B981]/25 text-[#10B981] text-xs font-semibold transition-colors flex items-center gap-1 shrink-0"
+              >
+                <RotateCcw className="size-3" /> Undo
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -290,10 +358,11 @@ export const DashboardView: React.FC = () => {
           {/* Action Row */}
           <div className="pt-4 border-t border-[#262D38]/80 flex flex-wrap items-center justify-between gap-3">
             <button
-              onClick={() => setWorkspaceTask({ task: nextBestActionTask, candidate: nextBestActionCandidate })}
+              onClick={() => openTaskLearning(nextBestActionTask)}
               className="text-xs text-[#8E98A8] hover:text-[#F1F5F9] font-medium flex items-center gap-1.5 transition-colors"
             >
-              <BookOpen className="size-3.5 text-[#E5A93C]" /> Open Learning Workspace
+              <BookOpen className="size-3.5 text-[#E5A93C]" />{' '}
+              {getLearningDestinationLabel(getTaskLearningRoute(nextBestActionTask), 'primary')}
             </button>
 
             <div className="flex items-center gap-2">
@@ -424,6 +493,7 @@ export const DashboardView: React.FC = () => {
                 domain={getDomain(task.domainId)}
                 onUpdateState={handleUpdateTaskStateWithToast}
                 onDecomposeTask={decomposeTask}
+                onOpenLearning={openTaskLearning}
               />
             ))}
 
@@ -553,17 +623,6 @@ export const DashboardView: React.FC = () => {
             handleUpdateTaskStateWithToast(nextBestActionTask.id, 'completed');
           }
         }}
-      />
-
-      {/* Task Learning Workspace Drawer */}
-      <TaskLearningWorkspaceDrawer
-        task={workspaceTask?.task || null}
-        progress={workspaceTask?.task ? taskProgress[workspaceTask.task.id] : undefined}
-        domain={workspaceTask?.task ? getDomain(workspaceTask.task.domainId) : undefined}
-        breakdown={workspaceTask?.candidate?.breakdown}
-        isOpen={!!workspaceTask}
-        onClose={() => setWorkspaceTask(null)}
-        onUpdateState={handleUpdateTaskStateWithToast}
       />
 
       {/* Modals */}

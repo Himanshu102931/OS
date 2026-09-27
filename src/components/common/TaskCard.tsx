@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import type { TaskDefinition, TaskProgress, DomainDefinition } from '../../types';
 import { TaskDecompositionModal } from './TaskDecompositionModal';
-import { Clock, CheckCircle2, Play, Check, GitFork, AlertTriangle, RotateCcw } from 'lucide-react';
+import { getTaskLearningRoute, getLearningDestinationLabel } from '../../engine/taskFlowEngine';
+import { Clock, CheckCircle2, Play, Check, GitFork, AlertTriangle, RotateCcw, BookOpen } from 'lucide-react';
 import { Button } from '../ui/button';
 
 interface TaskCardProps {
@@ -11,6 +12,8 @@ interface TaskCardProps {
   isNextBestAction?: boolean;
   onUpdateState: (taskId: string, newState: TaskProgress['state']) => void;
   onDecomposeTask?: (parentTask: TaskDefinition, subtasks: TaskDefinition[]) => void;
+  /** Routes the task to its learning destination (Preparation workspace or roadmap topic). */
+  onOpenLearning?: (task: TaskDefinition) => void;
 }
 
 export const TaskCard: React.FC<TaskCardProps> = ({
@@ -19,6 +22,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   domain,
   onUpdateState,
   onDecomposeTask,
+  onOpenLearning,
 }) => {
   const [isDecompModalOpen, setIsDecompModalOpen] = useState(false);
 
@@ -113,7 +117,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         </div>
       </div>
 
-      <div className="mt-3 pt-2.5 border-t border-[#262D38] flex items-center justify-between text-[11px] text-[#8E98A8] font-mono">
+      <div className="mt-3 pt-2.5 border-t border-[#262D38] flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-[11px] text-[#8E98A8] font-mono">
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1 text-[#8E98A8]">
             <Clock className="size-3 text-[#E5A93C]" />
@@ -122,6 +126,17 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           <span>Importance: <span className="text-[#F1F5F9]">{task.importance}/10</span></span>
           {task.dueDate && <span>Due: <span className="text-[#FFC665]">{task.dueDate}</span></span>}
         </div>
+
+        {onOpenLearning && (
+          <button
+            type="button"
+            onClick={() => onOpenLearning(task)}
+            className="flex items-center gap-1 text-[#E5A93C] hover:text-[#FFC665] font-semibold transition-colors shrink-0"
+          >
+            <BookOpen className="size-3" />
+            {getLearningDestinationLabel(getTaskLearningRoute(task), 'card')}
+          </button>
+        )}
       </div>
 
       {/* Task Decomposition Modal */}

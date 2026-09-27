@@ -8,6 +8,8 @@ import type {
 } from '../../types';
 import type { PriorityBreakdown } from '../../engine/adaptiveEngine';
 import { PATTERN_LESSONS, LEARNING_RESOURCES } from '../../data/dsaDataset';
+import { getTaskLearningRoute } from '../../engine/taskFlowEngine';
+import { usePlacement } from '../../context/PlacementContext';
 import {
   BookOpen,
   CheckCircle2,
@@ -23,6 +25,7 @@ import {
   Code2,
   AlertTriangle,
   FileCode,
+  ArrowRight,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 
@@ -58,6 +61,8 @@ export const TaskLearningWorkspaceDrawer: React.FC<TaskLearningWorkspaceDrawerPr
   const [q2, setQ2] = useState<number | null>(null);
   const [q3, setQ3] = useState<number | null>(null);
   const [quizError, setQuizError] = useState<string | null>(null);
+
+  const { setRoute } = usePlacement();
 
   if (!isOpen || (!task && !dsaProblem)) return null;
 
@@ -409,26 +414,22 @@ export const TaskLearningWorkspaceDrawer: React.FC<TaskLearningWorkspaceDrawerPr
   const state = progress?.state || 'not_started';
   const meta = task!.learningMetadata;
 
-  const learningSteps = meta?.learningSteps || [
-    `Review core theory & definitions for ${task!.title}.`,
-    `Analyze standard implementation patterns and code structures.`,
-    `Work through practice examples step-by-step.`,
-  ];
+  // Learning destination for this task: the Preparation workspace when the
+  // topic has a curriculum bridge, otherwise the roadmap topic that owns it.
+  const taskRoute = getTaskLearningRoute(task!);
+  const preparationTitle = taskRoute.preparationTopicTitle || 'Preparation';
 
-  const practiceItems = meta?.practiceItems || [
-    `Implement or write out the baseline solution for ${task!.title}.`,
-    `Verify edge cases and time/space complexity constraints.`,
-  ];
+  const handleOpenLearningDestination = () => {
+    const route = getTaskLearningRoute(task!);
+    onClose();
+    setRoute(route.route, route.linkedTopicId);
+  };
 
-  const selfCheckQuestions = meta?.selfCheckQuestions || [
-    `Can you explain the core concepts of this topic without looking at notes?`,
-    `Do you understand when to apply this technique versus alternatives?`,
-  ];
-
-  const completionCriteria = meta?.completionCriteria || [
-    `Concept studied and key notes reviewed.`,
-    `Baseline practice problem or exercise completed.`,
-  ];
+  // Real curriculum only — never fabricated fallback content.
+  const learningSteps = meta?.learningSteps ?? [];
+  const practiceItems = meta?.practiceItems ?? [];
+  const selfCheckQuestions = meta?.selfCheckQuestions ?? [];
+  const completionCriteria = meta?.completionCriteria ?? [];
 
   return (
     <div
@@ -486,85 +487,115 @@ export const TaskLearningWorkspaceDrawer: React.FC<TaskLearningWorkspaceDrawerPr
             )}
           </section>
 
-          {/* Section 2: LEARN */}
-          <section className="space-y-3">
-            <h3 className="text-xs font-bold text-[#F1F5F9] uppercase tracking-wider flex items-center gap-1.5">
-              <BookOpen className="size-4 text-[#E5A93C]" /> 2. CONCEPT & LEARNING STEPS
+          {/* Section 2: WHERE TO LEARN (real destination — never invented content) */}
+          <section className="space-y-3 p-4 rounded-[4px] bg-[#1B2028] border border-[#E5A93C]/30">
+            <h3 className="text-xs font-bold text-[#FFC665] uppercase tracking-wider flex items-center gap-1.5">
+              <BookOpen className="size-4" /> 2. WHERE TO LEARN THIS
             </h3>
+            <p className="text-[#C5CEDB] leading-relaxed">
+              {taskRoute.route === 'preparation'
+                ? `The curriculum for this topic — learning cards, practice drills and assessments — lives in the ${preparationTitle} workspace in Preparation.`
+                : 'No Preparation curriculum is mapped to this topic yet. Follow its tasks and progress in the Roadmap.'}
+            </p>
+            <Button
+              size="sm"
+              onClick={handleOpenLearningDestination}
+              className="text-xs font-bold bg-[#E5A93C] hover:bg-[#F59E0B] text-[#432C00] rounded-[4px] px-4"
+            >
+              {taskRoute.route === 'preparation'
+                ? `Open ${preparationTitle} Workspace`
+                : 'View Topic in Roadmap'}{' '}
+              <ArrowRight className="size-3.5 ml-1.5 inline-block" />
+            </Button>
+          </section>
 
-            <div className="space-y-2">
-              {learningSteps.map((step, idx) => (
-                <div key={idx} className="flex items-start gap-2 p-2.5 rounded-[4px] bg-[#1B2028] border border-[#262D38]">
-                  <span className="size-5 rounded-[4px] bg-[#14171D] text-[#FFC665] font-bold flex items-center justify-center shrink-0 text-[10px] border border-[#262D38]">
-                    {idx + 1}
-                  </span>
-                  <span className="text-[#F1F5F9] font-medium leading-relaxed">{step}</span>
-                </div>
-              ))}
-            </div>
+          {/* Optional authored curriculum (only when real learning metadata exists) */}
+          {(learningSteps.length > 0 || meta?.primaryResource) && (
+            <section className="space-y-3">
+              <h3 className="text-xs font-bold text-[#F1F5F9] uppercase tracking-wider flex items-center gap-1.5">
+                <BookOpen className="size-4 text-[#E5A93C]" /> 3. CONCEPT & LEARNING STEPS
+              </h3>
 
-            {meta?.primaryResource && (
-              <div className="p-3 rounded-[4px] bg-[#1B2028] border border-[#262D38] space-y-1">
-                <span className="text-[10px] text-[#8E98A8] uppercase font-bold block">Primary Resource</span>
-                {meta.primaryResource.url ? (
-                  <a
-                    href={meta.primaryResource.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#FFC665] hover:underline font-semibold flex items-center gap-1 text-xs"
-                  >
-                    {meta.primaryResource.title} <ExternalLink className="size-3" />
-                  </a>
-                ) : (
-                  <span className="text-[#F1F5F9] font-semibold">{meta.primaryResource.title}</span>
-                )}
+              <div className="space-y-2">
+                {learningSteps.map((step, idx) => (
+                  <div key={idx} className="flex items-start gap-2 p-2.5 rounded-[4px] bg-[#1B2028] border border-[#262D38]">
+                    <span className="size-5 rounded-[4px] bg-[#14171D] text-[#FFC665] font-bold flex items-center justify-center shrink-0 text-[10px] border border-[#262D38]">
+                      {idx + 1}
+                    </span>
+                    <span className="text-[#F1F5F9] font-medium leading-relaxed">{step}</span>
+                  </div>
+                ))}
               </div>
-            )}
-          </section>
 
-          {/* Section 3: PRACTICE */}
-          <section className="space-y-2">
-            <h3 className="text-xs font-bold text-[#F1F5F9] uppercase tracking-wider flex items-center gap-1.5">
-              <Target className="size-4 text-[#E5A93C]" /> 3. REQUIRED PRACTICE ITEMS
-            </h3>
-            <div className="space-y-1.5">
-              {practiceItems.map((item, idx) => (
-                <div key={idx} className="p-2.5 rounded-[4px] bg-[#1B2028] border border-[#262D38] text-[#F1F5F9]">
-                  • {item}
+              {meta?.primaryResource && (
+                <div className="p-3 rounded-[4px] bg-[#1B2028] border border-[#262D38] space-y-1">
+                  <span className="text-[10px] text-[#8E98A8] uppercase font-bold block">Primary Resource</span>
+                  {meta.primaryResource.url ? (
+                    <a
+                      href={meta.primaryResource.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#FFC665] hover:underline font-semibold flex items-center gap-1 text-xs"
+                    >
+                      {meta.primaryResource.title} <ExternalLink className="size-3" />
+                    </a>
+                  ) : (
+                    <span className="text-[#F1F5F9] font-semibold">{meta.primaryResource.title}</span>
+                  )}
                 </div>
-              ))}
-            </div>
-          </section>
+              )}
+            </section>
+          )}
 
-          {/* Section 4: SELF-CHECK */}
-          <section className="space-y-2">
-            <h3 className="text-xs font-bold text-[#F1F5F9] uppercase tracking-wider flex items-center gap-1.5">
-              <Lightbulb className="size-4 text-amber-400" /> 4. SELF-CHECK VERIFICATION
-            </h3>
-            <div className="space-y-1.5">
-              {selfCheckQuestions.map((q, idx) => (
-                <div key={idx} className="p-2.5 rounded-[4px] bg-[#1B2028] border border-[#262D38] text-[#8E98A8] flex items-start gap-2">
-                  <HelpCircle className="size-3.5 text-[#FFC665] shrink-0 mt-0.5" />
-                  <span className="text-[#F1F5F9]">{q}</span>
-                </div>
-              ))}
-            </div>
-          </section>
+          {/* Section 4: PRACTICE */}
+          {practiceItems.length > 0 && (
+            <section className="space-y-2">
+              <h3 className="text-xs font-bold text-[#F1F5F9] uppercase tracking-wider flex items-center gap-1.5">
+                <Target className="size-4 text-[#E5A93C]" /> 4. REQUIRED PRACTICE ITEMS
+              </h3>
+              <div className="space-y-1.5">
+                {practiceItems.map((item, idx) => (
+                  <div key={idx} className="p-2.5 rounded-[4px] bg-[#1B2028] border border-[#262D38] text-[#F1F5F9]">
+                    • {item}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
-          {/* Section 5: COMPLETION CRITERIA */}
-          <section className="space-y-2">
-            <h3 className="text-xs font-bold text-[#F1F5F9] uppercase tracking-wider flex items-center gap-1.5">
-              <ShieldCheck className="size-4 text-emerald-400" /> 5. COMPLETION CRITERIA
-            </h3>
-            <div className="p-3 rounded-[4px] bg-[#1B2028] border border-[#262D38] space-y-1 text-[#F1F5F9]">
-              {completionCriteria.map((c, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <CheckCircle2 className="size-3.5 text-emerald-400 shrink-0" />
-                  <span>{c}</span>
-                </div>
-              ))}
-            </div>
-          </section>
+          {/* Section 5: SELF-CHECK */}
+          {selfCheckQuestions.length > 0 && (
+            <section className="space-y-2">
+              <h3 className="text-xs font-bold text-[#F1F5F9] uppercase tracking-wider flex items-center gap-1.5">
+                <Lightbulb className="size-4 text-amber-400" /> 5. SELF-CHECK VERIFICATION
+              </h3>
+              <div className="space-y-1.5">
+                {selfCheckQuestions.map((q, idx) => (
+                  <div key={idx} className="p-2.5 rounded-[4px] bg-[#1B2028] border border-[#262D38] text-[#8E98A8] flex items-start gap-2">
+                    <HelpCircle className="size-3.5 text-[#FFC665] shrink-0 mt-0.5" />
+                    <span className="text-[#F1F5F9]">{q}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Section 6: COMPLETION CRITERIA */}
+          {completionCriteria.length > 0 && (
+            <section className="space-y-2">
+              <h3 className="text-xs font-bold text-[#F1F5F9] uppercase tracking-wider flex items-center gap-1.5">
+                <ShieldCheck className="size-4 text-emerald-400" /> 6. COMPLETION CRITERIA
+              </h3>
+              <div className="p-3 rounded-[4px] bg-[#1B2028] border border-[#262D38] space-y-1 text-[#F1F5F9]">
+                {completionCriteria.map((c, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <CheckCircle2 className="size-3.5 text-emerald-400 shrink-0" />
+                    <span>{c}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
 
         {/* Footer Actions */}
