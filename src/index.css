@@ -2,6 +2,81 @@
 @import "tw-animate-css";
 @import "@fontsource-variable/inter";
 
+/* ============================================================
+   PLACEMENTOS MOTION TOKEN SYSTEM
+   ============================================================ */
+@theme inline {
+  /* Duration Tokens */
+  --duration-instant: 60ms;
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --duration-slow: 320ms;
+  --duration-ambient: 600ms;
+  --duration-page: 280ms;
+
+  /* Easing Tokens */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-snappy: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-sharp: cubic-bezier(0.4, 0, 1, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Stagger Token */
+  --stagger-step: 40ms;
+
+  /* Transition Property Shortcuts */
+  --transition-none: none;
+  --transition-all: all 0.15s var(--ease-out);
+  --transition-colors: color 0.15s var(--ease-out);
+  --transition-transform: transform 0.15s var(--ease-out);
+  --transition-opacity: opacity 0.15s var(--ease-out);
+}
+
+/* Entrance Animations */
+@keyframes placement-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes placement-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes placement-fade-down {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes placement-fade-left {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes placement-fade-right {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes placement-slide-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes placement-slide-out {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(16px); }
+}
+
+/* Exit Animations */
+@keyframes placement-fade-out {
+  to { opacity: 0; }
+}
+
+@keyframes placement-scale-out {
+  to { opacity: 0; transform: scale(0.95); }
+}
+
 @theme inline {
   --font-sans: 'Inter Variable', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
@@ -58,6 +133,22 @@
   --input: #14171D;
   --ring: #E5A93C;
   --radius: 0.375rem;
+}
+
+/* Reduced Motion Preference */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-normal: 0ms;
+    --duration-slow: 0ms;
+    --duration-ambient: 0ms;
+    --duration-page: 0ms;
+  }
+  *, *::before, *::after {
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0ms !important;
+  }
 }
 
 @layer base {
@@ -154,3 +245,65 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #3B4556;
 }
+
+/* ============================================================
+   PLACEMENTOS MOTION UTILITIES
+   ============================================================ */
+
+/* Entrance/Exit Animation Utilities */
+.animate-fade-in { animation: placement-fade-in 0.2s var(--ease-out) forwards; }
+.animate-fade-up { animation: placement-fade-up 0.2s var(--ease-out) forwards; opacity: 0; }
+.animate-fade-down { animation: placement-fade-down 0.2s var(--ease-out) forwards; opacity: 0; }
+.animate-fade-left { animation: placement-fade-left 0.2s var(--ease-out) forwards; opacity: 0; }
+.animate-fade-right { animation: placement-fade-right 0.2s var(--ease-out) forwards; opacity: 0; }
+.animate-slide-in { animation: placement-slide-in 0.2s var(--ease-out) forwards; opacity: 0; }
+.animate-slide-out { animation: placement-slide-out 0.25s var(--ease-out) forwards; }
+.animate-fade-out { animation: placement-fade-out 0.15s var(--ease-out) forwards; opacity: 1; }
+.animate-scale-out { animation: placement-scale-out 0.15s var(--ease-out) forwards; opacity: 1; }
+
+/* Reduced motion fallback (when prefers-reduced-motion is set, these animate instantly) */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in, .animate-fade-up, .animate-fade-down, .animate-fade-left, .animate-fade-right {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .animate-slide-in, .animate-slide-out {
+    animation: none;
+  }
+  .animate-fade-out, .animate-scale-out {
+    animation: none;
+    opacity: 0;
+    transform: none;
+  }
+}
+
+/* Hover Micro-interactions */
+.hover-lift:hover {
+  transform: translateY(-2px);
+  transition: transform 0.1s var(--ease-out);
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+  transition: transform 0.1s var(--ease-out);
+}
+
+.hover-press:active {
+  transform: scale(0.98);
+  transition: transform 0.05s var(--ease-snappy);
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Transition classes for common elements */
+.transition-fast { transition: var(--transition-all); }
+.transition-colors { transition: var(--transition-colors); }
+.transition-transform { transition: var(--transition-transform); }
+.transition-opacity { transition: var(--transition-opacity); }
+
+/* Motion-safe display */
+.motion-safe { display: block; }
