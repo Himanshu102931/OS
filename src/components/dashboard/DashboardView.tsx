@@ -34,6 +34,8 @@ import {
   Target,
   Play,
   ShieldCheck,
+  Clock,
+  SkipForward,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 
@@ -155,6 +157,15 @@ export const DashboardView: React.FC = () => {
     if (!completionInfo) return;
     updateTaskState(completionInfo.taskId, completionInfo.previousState);
     setCompletionInfo(null);
+  };
+
+  // Defer controls — reuse updateTaskState (state preserved, no evidence emitted).
+  const handlePostponeTask = (taskId: string) => {
+    updateTaskState(taskId, taskProgress[taskId]?.state || 'not_started', 'postpone');
+  };
+
+  const handleSkipTask = (taskId: string) => {
+    updateTaskState(taskId, taskProgress[taskId]?.state || 'not_started', 'skip');
   };
 
   // Single learning destination for a task: Preparation workspace when the
@@ -357,15 +368,42 @@ export const DashboardView: React.FC = () => {
 
           {/* Action Row */}
           <div className="pt-4 border-t border-[#262D38]/80 flex flex-wrap items-center justify-between gap-3">
-            <button
-              onClick={() => openTaskLearning(nextBestActionTask)}
-              className="text-xs text-[#8E98A8] hover:text-[#F1F5F9] font-medium flex items-center gap-1.5 transition-colors"
-            >
-              <BookOpen className="size-3.5 text-[#E5A93C]" />{' '}
-              {getLearningDestinationLabel(getTaskLearningRoute(nextBestActionTask), 'primary')}
-            </button>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <button
+                onClick={() => openTaskLearning(nextBestActionTask)}
+                className="text-xs text-[#8E98A8] hover:text-[#F1F5F9] font-medium flex items-center gap-1.5 transition-colors"
+              >
+                <BookOpen className="size-3.5 text-[#E5A93C]" />{' '}
+                {getLearningDestinationLabel(getTaskLearningRoute(nextBestActionTask), 'primary')}
+              </button>
 
-            <div className="flex items-center gap-2">
+              {nextActionState !== 'completed' && (
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => handlePostponeTask(nextBestActionTask.id)}
+                    title="Postpone to tomorrow"
+                    aria-label={`Postpone ${nextBestActionTask.title} to tomorrow`}
+                    className="h-7 text-[11px] font-medium text-[#8E98A8] hover:text-[#FFC665] hover:bg-[#1B2028] rounded-[4px] px-2"
+                  >
+                    <Clock className="size-3 mr-1" /> Postpone
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => handleSkipTask(nextBestActionTask.id)}
+                    title="Skip without completing — records a recovery signal"
+                    aria-label={`Skip ${nextBestActionTask.title} without completing`}
+                    className="h-7 text-[11px] font-medium text-[#8E98A8] hover:text-[#FFC665] hover:bg-[#1B2028] rounded-[4px] px-2"
+                  >
+                    <SkipForward className="size-3 mr-1" /> Skip
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 justify-end">
               <Button
                 size="sm"
                 onClick={() => setIsFocusModalOpen(true)}
@@ -494,6 +532,9 @@ export const DashboardView: React.FC = () => {
                 onUpdateState={handleUpdateTaskStateWithToast}
                 onDecomposeTask={decomposeTask}
                 onOpenLearning={openTaskLearning}
+                todayISO={todayDate}
+                onPostpone={handlePostponeTask}
+                onSkip={handleSkipTask}
               />
             ))}
 

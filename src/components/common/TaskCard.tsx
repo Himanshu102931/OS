@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { TaskDefinition, TaskProgress, DomainDefinition } from '../../types';
 import { TaskDecompositionModal } from './TaskDecompositionModal';
 import { getTaskLearningRoute, getLearningDestinationLabel } from '../../engine/taskFlowEngine';
-import { Clock, CheckCircle2, Play, Check, GitFork, AlertTriangle, RotateCcw, BookOpen } from 'lucide-react';
+import { Clock, CheckCircle2, Play, Check, GitFork, AlertTriangle, RotateCcw, BookOpen, SkipForward } from 'lucide-react';
 import { Button } from '../ui/button';
 
 interface TaskCardProps {
@@ -14,6 +14,12 @@ interface TaskCardProps {
   onDecomposeTask?: (parentTask: TaskDefinition, subtasks: TaskDefinition[]) => void;
   /** Routes the task to its learning destination (Preparation workspace or roadmap topic). */
   onOpenLearning?: (task: TaskDefinition) => void;
+  /** Today as YYYY-MM-DD — enables the "Postponed until" state chip. */
+  todayISO?: string;
+  /** Defers the task to tomorrow via `updateTaskState(taskId, state, 'postpone')`. */
+  onPostpone?: (taskId: string) => void;
+  /** Records a skip via `updateTaskState(taskId, state, 'skip')` — never completes the task. */
+  onSkip?: (taskId: string) => void;
 }
 
 export const TaskCard: React.FC<TaskCardProps> = ({
@@ -23,6 +29,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   onUpdateState,
   onDecomposeTask,
   onOpenLearning,
+  todayISO,
+  onPostpone,
+  onSkip,
 }) => {
   const [isDecompModalOpen, setIsDecompModalOpen] = useState(false);
 
@@ -30,6 +39,12 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   const postponeCount = progress?.postponeCount || 0;
   const skipCount = progress?.skipCount || 0;
   const isHighFriction = postponeCount >= 2 || skipCount >= 1;
+  const isPostponed = !!progress?.postponedUntil && !!todayISO && progress.postponedUntil > todayISO;
+  const canDefer = state !== 'completed' && state !== 'archived';
+
+  const frictionParts: string[] = [];
+  if (postponeCount > 0) frictionParts.push(`${postponeCount} postponement${postponeCount === 1 ? '' : 's'}`);
+  if (skipCount > 0) frictionParts.push(`${skipCount} skip${skipCount === 1 ? '' : 's'}`);
 
   const stateBadges = {
     not_started: <span className="tech-chip">To Do</span>,
@@ -44,7 +59,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         <div className="mb-3 flex items-center justify-between p-2 rounded-[4px] bg-[#F59E0B]/10 border border-[#F59E0B]/30 text-xs text-[#F59E0B]">
           <div className="flex items-center gap-1.5 font-medium text-[11px]">
             <AlertTriangle className="size-3.5 shrink-0 text-[#F59E0B]" />
-            <span>High Friction ({postponeCount} postponements)</span>
+            <span>High Friction ({frictionParts.join(', ')})</span>
           </div>
           {onDecomposeTask && (
             <Button
@@ -72,6 +87,11 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               {task.taskType}
             </span>
             {stateBadges[state]}
+            {isPostponed && (
+              <span className="tech-chip tech-chip-warning font-mono" title="Deferred from today's plan — returns when this date passes">
+                Postponed until {progress?.postponedUntil}
+              </span>
+            )}
           </div>
 
           <h3 className={`font-semibold text-sm leading-snug ${state === 'completed' ? 'line-through text-[#5C6675]' : 'text-[#F1F5F9]'}`}>
@@ -116,6 +136,36 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           )}
         </div>
       </div>
+
+      {/* Defer controls — optional, provided by the daily plan (Today) view */}
+      {(onPostpone || onSkip) && canDefer && (
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+          {onPostpone && (
+            <Button
+              size="xs"
+              variant="ghost"
+              onClick={() => onPostpone(task.id)}
+              title="Postpone to tomorrow"
+              aria-label={`Postpone ${task.title} to tomorrow`}
+              className="h-7 text-[11px] font-medium text-[#8E98A8] hover:text-[#FFC665] hover:bg-[#1B2028] rounded-[4px] px-2"
+            >
+              <Clock className="size-3 mr-1" /> Postpone
+            </Button>
+          )}
+          {onSkip && (
+            <Button
+              size="xs"
+              variant="ghost"
+              onClick={() => onSkip(task.id)}
+              title="Skip without completing — records a recovery signal"
+              aria-label={`Skip ${task.title} without completing`}
+              className="h-7 text-[11px] font-medium text-[#8E98A8] hover:text-[#FFC665] hover:bg-[#1B2028] rounded-[4px] px-2"
+            >
+              <SkipForward className="size-3 mr-1" /> Skip
+            </Button>
+          )}
+        </div>
+      )}
 
       <div className="mt-3 pt-2.5 border-t border-[#262D38] flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-[11px] text-[#8E98A8] font-mono">
         <div className="flex items-center gap-3">

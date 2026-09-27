@@ -30,6 +30,7 @@ import {
 } from '../data/seedData';
 import { PRACTICE_SESSIONS } from '../data/practiceDataset';
 import { StorageAdapter, DEFAULT_USER_SETTINGS, type AppStorageState } from '../storage/storageAdapter';
+import { applyTaskStateUpdate, type TaskStateAction } from '../engine/taskStateEngine';
 
 export type RoutePath = 'dashboard' | 'roadmap' | 'dsa' | 'skills' | 'practice' | 'preparation' | 'project' | 'companies' | 'analytics' | 'settings';
 
@@ -73,7 +74,7 @@ interface PlacementContextType {
   practiceAttempts: PracticeAttempt[];
   preparationTopicProgress: Record<string, PreparationTopicProgress>;
   activePhase: Phase;
-  updateTaskState: (taskId: string, newState: TaskProgress['state']) => void;
+  updateTaskState: (taskId: string, newState: TaskProgress['state'], action?: TaskStateAction) => void;
   commitDailyPlan: (checkIn: DailyCheckIn, assignments: DailyTaskAssignment[]) => void;
   sealDayExecution: (
     updatedCheckIn: DailyCheckIn,
@@ -236,50 +237,25 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     ...(appState.customTaskDefinitions || []),
   ];
 
-  const updateTaskState = (taskId: string, newState: TaskProgress['state']) => {
+  const updateTaskState = (taskId: string, newState: TaskProgress['state'], action?: TaskStateAction) => {
     setAppState((prev) => {
-      const existing = prev.taskProgress[taskId] || {
+      const { progress, evidence } = applyTaskStateUpdate({
         taskId,
-        state: 'not_started',
-        postponeCount: 0,
-        skipCount: 0,
-        timeSpentMinutes: 0,
-        updatedAt: new Date().toISOString(),
-      };
-
-      const isCompleting = newState === 'completed';
-      const updatedItem: TaskProgress = {
-        ...existing,
-        state: newState,
-        lastCompletedAt: isCompleting ? new Date().toISOString() : existing.lastCompletedAt,
-        updatedAt: new Date().toISOString(),
-      };
-
-      let newEvidenceLogs = prev.evidenceLogs || [];
-      if (isCompleting) {
-        const taskDef = allTaskDefinitions.find((t) => t.id === taskId);
-        if (taskDef) {
-          const newEvidence: EvidenceLog = {
-            id: `evidence-task-${Date.now()}`,
-            topicId: taskDef.topicId,
-            domainId: taskDef.domainId,
-            score: 80,
-            confidence: 4,
-            timestamp: new Date().toISOString(),
-            sourceType: 'daily_assignment',
-            sourceId: taskId,
-          };
-          newEvidenceLogs = [...newEvidenceLogs, newEvidence];
-        }
-      }
+        newState,
+        action,
+        existing: prev.taskProgress[taskId],
+        taskDef: allTaskDefinitions.find((t) => t.id === taskId),
+        now: Date.now(),
+        todayISO: getTodayISO(),
+      });
 
       return {
         ...prev,
         taskProgress: {
           ...prev.taskProgress,
-          [taskId]: updatedItem,
+          [taskId]: progress,
         },
-        evidenceLogs: newEvidenceLogs,
+        evidenceLogs: evidence ? [...(prev.evidenceLogs || []), evidence] : prev.evidenceLogs || [],
       };
     });
   };
