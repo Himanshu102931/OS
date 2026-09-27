@@ -307,3 +307,201 @@
 
 /* Motion-safe display */
 .motion-safe { display: block; }
+
+/* ============================================================
+   PLACEMENTOS SURFACE MOTION SYSTEM — VISUAL PASS 2
+   ============================================================ */
+
+/* ---- Shimmer Progress Bar ---- */
+@keyframes placement-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer-bar {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(229, 169, 60, 0.15) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: placement-shimmer 2s ease-in-out infinite;
+}
+
+/* ---- Pulse Dot ---- */
+@keyframes placement-pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.4); }
+}
+
+.pulse-dot {
+  animation: placement-pulse-dot 2s ease-in-out infinite;
+}
+
+/* ---- Subtle Glow Border ---- */
+@keyframes placement-glow-border {
+  0%, 100% { border-color: rgba(229, 169, 60, 0.3); }
+  50% { border-color: rgba(229, 169, 60, 0.6); }
+}
+
+.glow-border {
+  animation: placement-glow-border 3s ease-in-out infinite;
+}
+
+/* ---- Primary Action Ambient ---- */
+@keyframes placement-ambient-shift {
+  0%, 100% { opacity: 0.03; }
+  50% { opacity: 0.06; }
+}
+
+.ambient-overlay {
+  animation: placement-ambient-shift 4s ease-in-out infinite;
+}
+
+/* ---- Stagger Entrance ---- */
+.stagger-in > *:nth-child(1) { animation: placement-fade-up 0.3s var(--ease-out) 0ms forwards; opacity: 0; }
+.stagger-in > *:nth-child(2) { animation: placement-fade-up 0.3s var(--ease-out) 40ms forwards; opacity: 0; }
+.stagger-in > *:nth-child(3) { animation: placement-fade-up 0.3s var(--ease-out) 80ms forwards; opacity: 0; }
+.stagger-in > *:nth-child(4) { animation: placement-fade-up 0.3s var(--ease-out) 120ms forwards; opacity: 0; }
+.stagger-in > *:nth-child(5) { animation: placement-fade-up 0.3s var(--ease-out) 160ms forwards; opacity: 0; }
+.stagger-in > *:nth-child(6) { animation: placement-fade-up 0.3s var(--ease-out) 200ms forwards; opacity: 0; }
+.stagger-in > *:nth-child(7) { animation: placement-fade-up 0.3s var(--ease-out) 240ms forwards; opacity: 0; }
+.stagger-in > *:nth-child(8) { animation: placement-fade-up 0.3s var(--ease-out) 280ms forwards; opacity: 0; }
+
+/* ---- Unlock Flash ---- */
+@keyframes placement-unlock-flash {
+  0% { opacity: 0; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.02); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.unlock-animate {
+  animation: placement-unlock-flash 0.4s var(--ease-out) forwards;
+}
+
+/* ---- Completion Celebration ---- */
+@keyframes placement-check-bounce {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.check-bounce {
+  animation: placement-check-bounce 0.4s var(--ease-snappy) forwards;
+}
+
+/* ---- State-Specific Color Transitions ---- */
+.state-active {
+  border-color: rgba(229, 169, 60, 0.4);
+  transition: border-color 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
+  box-shadow: 0 0 0 1px rgba(229, 169, 60, 0.1);
+}
+
+.state-due {
+  border-color: rgba(245, 158, 11, 0.4);
+  transition: border-color 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.1);
+}
+
+.state-completed {
+  border-color: rgba(16, 185, 129, 0.3);
+  transition: border-color 0.2s var(--ease-out), opacity 0.2s var(--ease-out);
+}
+
+.state-postponed {
+  border-color: rgba(245, 158, 11, 0.25);
+  transition: border-color 0.2s var(--ease-out);
+}
+
+/* ---- Focus Mode Entry ---- */
+@keyframes placement-focus-enter {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.focus-enter {
+  animation: placement-focus-enter 0.3s var(--ease-out) forwards;
+}
+
+/* ---- Leitner Box Movement ---- */
+@keyframes placement-leitner-move {
+  0% { transform: translateX(0) scale(1); }
+  30% { transform: translateX(4px) scale(1.04); }
+  100% { transform: translateX(0) scale(1); }
+}
+
+.leitner-move {
+  animation: placement-leitner-move 0.3s var(--ease-snappy) forwards;
+}
+
+/* ---- Freshness Fade ---- */
+@keyframes placement-freshness-shift {
+  0% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+.freshness-animate {
+  animation: placement-freshness-shift 0.5s var(--ease-out) forwards;
+}
+
+/* ---- Phase Progress Shimmer ---- */
+.phase-progress-bar {
+  position: relative;
+  overflow: hidden;
+}
+
+.phase-progress-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(229, 169, 60, 0.2) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: placement-shimmer 2.5s ease-in-out infinite;
+}
+
+/* ---- Reduced Motion Overrides ---- */
+@media (prefers-reduced-motion: reduce) {
+  .shimmer-bar, .phase-progress-bar::after {
+    animation: none;
+    background-image: none;
+  }
+  .pulse-dot, .glow-border, .ambient-overlay {
+    animation: none;
+  }
+  .stagger-in > * {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .unlock-animate, .check-bounce, .focus-enter, .leitner-move, .freshness-animate {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---- SVG Visual Motif Styles ---- */
+.svg-motif {
+  opacity: 0.08;
+  transition: opacity 0.3s ease;
+}
+
+.bg-surface:hover .svg-motif {
+  opacity: 0.12;
+}
+
+/* ---- Stagger List Entrance ---- */
+.list-stagger > *:nth-child(1) { animation: placement-fade-up 0.25s var(--ease-out) 0ms forwards; opacity: 0; }
+.list-stagger > *:nth-child(2) { animation: placement-fade-up 0.25s var(--ease-out) 30ms forwards; opacity: 0; }
+.list-stagger > *:nth-child(3) { animation: placement-fade-up 0.25s var(--ease-out) 60ms forwards; opacity: 0; }
+.list-stagger > *:nth-child(4) { animation: placement-fade-up 0.25s var(--ease-out) 90ms forwards; opacity: 0; }
+.list-stagger > *:nth-child(5) { animation: placement-fade-up 0.25s var(--ease-out) 120ms forwards; opacity: 0; }
+.list-stagger > *:nth-child(6) { animation: placement-fade-up 0.25s var(--ease-out) 150ms forwards; opacity: 0; }
+.list-stagger > *:nth-child(7) { animation: placement-fade-up 0.25s var(--ease-out) 180ms forwards; opacity: 0; }
+.list-stagger > *:nth-child(8) { animation: placement-fade-up 0.25s var(--ease-out) 210ms forwards; opacity: 0; }

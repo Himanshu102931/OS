@@ -24,7 +24,6 @@ import {
   ChevronDown,
   ChevronUp,
   Check,
-  Zap,
   BookOpen,
   RotateCcw,
   X,
@@ -326,11 +325,14 @@ export const DashboardView: React.FC = () => {
 
       {/* 2. PRIMARY ACTION FOCUS CARD */}
       {nextBestActionTask ? (
-        <section className="bg-gradient-to-br from-[#1B2028] to-[#14171D] p-6 sm:p-7 border border-[#E5A93C]/40 rounded-xl space-y-5 shadow-lg relative overflow-hidden">
-          <div className="flex items-center justify-between flex-wrap gap-2">
+        <section className="bg-gradient-to-br from-[#1B2028] to-[#14171D] p-6 sm:p-7 border border-[#E5A93C]/40 rounded-xl space-y-5 shadow-lg relative overflow-hidden glow-border">
+          {/* Ambient visual overlay */}
+          <div className="ambient-overlay absolute inset-0 bg-gradient-to-br from-[#E5A93C]/5 via-transparent to-transparent pointer-events-none" />
+
+          <div className="flex items-center justify-between flex-wrap gap-2 relative">
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#E5A93C]/15 border border-[#E5A93C]/30 text-xs font-bold text-[#FFC665]">
-                <Zap className="size-3.5 text-[#E5A93C]" /> PRIMARY ACTION
+                <Sparkles className="size-3.5 text-[#E5A93C]" /> PRIMARY ACTION
               </span>
               <span className="text-xs text-[#8E98A8]">
                 {nextBestActionTask.estimatedMinutes} mins
@@ -522,21 +524,29 @@ export const DashboardView: React.FC = () => {
             </Button>
           </div>
         ) : (
-          <div className="space-y-3">
-            {visiblePlanTasks.map(({ assignmentId, task, progress }) => (
-              <TaskCard
-                key={assignmentId}
-                task={task}
-                progress={progress}
-                domain={getDomain(task.domainId)}
-                onUpdateState={handleUpdateTaskStateWithToast}
-                onDecomposeTask={decomposeTask}
-                onOpenLearning={openTaskLearning}
-                todayISO={todayDate}
-                onPostpone={handlePostponeTask}
-                onSkip={handleSkipTask}
-              />
-            ))}
+          <div className="space-y-3 list-stagger">
+            {visiblePlanTasks.map(({ assignmentId, task, progress }) => {
+              const state = progress?.state || 'not_started';
+              const stateClass = state === 'in_progress' ? 'state-active'
+                : state === 'completed' ? 'state-completed'
+                : state === 'not_started' ? 'state-due'
+                : '';
+              return (
+                <div key={assignmentId} className={stateClass}>
+                  <TaskCard
+                    task={task}
+                    progress={progress}
+                    domain={getDomain(task.domainId)}
+                    onUpdateState={handleUpdateTaskStateWithToast}
+                    onDecomposeTask={decomposeTask}
+                    onOpenLearning={openTaskLearning}
+                    todayISO={todayDate}
+                    onPostpone={handlePostponeTask}
+                    onSkip={handleSkipTask}
+                  />
+                </div>
+              );
+            })}
 
             {assignedPlanTasks.length > 3 && (
               <button
@@ -569,7 +579,7 @@ export const DashboardView: React.FC = () => {
           </div>
           <div className="w-full bg-[#0D0F12] rounded-full h-2 overflow-hidden border border-[#262D38]">
             <div
-              className="bg-[#E5A93C] h-full transition-all duration-500 rounded-full"
+              className="bg-[#E5A93C] h-full transition-all duration-500 rounded-full phase-progress-bar"
               style={{ width: `${progressPercent}%` }}
             />
           </div>

@@ -119,18 +119,65 @@ export const PreparationHubView: React.FC = () => {
       </div>
 
       {/* 4 Major Sections Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 stagger-in">
         {PREPARATION_SECTIONS.map((section) => {
           const Icon = sectionIcons[section.id] || Compass;
           const stats = getSectionStats(section);
           const topics = getTopicsBySection(section.id);
           const currentTopic = topics[0] || PREPARATION_TOPICS[0];
 
+          /* Domain-specific SVG motif */
+          const sectionMotif = (() => {
+            switch (section.id) {
+              case 'coding':
+                return (
+                  <svg viewBox="0 0 40 40" className="svg-motif absolute top-4 right-4" width="40" height="40">
+                    <polyline points="8,20 18,12 18,28" fill="none" stroke="#E5A93C" strokeWidth="1.5" />
+                    <polyline points="22,20 32,12 32,28" fill="none" stroke="#E5A93C" strokeWidth="1.5" />
+                    <line x1="18" y1="12" x2="22" y2="12" stroke="#E5A93C" strokeWidth="1" />
+                    <line x1="18" y1="28" x2="22" y2="28" stroke="#E5A93C" strokeWidth="1" />
+                  </svg>
+                );
+              case 'core_cs':
+                return (
+                  <svg viewBox="0 0 40 40" className="svg-motif absolute top-4 right-4" width="40" height="40">
+                    <circle cx="20" cy="20" r="8" fill="none" stroke="#E5A93C" strokeWidth="1" />
+                    <circle cx="20" cy="20" r="3" fill="none" stroke="#E5A93C" strokeWidth="0.5" />
+                    <line x1="20" y1="4" x2="20" y2="12" stroke="#E5A93C" strokeWidth="0.5" />
+                    <line x1="20" y1="28" x2="20" y2="36" stroke="#E5A93C" strokeWidth="0.5" />
+                    <line x1="4" y1="20" x2="12" y2="20" stroke="#E5A93C" strokeWidth="0.5" />
+                    <line x1="28" y1="20" x2="36" y2="20" stroke="#E5A93C" strokeWidth="0.5" />
+                  </svg>
+                );
+              case 'aptitude_communication':
+                return (
+                  <svg viewBox="0 0 40 40" className="svg-motif absolute top-4 right-4" width="40" height="40">
+                    <path d="M8,32 L14,14 L20,24 L26,10 L32,32" fill="none" stroke="#E5A93C" strokeWidth="1" />
+                    <circle cx="20" cy="24" r="2" fill="#E5A93C" />
+                  </svg>
+                );
+              case 'interview_career':
+                return (
+                  <svg viewBox="0 0 40 40" className="svg-motif absolute top-4 right-4" width="40" height="40">
+                    <rect x="8" y="8" width="24" height="24" rx="2" fill="none" stroke="#E5A93C" strokeWidth="1" />
+                    <line x1="14" y1="16" x2="26" y2="16" stroke="#E5A93C" strokeWidth="0.5" />
+                    <line x1="14" y1="20" x2="26" y2="20" stroke="#E5A93C" strokeWidth="0.5" />
+                    <line x1="14" y1="24" x2="22" y2="24" stroke="#E5A93C" strokeWidth="0.5" />
+                    <circle cx="30" cy="30" r="3" fill="none" stroke="#E5A93C" strokeWidth="0.5" />
+                    <line x1="32" y1="28" x2="35" y2="31" stroke="#E5A93C" strokeWidth="0.5" />
+                  </svg>
+                );
+              default:
+                return null;
+            }
+          })();
+
           return (
             <div
               key={section.id}
-              className="bg-[#14171D] border border-[#262D38] hover:border-[#3B4556] rounded-[6px] p-5 sm:p-6 transition-all flex flex-col justify-between gap-5 group"
+              className="bg-[#14171D] border border-[#262D38] hover:border-[#3B4556] rounded-[6px] p-5 sm:p-6 transition-all flex flex-col justify-between gap-5 group hover-lift relative overflow-hidden"
             >
+              {sectionMotif}
               {/* Top Section Header */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
@@ -202,7 +249,7 @@ export const PreparationHubView: React.FC = () => {
               {/* Primary Section Action */}
               <button
                 onClick={() => handleTopicSelect(currentTopic)}
-                className="w-full py-2.5 px-4 rounded-[4px] bg-[#1B2028] hover:bg-[#262D38] border border-[#3B4556] text-[#F1F5F9] font-semibold text-xs transition-all flex items-center justify-center gap-2"
+                className="w-full py-2.5 px-4 rounded-[4px] bg-[#1B2028] hover:bg-[#222833] border border-[#3B4556] text-[#F1F5F9] font-semibold text-xs transition-all flex items-center justify-center gap-2"
               >
                 <span>Enter {section.title} Workspace</span>
                 <ArrowRight className="size-3.5 text-[#E5A93C]" />

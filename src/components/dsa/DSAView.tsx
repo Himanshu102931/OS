@@ -154,8 +154,9 @@ export const DSAView: React.FC = () => {
         <div className="space-y-6">
           {/* Recommended Problem Hero Card */}
           {recommendedProblem && (
-            <div className="bg-gradient-to-br from-[#1B2028] to-[#14171D] p-6 border border-[#E5A93C]/40 rounded-xl space-y-4 shadow-md">
-              <div className="flex items-center justify-between">
+            <div className="bg-gradient-to-br from-[#1B2028] to-[#14171D] p-6 border border-[#E5A93C]/40 rounded-xl space-y-4 shadow-md glow-border relative overflow-hidden">
+              <div className="ambient-overlay absolute inset-0 bg-gradient-to-br from-[#E5A93C]/5 via-transparent to-transparent pointer-events-none" />
+              <div className="flex items-center justify-between relative">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#E5A93C]/15 text-xs font-bold text-[#FFC665]">
                   <Zap className="size-3.5 text-[#E5A93C]" /> RECOMMENDED PROBLEM
                 </span>
@@ -229,7 +230,7 @@ export const DSAView: React.FC = () => {
             <h3 className="text-sm font-semibold text-[#F1F5F9]">
               Active Problem Track ({filteredProblems.slice(0, 6).length} available)
             </h3>
-            <div className="space-y-2">
+            <div className="space-y-2 list-stagger">
               {filteredProblems.slice(0, 8).map((prob) => {
                 const status = getProblemStatus(prob);
                 return (
@@ -360,19 +361,58 @@ export const DSAView: React.FC = () => {
       {/* 3. PATTERNS VIEW */}
       {activeTab === 'patterns' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {PATTERN_LESSONS.map((pat) => (
-            <div key={pat.patternId} className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-3">
-              <div>
-                <h3 className="text-base font-bold text-[#F1F5F9]">{pat.name}</h3>
-                <p className="text-xs text-[#8E98A8] mt-1 leading-relaxed">{pat.overview}</p>
-              </div>
+          {PATTERN_LESSONS.map((pat) => {
+            /* Pattern-specific SVG motif */
+            const patternMotif = (() => {
+              switch (pat.patternId) {
+                case 'arrays':
+                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><rect x="4" y="6" width="6" height="20" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="12" y="10" width="6" height="16" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="20" y="8" width="6" height="18" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="28" y="12" width="4" height="14" fill="none" stroke="#E5A93C" strokeWidth="1"/></svg>;
+                case 'two-pointers':
+                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><circle cx="10" cy="16" r="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="22" cy="16" r="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><line x1="14" y1="16" x2="18" y2="16" stroke="#E5A93C" strokeWidth="0.5"/></svg>;
+                case 'sliding-window':
+                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><rect x="4" y="10" width="8" height="12" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="14" y="10" width="8" height="12" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="24" y="10" width="6" height="12" fill="none" stroke="#E5A93C" strokeWidth="1"/></svg>;
+                case 'stack':
+                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><rect x="12" y="4" width="8" height="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="12" y="10" width="8" height="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="12" y="16" width="8" height="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="12" y="22" width="8" height="4" fill="none" stroke="#E5A93C" strokeWidth="1"/></svg>;
+                case 'binary-search':
+                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><line x1="4" y1="8" x2="28" y2="8" stroke="#E5A93C" strokeWidth="1"/><line x1="4" y1="16" x2="28" y2="16" stroke="#E5A93C" strokeWidth="1"/><line x1="4" y1="24" x2="28" y2="24" stroke="#E5A93C" strokeWidth="1"/><circle cx="12" cy="8" r="2" fill="#E5A93C"/><circle cx="20" cy="16" r="2" fill="#E5A93C"/><circle cx="16" cy="24" r="2" fill="#E5A93C"/></svg>;
+                case 'linked-list':
+                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><circle cx="6" cy="16" r="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="14" cy="16" r="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="22" cy="16" r="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="28" cy="16" r="3" fill="none" stroke="#E5A93C" strokeWidth="1"/><line x1="10" y1="16" x2="14" y2="16" stroke="#E5A93C" strokeWidth="0.5"/><line x1="18" y1="16" x2="22" y2="16" stroke="#E5A93C" strokeWidth="0.5"/></svg>;
+                case 'trees':
+                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><circle cx="16" cy="6" r="3" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="8" cy="16" r="3" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="24" cy="16" r="3" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="4" cy="26" r="2.5" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="12" cy="26" r="2.5" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="20" cy="26" r="2.5" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="28" cy="26" r="2.5" fill="none" stroke="#E5A93C" strokeWidth="1"/></svg>;
+                case 'heaps':
+                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><rect x="12" y="4" width="8" height="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="6" y="10" width="8" height="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="18" y="10" width="8" height="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="4" y="16" width="6" height="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="10" y="16" width="6" height="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="16" y="16" width="6" height="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="22" y="16" width="6" height="4" fill="none" stroke="#E5A93C" strokeWidth="1"/></svg>;
+                case 'graphs':
+                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><circle cx="8" cy="8" r="3" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="24" cy="8" r="3" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="8" cy="24" r="3" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="24" cy="24" r="3" fill="none" stroke="#E5A93C" strokeWidth="1"/><line x1="11" y1="8" x2="21" y2="8" stroke="#E5A93C" strokeWidth="0.5"/><line x1="11" y1="24" x2="21" y2="24" stroke="#E5A93C" strokeWidth="0.5"/><line x1="8" y1="11" x2="8" y2="21" stroke="#E5A93C" strokeWidth="0.5"/><line x1="24" y1="11" x2="24" y2="21" stroke="#E5A93C" strokeWidth="0.5"/></svg>;
+                case 'dp':
+                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><rect x="4" y="4" width="8" height="8" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="14" y="10" width="8" height="8" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="24" y="4" width="8" height="8" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="4" y="18" width="8" height="8" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="14" y="24" width="8" height="8" fill="none" stroke="#E5A93C" strokeWidth="1"/></svg>;
+                case 'intervals':
+                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><rect x="4" y="8" width="10" height="5" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="16" y="13" width="10" height="5" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="6" y="18" width="8" height="5" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="18" y="23" width="10" height="5" fill="none" stroke="#E5A93C" strokeWidth="1"/></svg>;
+                case 'matrices':
+                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><rect x="4" y="4" width="8" height="8" fill="none" stroke="#E5A93C" strokeWidth="0.5"/><rect x="14" y="4" width="8" height="8" fill="none" stroke="#E5A93C" strokeWidth="0.5"/><rect x="4" y="14" width="8" height="8" fill="none" stroke="#E5A93C" strokeWidth="0.5"/><rect x="14" y="14" width="8" height="8" fill="none" stroke="#E5A93C" strokeWidth="0.5"/><rect x="4" y="24" width="8" height="8" fill="none" stroke="#E5A93C" strokeWidth="0.5"/><rect x="14" y="24" width="8" height="8" fill="none" stroke="#E5A93C" strokeWidth="0.5"/></svg>;
+                case 'bit-operations':
+                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><rect x="4" y="6" width="4" height="4" fill="#E5A93C" opacity="0.3"/><rect x="10" y="10" width="4" height="4" fill="#E5A93C" opacity="0.5"/><rect x="16" y="6" width="4" height="4" fill="#E5A93C"/><rect x="22" y="10" width="4" height="4" fill="#E5A93C" opacity="0.7"/><rect x="4" y="18" width="4" height="4" fill="#E5A93C" opacity="0.5"/><rect x="10" y="22" width="4" height="4" fill="#E5A93C" opacity="0.3"/><rect x="16" y="18" width="4" height="4" fill="#E5A93C" opacity="0.8"/><rect x="22" y="22" width="4" height="4" fill="#E5A93C" opacity="0.4"/></svg>;
+                default:
+                  return null;
+              }
+            })();
 
-              <div className="pt-3 border-t border-[#262D38] space-y-1.5 text-xs text-[#8E98A8]">
-                <div><strong className="text-[#F1F5F9]">Why It Matters:</strong> {pat.whyItMatters}</div>
-                <div><strong className="text-[#FFC665]">Expected Complexity:</strong> <span className="font-mono">{pat.expectedTimeComplexity}</span></div>
+            return (
+              <div key={pat.patternId} className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-3 hover-lift relative overflow-hidden">
+                {patternMotif && (
+                  <div className="absolute top-3 right-3">{patternMotif}</div>
+                )}
+                <div>
+                  <h3 className="text-base font-bold text-[#F1F5F9]">{pat.name}</h3>
+                  <p className="text-xs text-[#8E98A8] mt-1 leading-relaxed">{pat.overview}</p>
+                </div>
+
+                <div className="pt-3 border-t border-[#262D38] space-y-1.5 text-xs text-[#8E98A8]">
+                  <div><strong className="text-[#F1F5F9]">Why It Matters:</strong> {pat.whyItMatters}</div>
+                  <div><strong className="text-[#FFC665]">Expected Complexity:</strong> <span className="font-mono">{pat.expectedTimeComplexity}</span></div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

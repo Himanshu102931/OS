@@ -148,7 +148,7 @@ export const RoadmapView: React.FC = () => {
         {/* Progress Bar */}
         <div className="w-full bg-[#0D0F12] rounded-full h-2 overflow-hidden border border-[#262D38]">
           <div
-            className="bg-[#E5A93C] h-full transition-all duration-500 rounded-full"
+            className="bg-[#E5A93C] h-full transition-all duration-500 rounded-full phase-progress-bar"
             style={{ width: `${phaseProgressPercent}%` }}
           />
         </div>
@@ -185,7 +185,7 @@ export const RoadmapView: React.FC = () => {
       </div>
 
       {/* Modules List */}
-      <div className="space-y-4">
+      <div className="space-y-4 stagger-in">
         {phaseModules.length === 0 ? (
           <div className="p-8 text-center bg-[#14171D] border border-[#262D38] rounded-xl text-xs text-[#8E98A8]">
             No modules match your current filter.
