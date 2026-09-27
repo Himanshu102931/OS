@@ -93,7 +93,7 @@ export const CompaniesView: React.FC = () => {
       </div>
 
       {/* Target Companies Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 stagger-in">
         {companyOverlays.map((company) => {
           const snapshot = companySnapshotMap[company.id];
           const overallPct = snapshot?.overallPreparationStrength || 0;
@@ -102,7 +102,7 @@ export const CompaniesView: React.FC = () => {
           return (
             <div
               key={company.id}
-              className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-4 hover:border-[#3B4556] transition-all"
+              className="company-glow bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-4 hover:border-[#3B4556] transition-all hover-lift"
             >
               {/* Header */}
               <div className="flex items-start justify-between gap-3">
@@ -117,7 +117,7 @@ export const CompaniesView: React.FC = () => {
                 </div>
 
                 <div className="text-right">
-                  <span className="text-xl font-bold text-[#FFC665]">{overallPct}%</span>
+                  <span className="text-xl font-bold text-[#FFC665] company-readiness">{overallPct}%</span>
                   <p className="text-[10px] text-[#8E98A8]">Readiness</p>
                 </div>
               </div>
@@ -134,11 +134,11 @@ export const CompaniesView: React.FC = () => {
                   <AlertCircle className="size-3 text-[#F59E0B]" /> Top Preparation Gaps:
                 </span>
                 {keyGaps.length === 0 ? (
-                  <p className="text-xs text-[#10B981] font-medium">All key requirements on track!</p>
+                  <p className="text-xs text-[#10B981] font-medium state-success">All key requirements on track!</p>
                 ) : (
                   <div className="space-y-1">
                     {keyGaps.slice(0, 3).map((gap) => (
-                      <div key={gap.requirementId} className="text-xs text-[#FFC665] bg-[#1B2028] px-2.5 py-1 rounded border border-[#262D38] flex items-center justify-between">
+                      <div key={gap.requirementId} className="text-xs text-[#FFC665] bg-[#1B2028] px-2.5 py-1 rounded border border-[#262D38] flex items-center justify-between gap-badge">
                         <span>{gap.requirementName}</span>
                         <span className="text-[10px] text-[#8E98A8] capitalize">{gap.statusLabel}</span>
                       </div>
@@ -163,7 +163,7 @@ export const CompaniesView: React.FC = () => {
                     setEditingCompany(company);
                     setIsCompanyModalOpen(true);
                   }}
-                  className="h-7 text-xs border-[#262D38] bg-[#1B2028] text-[#8E98A8] hover:text-[#F1F5F9] rounded-md"
+                  className="h-7 text-xs border-[#262D38] bg-[#1B2028] text-[#8E98A8] hover:text-[#F1F5F9] rounded-md settings-control"
                 >
                   Edit Company
                 </Button>

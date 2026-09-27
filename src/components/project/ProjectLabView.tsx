@@ -59,27 +59,28 @@ export const ProjectLabView: React.FC = () => {
         </div>
         <button
           onClick={() => setActiveSessionId(defenseSession.id)}
-          className="px-4 py-2 rounded bg-[#E5A93C] hover:bg-[#F5B84C] text-[#0D0F12] font-bold text-xs transition-all flex items-center justify-center gap-2 shrink-0 shadow-sm"
+          className="px-4 py-2 rounded bg-[#E5A93C] hover:bg-[#F5B84C] text-[#0D0F12] font-bold text-xs transition-all flex items-center justify-center gap-2 shrink-0 shadow-sm hover-lift"
         >
           <span>Start Project Defense</span>
           <ArrowRight className="size-3.5" />
         </button>
       </div>
 
-      {/* Section Navigation Tabs */}
+      {/* Section Navigation Tabs with flow progression */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-[#262D38]">
-        {sections.map((sec) => {
+        {sections.map((sec, idx) => {
           const Icon = sec.icon;
           const isActive = activeSection === sec.id;
+          const isCompleted = idx < sections.findIndex(s => s.id === activeSection);
           return (
             <button
               key={sec.id}
               onClick={() => setActiveSection(sec.id)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-[4px] text-xs font-medium transition-all whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-[4px] text-xs font-medium transition-all whitespace-nowrap flow-step ${
                 isActive
-                  ? 'bg-[#1B2028] text-[#E5A93C] border border-[#3B4556] font-semibold shadow-xs'
+                  ? 'bg-[#1B2028] text-[#E5A93C] border border-[#3B4556] font-semibold shadow-xs active'
                   : 'text-[#8E98A8] hover:text-[#F1F5F9] hover:bg-[#1B2028]/50 border border-transparent'
-              }`}
+              } ${isCompleted && !isActive ? 'completed' : ''}`}
             >
               <Icon className={`size-3.5 ${isActive ? 'text-[#E5A93C]' : 'text-[#5C6675]'}`} />
               <span>{sec.label}</span>
@@ -107,7 +108,7 @@ export const ProjectLabView: React.FC = () => {
             {sectionContent.cards && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {sectionContent.cards.map((card) => (
-                  <div key={card.label} className="p-3.5 bg-[#1B2028] border border-[#262D38] rounded space-y-1">
+                  <div key={card.label} className="p-3.5 bg-[#1B2028] border border-[#262D38] rounded space-y-1 hover-lift">
                     <span className="text-[11px] font-mono text-[#E5A93C]">{card.label}</span>
                     <p className="text-xs text-[#F1F5F9] font-medium">{card.value}</p>
                     {card.detail && (
@@ -141,14 +142,14 @@ export const ProjectLabView: React.FC = () => {
             )}
 
             {activeSection === 'defense' && (
-              <div className="p-4 bg-[#1B2028] border border-[#262D38] rounded flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t-[#3B4556]">
+              <div className="defense-state p-4 bg-[#1B2028] border border-[#262D38] rounded flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t-[#3B4556]">
                 <div>
                   <h4 className="text-xs font-bold text-[#F1F5F9]">{defenseSession.title}</h4>
                   <p className="text-[11px] text-[#8E98A8] mt-0.5">{defenseSession.description}</p>
                 </div>
                 <button
                   onClick={() => setActiveSessionId(defenseSession.id)}
-                  className="px-4 py-2 rounded bg-[#E5A93C] hover:bg-[#F5B84C] text-[#0D0F12] font-bold text-xs transition-all shrink-0"
+                  className="px-4 py-2 rounded bg-[#E5A93C] hover:bg-[#F5B84C] text-[#0D0F12] font-bold text-xs transition-all shrink-0 hover-lift"
                 >
                   Launch Defense Session
                 </button>
@@ -163,12 +164,12 @@ export const ProjectLabView: React.FC = () => {
               ) : (
                 <div className="space-y-2">
                   {projectAttempts.map((attempt) => (
-                    <div key={attempt.id} className="p-3 bg-[#1B2028] border border-[#262D38] rounded flex items-center justify-between text-xs">
+                    <div key={attempt.id} className="p-3 bg-[#1B2028] border border-[#262D38] rounded flex items-center justify-between text-xs hover-lift">
                       <div>
                         <span className="font-medium text-[#F1F5F9]">{attempt.sessionTitle}</span>
                         <span className="text-[10px] text-[#8E98A8] block">{attempt.date}</span>
                       </div>
-                      <span className="font-mono text-[#E5A93C] font-bold">{attempt.accuracyPct}% Score</span>
+                      <span className="font-mono text-[#E5A93C] font-bold evidence-update">{attempt.accuracyPct}% Score</span>
                     </div>
                   ))}
                 </div>

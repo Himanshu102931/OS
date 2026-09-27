@@ -95,7 +95,7 @@ export const SettingsView: React.FC = () => {
 
       {/* Notifications */}
       {saveNotification && (
-        <div className="p-3 rounded-lg bg-[#10B981]/15 border border-[#10B981]/40 text-[#10B981] text-xs flex items-center gap-2 animate-fade-in font-medium">
+        <div className="p-3 rounded-lg bg-[#10B981]/15 border border-[#10B981]/40 text-[#10B981] text-xs flex items-center gap-2 font-medium save-notify">
           <CheckCircle2 className="size-4 shrink-0" />
           <span>{saveNotification}</span>
         </div>
@@ -117,7 +117,7 @@ export const SettingsView: React.FC = () => {
       )}
 
       {/* Section 1: Profile & Placement Horizon */}
-      <section className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-4">
+      <section className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-4 settings-section">
         <div className="flex items-center justify-between border-b border-[#262D38] pb-3">
           <h2 className="text-sm font-semibold text-[#F1F5F9] flex items-center gap-2">
             <User className="size-4 text-[#E5A93C]" /> Profile & Target Goals
@@ -134,7 +134,7 @@ export const SettingsView: React.FC = () => {
                 updateUserSettings({ targetPlacementGoal: e.target.value });
                 triggerSaveNotify('Target role goal updated');
               }}
-              className="w-full bg-[#1B2028] border border-[#262D38] rounded-md p-2.5 text-[#F1F5F9] focus:outline-none"
+              className="w-full bg-[#1B2028] border border-[#262D38] rounded-md p-2.5 text-[#F1F5F9] focus:outline-none settings-control"
               placeholder="e.g. Software Engineer (SDE-1)"
             />
           </div>
@@ -147,7 +147,7 @@ export const SettingsView: React.FC = () => {
                 updateUserSettings({ placementMode: e.target.value as PlacementMode });
                 triggerSaveNotify('Placement mode updated');
               }}
-              className="w-full bg-[#1B2028] border border-[#262D38] rounded-md p-2.5 text-[#FFC665] font-semibold focus:outline-none cursor-pointer"
+              className="w-full bg-[#1B2028] border border-[#262D38] rounded-md p-2.5 text-[#FFC665] font-semibold focus:outline-none cursor-pointer settings-control"
             >
               <option value="normal">Normal Mode (Standard daily load)</option>
               <option value="reduced">Reduced Mode (Light work schedule)</option>
@@ -159,7 +159,7 @@ export const SettingsView: React.FC = () => {
       </section>
 
       {/* Section 2: Storage & Backup Management */}
-      <section className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-4">
+      <section className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-4 settings-section">
         <div className="flex items-center justify-between border-b border-[#262D38] pb-3">
           <h2 className="text-sm font-semibold text-[#F1F5F9] flex items-center gap-2">
             <Database className="size-4 text-[#E5A93C]" /> Backup & Storage Safeguards
@@ -170,13 +170,13 @@ export const SettingsView: React.FC = () => {
           <Button
             size="sm"
             onClick={handleExport}
-            className="text-xs font-semibold bg-[#1B2028] hover:bg-[#222833] text-[#F1F5F9] border border-[#262D38] rounded-md h-9 px-3.5"
+            className="text-xs font-semibold bg-[#1B2028] hover:bg-[#222833] text-[#F1F5F9] border border-[#262D38] rounded-md h-9 px-3.5 transition-all settings-control"
           >
             <Download className="size-3.5 mr-2 text-[#E5A93C]" /> Export State JSON
           </Button>
 
           <label className="cursor-pointer">
-            <span className="inline-flex items-center justify-center px-3.5 h-9 rounded-md bg-[#1B2028] hover:bg-[#222833] text-[#F1F5F9] border border-[#262D38] text-xs font-semibold">
+            <span className="inline-flex items-center justify-center px-3.5 h-9 rounded-md bg-[#1B2028] hover:bg-[#222833] text-[#F1F5F9] border border-[#262D38] text-xs font-semibold settings-control">
               <Upload className="size-3.5 mr-2 text-[#10B981]" /> Import State JSON
             </span>
             <input type="file" accept=".json" onChange={handleFileChange} className="hidden" />
@@ -186,7 +186,7 @@ export const SettingsView: React.FC = () => {
             size="sm"
             variant="ghost"
             onClick={handleResetConfigOnly}
-            className="text-xs text-[#8E98A8] hover:text-[#F1F5F9] h-9 px-3 rounded-md"
+            className="text-xs text-[#8E98A8] hover:text-[#F1F5F9] h-9 px-3 rounded-md settings-control"
           >
             <RotateCcw className="size-3.5 mr-1.5" /> Reset Settings Only
           </Button>
@@ -201,7 +201,7 @@ export const SettingsView: React.FC = () => {
           <Button
             size="sm"
             onClick={() => setShowFullResetModal(true)}
-            className="text-xs font-bold bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/80 rounded-md h-8 px-3"
+            className="text-xs font-bold bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/80 rounded-md h-8 px-3 transition-all settings-control"
           >
             Reset Application Data
           </Button>

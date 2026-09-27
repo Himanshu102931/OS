@@ -171,7 +171,7 @@ export const SkillsView: React.FC = () => {
       </div>
 
       {/* Hero Overview Card */}
-      <div className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 sm:p-6 space-y-4">
+      <div className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 sm:p-6 space-y-4 readiness-glow">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <span className="text-xs font-semibold text-[#E5A93C] uppercase tracking-wider">
@@ -185,22 +185,22 @@ export const SkillsView: React.FC = () => {
 
           {/* Metrics Pills */}
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <div className="px-3 py-1.5 rounded-lg bg-[#10B981]/10 border border-[#10B981]/30 text-[#10B981] font-medium">
+            <div className="px-3 py-1.5 rounded-lg bg-[#10B981]/10 border border-[#10B981]/30 text-[#10B981] font-medium readiness-badge">
               Ready: <strong>{readyCount}</strong>
             </div>
-            <div className="px-3 py-1.5 rounded-lg bg-[#E5A93C]/10 border border-[#E5A93C]/30 text-[#FFC665] font-medium">
+            <div className="px-3 py-1.5 rounded-lg bg-[#E5A93C]/10 border border-[#E5A93C]/30 text-[#FFC665] font-medium readiness-badge">
               On Track: <strong>{onTrackCount}</strong>
             </div>
-            <div className="px-3 py-1.5 rounded-lg bg-[#F59E0B]/10 border border-[#F59E0B]/30 text-[#F59E0B] font-medium">
+            <div className="px-3 py-1.5 rounded-lg bg-[#F59E0B]/10 border border-[#F59E0B]/30 text-[#F59E0B] font-medium readiness-badge">
               At Risk: <strong>{atRiskCount}</strong>
             </div>
           </div>
         </div>
 
-        {/* Progress bar */}
+        {/* Progress bar with shimmer */}
         <div className="w-full bg-[#0D0F12] rounded-full h-2 overflow-hidden border border-[#262D38]">
           <div
-            className="bg-[#E5A93C] h-full transition-all duration-500 rounded-full"
+            className="bg-[#E5A93C] h-full transition-all duration-500 rounded-full phase-progress-bar"
             style={{ width: `${overallPlacementReadiness}%` }}
           />
         </div>
@@ -226,7 +226,7 @@ export const SkillsView: React.FC = () => {
                 placeholder="Search topic or domain..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[#1B2028] border border-[#262D38] rounded-md pl-9 pr-3 py-1.5 text-xs text-[#F1F5F9] placeholder-[#5C6675] focus:outline-none"
+                className="w-full bg-[#1B2028] border border-[#262D38] rounded-md pl-9 pr-3 py-1.5 text-xs text-[#F1F5F9] placeholder-[#5C6675] focus:outline-none settings-control"
               />
             </div>
 
@@ -234,7 +234,7 @@ export const SkillsView: React.FC = () => {
               <select
                 value={filterDomain}
                 onChange={(e) => setFilterDomain(e.target.value)}
-                className="bg-[#1B2028] border border-[#262D38] rounded-md px-2.5 py-1.5 text-xs text-[#F1F5F9] focus:outline-none"
+                className="bg-[#1B2028] border border-[#262D38] rounded-md px-2.5 py-1.5 text-xs text-[#F1F5F9] focus:outline-none settings-control"
               >
                 <option value="all">All Domains ({domains.length})</option>
                 {domains.map((d) => (
@@ -245,7 +245,7 @@ export const SkillsView: React.FC = () => {
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="bg-[#1B2028] border border-[#262D38] rounded-md px-2.5 py-1.5 text-xs text-[#F1F5F9] focus:outline-none"
+                className="bg-[#1B2028] border border-[#262D38] rounded-md px-2.5 py-1.5 text-xs text-[#F1F5F9] focus:outline-none settings-control"
               >
                 <option value="all">All Statuses</option>
                 <option value="ready">Ready</option>
@@ -256,8 +256,8 @@ export const SkillsView: React.FC = () => {
             </div>
           </div>
 
-          {/* Topics List */}
-          <div className="space-y-2">
+          {/* Topics List with stagger entrance */}
+          <div className="space-y-4 stagger-in">
             {filteredReadinessList.map((tr) => {
               const statusColor =
                 tr.readinessStatus === 'ready'
@@ -271,7 +271,7 @@ export const SkillsView: React.FC = () => {
               return (
                 <div
                   key={tr.topicId}
-                  className="p-3.5 bg-[#14171D] hover:bg-[#1B2028]/60 border border-[#262D38] rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors"
+                  className="p-3.5 bg-[#14171D] hover:bg-[#1B2028]/60 border border-[#262D38] rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all hover-lift"
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
@@ -279,12 +279,12 @@ export const SkillsView: React.FC = () => {
                       <span className="text-[10px] px-2 py-0.5 rounded border text-[#FFC665] bg-[#1B2028]">
                         {tr.domainName}
                       </span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded border capitalize font-medium ${statusColor}`}>
+                      <span className={`text-[10px] px-2 py-0.5 rounded border capitalize font-medium readiness-badge ${statusColor}`}>
                         {tr.readinessStatus.replace('_', ' ')}
                       </span>
                     </div>
                     <p className="text-[11px] text-[#8E98A8]">
-                      Evidence Confidence: <strong className="text-[#F1F5F9]">{tr.evidenceStrength}%</strong> · Freshness: <span className="capitalize">{tr.freshness}</span>
+                      Evidence Confidence: <strong className="text-[#F1F5F9]">{tr.evidenceStrength}%</strong> · Freshness: <span className="capitalize freshness-animate">{tr.freshness}</span>
                     </p>
                   </div>
 

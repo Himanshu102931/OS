@@ -505,3 +505,151 @@
 .list-stagger > *:nth-child(6) { animation: placement-fade-up 0.25s var(--ease-out) 150ms forwards; opacity: 0; }
 .list-stagger > *:nth-child(7) { animation: placement-fade-up 0.25s var(--ease-out) 180ms forwards; opacity: 0; }
 .list-stagger > *:nth-child(8) { animation: placement-fade-up 0.25s var(--ease-out) 210ms forwards; opacity: 0; }
+
+/* ============================================================
+    PLACEMENTOS SECONDARY SURFACE MOTION — VISUAL PASS 3
+    ============================================================ */
+
+/* ---- Skills Readiness Transitions ---- */
+@keyframes readiness-glow {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(229, 169, 60, 0.1); }
+  50% { box-shadow: 0 0 0 1px rgba(229, 169, 60, 0.25); }
+}
+
+.readiness-glow {
+  animation: readiness-glow 3s ease-in-out infinite;
+}
+
+.readiness-badge {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+/* Evidence score counter animation */
+@keyframes evidence-pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+.evidence-update {
+  animation: evidence-pulse 0.4s var(--ease-out);
+}
+
+/* ---- Analytics KPI Card ---- */
+.kpi-card {
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.kpi-card:hover {
+  border-color: #3B4556;
+  box-shadow: 0 0 0 1px rgba(229, 169, 60, 0.08);
+}
+
+.kpi-value {
+  transition: color 0.3s ease;
+}
+
+/* ---- Companies Readiness Glow ---- */
+.company-readiness {
+  transition: color 0.3s ease, transform 0.2s ease;
+}
+
+.company-glow {
+  box-shadow: 0 0 0 1px rgba(229, 169, 60, 0.1);
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.company-glow:hover {
+  box-shadow: 0 0 0 1px rgba(229, 169, 60, 0.2);
+  border-color: #3B4556;
+}
+
+.gap-badge {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+/* ---- Project Lab Flow Progression ---- */
+.flow-step {
+  position: relative;
+  transition: color 0.3s ease, border-color 0.3s ease;
+}
+
+.flow-step::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #E5A93C;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s var(--ease-out);
+}
+
+.flow-step.active::after {
+  transform: scaleX(1);
+}
+
+.flow-step.completed::after {
+  transform: scaleX(1);
+  background: #10B981;
+}
+
+/* Defense session state transition */
+.defense-state {
+  transition: background-color 0.3s ease, border-color 0.3s ease, opacity 0.3s ease;
+}
+
+.defense-active {
+  border-color: rgba(229, 169, 60, 0.4);
+  background-color: rgba(229, 169, 60, 0.05);
+}
+
+/* ---- Settings Control Transitions ---- */
+.settings-control {
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.settings-control:focus {
+  border-color: #E5A93C;
+  box-shadow: 0 0 0 1px rgba(229, 169, 60, 0.15);
+}
+
+.settings-control:hover {
+  border-color: #3B4556;
+}
+
+.settings-section {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* ---- Success/Error State Transitions ---- */
+.state-success {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+.state-error {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+/* ---- Save Notification Pulse ---- */
+@keyframes save-notify-pulse {
+  0% { opacity: 0; transform: translateY(-8px); }
+  50% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-8px); }
+}
+
+.save-notify {
+  animation: save-notify-pulse 0.4s var(--ease-out) forwards;
+}
+
+/* ---- Reduced Motion Overrides ---- */
+@media (prefers-reduced-motion: reduce) {
+  .readiness-glow, .evidence-update, .kpi-card, .company-glow,
+  .gap-badge, .flow-step::after, .defense-state, .settings-control,
+  .settings-section, .state-success, .state-error, .save-notify {
+    animation: none;
+    transition: none;
+  }
+}

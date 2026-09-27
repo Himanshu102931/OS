@@ -123,32 +123,32 @@ export const AnalyticsView: React.FC = () => {
       </div>
 
       {/* 1. WHAT HAPPENED (Activity Summary) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 stagger-in">
+        <div className="kpi-card bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-2">
           <div className="flex items-center gap-2 text-xs font-semibold text-[#8E98A8] uppercase tracking-wider">
             <Clock className="size-3.5 text-[#E5A93C]" /> Hours Logged
           </div>
-          <div className="text-2xl font-bold text-[#F1F5F9]">
+          <div className="text-2xl font-bold text-[#F1F5F9] kpi-value">
             {summary.activity.studyHours}h
           </div>
           <p className="text-[11px] text-[#8E98A8]">Across {summary.activity.sealedDaysCount} sealed days</p>
         </div>
 
-        <div className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-2">
+        <div className="kpi-card bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-2">
           <div className="flex items-center gap-2 text-xs font-semibold text-[#8E98A8] uppercase tracking-wider">
             <CheckCircle2 className="size-3.5 text-[#10B981]" /> Tasks Completed
           </div>
-          <div className="text-2xl font-bold text-[#F1F5F9]">
+          <div className="text-2xl font-bold text-[#F1F5F9] kpi-value">
             {summary.activity.completedTasksCount}
           </div>
           <p className="text-[11px] text-[#8E98A8]">Roadmap task completions</p>
         </div>
 
-        <div className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-2">
+        <div className="kpi-card bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-2">
           <div className="flex items-center gap-2 text-xs font-semibold text-[#8E98A8] uppercase tracking-wider">
             <Code2 className="size-3.5 text-[#FFC665]" /> DSA Solved
           </div>
-          <div className="text-2xl font-bold text-[#F1F5F9]">
+          <div className="text-2xl font-bold text-[#F1F5F9] kpi-value">
             {summary.activity.dsaPassedCount}
           </div>
           <p className="text-[11px] text-[#8E98A8]">
@@ -164,16 +164,16 @@ export const AnalyticsView: React.FC = () => {
             <Sparkles className="size-4 text-[#E5A93C]" /> Key Review Recommendations
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 list-stagger">
             {summary.reviewPrompts.map((p) => (
               <div
                 key={p.id}
-                className="p-4 rounded-xl border bg-[#14171D] border-[#262D38] space-y-3 flex flex-col justify-between"
+                className="p-4 rounded-xl border bg-[#14171D] border-[#262D38] space-y-3 flex flex-col justify-between hover-lift"
               >
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-[#F1F5F9]">{p.title}</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded border capitalize ${
+                    <span className={`text-[10px] px-2 py-0.5 rounded border capitalize gap-badge ${
                       p.severity === 'high'
                         ? 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30'
                         : 'bg-[#1B2028] text-[#8E98A8] border-[#262D38]'
