@@ -30,6 +30,7 @@ import {
 } from '../data/seedData';
 import { PRACTICE_SESSIONS } from '../data/practiceDataset';
 import { StorageAdapter, DEFAULT_USER_SETTINGS, type AppStorageState } from '../storage/storageAdapter';
+import { getPreparationTopicIdByRoadmapId } from '../data/preparationDataset';
 import { applyTaskStateUpdate, type TaskStateAction } from '../engine/taskStateEngine';
 
 export type RoutePath = 'dashboard' | 'roadmap' | 'dsa' | 'skills' | 'practice' | 'preparation' | 'project' | 'companies' | 'analytics' | 'settings';
@@ -239,16 +240,34 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const updateTaskState = (taskId: string, newState: TaskProgress['state'], action?: TaskStateAction) => {
     setAppState((prev) => {
-      const { progress, evidence } = applyTaskStateUpdate({
+      const taskDef = allTaskDefinitions.find((t) => t.id === taskId);
+
+      // Preparation → roadmap bridge seed: consulted only when the roadmap
+      // topic has no skill state of its own (enforced by the EMA seed
+      // precedence inside applyTaskStateUpdate).
+      const bridgedPrepTopicId = taskDef
+        ? getPreparationTopicIdByRoadmapId(taskDef.topicId)
+        : undefined;
+      const ownSkill = taskDef ? prev.skillStates[taskDef.topicId] : undefined;
+      const bridgedPrepStrength =
+        !ownSkill && bridgedPrepTopicId
+          ? prev.skillStates[bridgedPrepTopicId]?.evidenceStrength
+          : undefined;
+
+      const { progress, evidence, skillUpdate } = applyTaskStateUpdate({
         taskId,
         newState,
         action,
         existing: prev.taskProgress[taskId],
-        taskDef: allTaskDefinitions.find((t) => t.id === taskId),
+        taskDef,
+        existingSkill: ownSkill,
+        bridgedPrepStrength,
         now: Date.now(),
         todayISO: getTodayISO(),
       });
 
+      // One transaction: progress + the single evidence event + (on
+      // completion) the skill update derived from that same event.
       return {
         ...prev,
         taskProgress: {
@@ -256,6 +275,9 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           [taskId]: progress,
         },
         evidenceLogs: evidence ? [...(prev.evidenceLogs || []), evidence] : prev.evidenceLogs || [],
+        ...(skillUpdate
+          ? { skillStates: { ...prev.skillStates, [skillUpdate.topicId]: skillUpdate } }
+          : {}),
       };
     });
   };

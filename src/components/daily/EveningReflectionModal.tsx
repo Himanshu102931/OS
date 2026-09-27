@@ -4,6 +4,7 @@ import {
   calculateNextLeitnerBox,
   calculateEvidenceScore,
 } from '../../engine/adaptiveEngine';
+import { applySealAssignmentCompletion } from '../../engine/taskStateEngine';
 import type {
   DailyTaskAssignment,
   DailyCheckIn,
@@ -124,63 +125,39 @@ export const EveningReflectionModal: React.FC<EveningReflectionModalProps> = ({
 
       const task = taskDefinitions.find((t) => t.id === assign.referenceId);
       if (task) {
-        // 1. Update TaskProgress
-        const existingProgress = updatedTaskProgressMap[task.id] || {
-          taskId: task.id,
-          state: 'not_started',
-          postponeCount: 0,
-          skipCount: 0,
-          timeSpentMinutes: 0,
-          updatedAt: new Date().toISOString(),
-        };
-
-        updatedTaskProgressMap[task.id] = {
-          ...existingProgress,
-          state: ref.completed ? 'completed' : 'not_started',
-          lastCompletedAt: ref.completed ? new Date().toISOString() : existingProgress.lastCompletedAt,
-          timeSpentMinutes: existingProgress.timeSpentMinutes + ref.actualMinutes,
-          updatedAt: new Date().toISOString(),
-        };
-
-        // 2. Generate EvidenceLog
+        // 1.-3. Progress + evidence + skill record for this reflection — pure.
+        // Duplicate guard: a task already completed through Today (progress
+        // state 'completed') already produced its single daily_assignment
+        // evidence event and skill EMA at completion time, so the seal skips
+        // both for that completion. Assignments not completed through Today
+        // keep the existing seal behaviour exactly (evidence + skill emitted).
         const score = calculateEvidenceScore(
           ref.dsaResult,
           ref.assistanceLevel,
           ref.confidence
         );
 
-        const evidenceId = `evidence-${Date.now()}-${task.id}`;
-        const evidence: EvidenceLog = {
-          id: evidenceId,
-          topicId: task.topicId,
-          domainId: task.domainId,
-          score,
-          confidence: ref.confidence,
-          timestamp: new Date().toISOString(),
-          sourceType: 'daily_assignment',
-          sourceId: assign.id,
-        };
-        newEvidenceLogs.push(evidence);
+        const seal = applySealAssignmentCompletion({
+          reflection: {
+            assignmentId: assign.id,
+            completed: ref.completed,
+            actualMinutes: ref.actualMinutes,
+            score,
+            confidence: ref.confidence,
+          },
+          task,
+          existingProgress: updatedTaskProgressMap[task.id],
+          existingSkill: updatedSkillStatesMap[task.topicId],
+          now: Date.now(),
+        });
 
-        // 3. Update SkillState
-        const existingSkill = updatedSkillStatesMap[task.topicId] || {
-          topicId: task.topicId,
-          domainId: task.domainId,
-          freshness: 'untested',
-          evidenceStrength: 0,
-        };
-
-        const newEvidenceStrength = Math.min(
-          100,
-          Math.max(0, Math.round((existingSkill.evidenceStrength * 0.7) + (score * 0.3)))
-        );
-
-        updatedSkillStatesMap[task.topicId] = {
-          ...existingSkill,
-          lastPracticedAt: new Date().toISOString(),
-          freshness: 'fresh',
-          evidenceStrength: newEvidenceStrength,
-        };
+        updatedTaskProgressMap[task.id] = seal.progress;
+        if (seal.evidence) {
+          newEvidenceLogs.push(seal.evidence);
+        }
+        if (seal.skillUpdate) {
+          updatedSkillStatesMap[task.topicId] = seal.skillUpdate;
+        }
 
         // 4. If DSA problem, update DSAProgress using Leitner 4-box rules
         const dsaProblem = dsaProblems.find((p) => p.topicId === task.topicId);
