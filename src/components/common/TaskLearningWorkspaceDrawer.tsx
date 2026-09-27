@@ -76,7 +76,8 @@ export const TaskLearningWorkspaceDrawer: React.FC<TaskLearningWorkspaceDrawerPr
       updatedAt: new Date().toISOString(),
     };
 
-    const patternLesson = PATTERN_LESSONS.find((p) => p.id === dsaProblem.primaryPattern);
+    // Match by pattern name (e.g., "Arrays & Hashing") which is the primaryPattern on DSAProblem
+    const patternLesson = PATTERN_LESSONS.find((p) => p.name === dsaProblem.primaryPattern);
     const primaryResource = LEARNING_RESOURCES.find((r) => r.id === patternLesson?.primaryResourceId);
     const secondaryResource = LEARNING_RESOURCES.find(
       (r) => r.id === patternLesson?.secondaryResourceId

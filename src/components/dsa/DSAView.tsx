@@ -18,7 +18,7 @@ import {
 import { Button } from '../ui/button';
 
 export const DSAView: React.FC = () => {
-  const { dsaProblems, dsaProgress, logDSAAttempt, activePhase } =
+  const { dsaProblems, dsaProgress, logDSAAttempt, activePhase, updateDSAProgress } =
     usePlacement();
 
   const [activeTab, setActiveTab] = useState<'journey' | 'bank' | 'patterns'>('journey');
@@ -398,6 +398,7 @@ export const DSAView: React.FC = () => {
           setIsWorkspaceOpen(false);
           setSelectedProblemForWorkspace(null);
         }}
+        onUpdateDSAProgress={updateDSAProgress}
       />
     </div>
   );
