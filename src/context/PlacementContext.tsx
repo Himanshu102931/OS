@@ -516,19 +516,19 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const importBackupJSON = (jsonStr: string): { success: boolean; error?: string } => {
     try {
-      const parsed = JSON.parse(jsonStr);
-      if (StorageAdapter.saveState(parsed)) {
+      const result = StorageAdapter.importJSON(jsonStr);
+      if (result.success && result.state) {
         setAppState({
-          ...parsed,
-          customTaskDefinitions: parsed.customTaskDefinitions || [],
-          dsaAttempts: parsed.dsaAttempts || [],
-          evidenceLogs: parsed.evidenceLogs || [],
-          practiceAttempts: parsed.practiceAttempts || [],
-          preparationTopicProgress: parsed.preparationTopicProgress || {},
+          ...result.state,
+          customTaskDefinitions: result.state.customTaskDefinitions || [],
+          dsaAttempts: result.state.dsaAttempts || [],
+          evidenceLogs: result.state.evidenceLogs || [],
+          practiceAttempts: result.state.practiceAttempts || [],
+          preparationTopicProgress: result.state.preparationTopicProgress || {},
         });
         return { success: true };
       }
-      return { success: false, error: 'Failed to write imported state to storage.' };
+      return { success: false, error: result.error || 'Import validation failed.' };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Invalid JSON format.';
       return { success: false, error: msg };
