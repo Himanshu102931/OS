@@ -432,3 +432,66 @@ describe('C11 — Color System Tokens & Contrast', () => {
     expect(css).toMatch(/\.today-hero-node\s*:\s*focus-visible[,\s]/i);
   });
 });
+
+describe('C11 — ARIA dialog relationship', () => {
+  it('H1. aria-controls references the dialog element that is actually rendered', () => {
+    renderWithProviders(<TestGuideHost route="roadmap" />);
+
+    const trigger = screen.getByTestId('guide-trigger');
+    const controlledId = trigger.getAttribute('aria-controls');
+
+    // One stable id, never dynamic or random.
+    expect(controlledId).toBe('placementos-guide-dialog');
+    // Nothing is mounted while the guide is closed.
+    expect(document.getElementById(controlledId!)).toBeNull();
+
+    fireEvent.click(trigger);
+
+    const controlled = document.getElementById(controlledId!);
+    expect(controlled).not.toBeNull();
+    expect(controlled).toBe(screen.getByTestId('guide-dialog'));
+    expect(controlled!.getAttribute('role')).toBe('dialog');
+    expect(controlled!.getAttribute('aria-modal')).toBe('true');
+
+    // Accessible name and description resolve to real elements holding the step copy.
+    const labelledBy = controlled!.getAttribute('aria-labelledby');
+    const describedBy = controlled!.getAttribute('aria-describedby');
+    expect(labelledBy).toBeTruthy();
+    expect(describedBy).toBeTruthy();
+
+    const name = document.getElementById(labelledBy!);
+    const description = document.getElementById(describedBy!);
+    expect(name).not.toBeNull();
+    expect(description).not.toBeNull();
+
+    const firstStep = PAGE_GUIDE_DEFINITIONS.find((d) => d.route === 'roadmap')!
+      .sections[0].steps[0];
+    expect(name!.textContent).toBe(firstStep.title);
+    expect(description!.textContent).toBe(firstStep.description);
+  });
+
+  it('H2. aria-expanded is false when closed and true when open, and the controlled id tracks it', () => {
+    renderWithProviders(<TestGuideHost route="dsa" />);
+    const trigger = screen.getByTestId('guide-trigger');
+
+    expect(trigger.getAttribute('aria-haspopup')).toBe('dialog');
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(document.getElementById('placementos-guide-dialog')).toBeNull();
+
+    fireEvent.click(trigger);
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(document.getElementById('placementos-guide-dialog')).not.toBeNull();
+
+    // Escape closes: the relationship is torn down and state returns to false.
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(document.getElementById('placementos-guide-dialog')).toBeNull();
+
+    // Skip closes it too — same truthful state.
+    fireEvent.click(trigger);
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(screen.getByTestId('guide-skip'));
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(document.getElementById('placementos-guide-dialog')).toBeNull();
+  });
+});

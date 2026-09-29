@@ -6,7 +6,7 @@
  * Highlighted targets remain interactive. Zero application state is mutated.
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { useGuide } from './GuideContext';
 import {
   ChevronLeft,
@@ -18,6 +18,43 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { calculatePopoverPlacement } from './guidePlacement';
+
+/**
+ * One stable id for the guide dialog.
+ *
+ * `GuideTrigger` renders `aria-controls={GUIDE_DIALOG_ID}` and the dialog
+ * renders `id={GUIDE_DIALOG_ID}` from this same constant, so the ARIA
+ * relationship can never drift and no dynamic/random id is ever produced.
+ */
+export const GUIDE_DIALOG_ID = 'placementos-guide-dialog';
+/** Stable id for the accessible name (the current step title). */
+const GUIDE_DIALOG_TITLE_ID = 'placementos-guide-dialog-title';
+/** Stable id for the accessible description (the current step copy). */
+const GUIDE_DIALOG_DESCRIPTION_ID = 'placementos-guide-dialog-description';
+
+/** Height assumed before the first measurement pass (and where layout is unavailable). */
+const ASSUMED_POPOVER_HEIGHT = 220;
+/** Viewport inset the card must respect on every edge. */
+const VIEWPORT_PADDING = 16;
+
+/**
+ * `100dvh` equals the live `window.innerHeight` and follows mobile browser
+ * chrome, so the card's cap and the placement viewport stay in agreement.
+ * Engines that do not understand `100dvh` discard the whole declaration, so we
+ * fall back to an exact pixel cap rather than `100vh` — `100vh` can be taller
+ * than the visible viewport on mobile, which is precisely the overflow this
+ * guard exists to prevent.
+ */
+const supportsDynamicViewportHeight = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const css = (window as Window & { CSS?: { supports?: (property: string, value: string) => boolean } }).CSS;
+  if (!css || typeof css.supports !== 'function') return false;
+  try {
+    return css.supports('height', '100dvh');
+  } catch {
+    return false;
+  }
+};
 
 export const GuideOverlay: React.FC = () => {
   const {
@@ -34,13 +71,52 @@ export const GuideOverlay: React.FC = () => {
   } = useGuide();
 
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+  /**
+   * Live viewport box. Kept in state (not read once during render) so a window
+   * resize re-runs placement even for steps that have no measurable target.
+   */
+  const [viewport, setViewport] = useState(() => ({
+    width: typeof window !== 'undefined' ? window.innerWidth : 1200,
+    height: typeof window !== 'undefined' ? window.innerHeight : 800,
+  }));
+  /**
+   * The popover card's REAL rendered height in CSS pixels (0 until measured).
+   *
+   * Placement previously assumed a fixed 220px card. A taller card was then
+   * anchored at a `top` that only accounted for 220px, so its lower half —
+   * Previous / Next / Skip — sat below the fold. Because the card is
+   * `position: fixed`, no amount of page scrolling could bring it back up:
+   * this, not a scroll lock, is why the guide looked "stuck".
+   */
+  const [measuredPopoverHeight, setMeasuredPopoverHeight] = useState(0);
   const popoverRef = useRef<HTMLDivElement>(null);
   const targetElementRef = useRef<HTMLElement | null>(null);
+
+  // Track the live viewport so placement and the card's max-height follow resize
+  const syncViewport = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    setViewport((prev) => (prev.width === width && prev.height === height ? prev : { width, height }));
+  }, []);
 
   // Cross-page continuation detection
   const isCrossPage = Boolean(
     activeGuide && activeGuide.currentRoute !== activeGuide.originRoute
   );
+
+  // Read the card's real rendered box back into placement state. Guarded so a
+  // pass that finds no change writes nothing and React bails out.
+  const measurePopover = useCallback(() => {
+    const el = popoverRef.current;
+    if (!el) {
+      setMeasuredPopoverHeight((prev) => (prev === 0 ? prev : 0));
+      return;
+    }
+    // ceil so the card can never be even a sub-pixel taller than planned for
+    const measured = Math.ceil(el.getBoundingClientRect().height);
+    setMeasuredPopoverHeight((prev) => (prev === measured ? prev : measured));
+  }, []);
 
   // Position calculation with viewport bounding (NEVER auto-scrolls)
   const updateTargetPosition = useCallback(() => {
@@ -82,12 +158,16 @@ export const GuideOverlay: React.FC = () => {
     const handleScrollOrResize = () => {
       cancelAnimationFrame(animId);
       animId = requestAnimationFrame(() => {
+        syncViewport();
         updateTargetPosition();
+        measurePopover();
       });
     };
 
     animId = requestAnimationFrame(() => {
+      syncViewport();
       updateTargetPosition();
+      measurePopover();
     });
 
     window.addEventListener('scroll', handleScrollOrResize, { passive: true });
@@ -98,7 +178,20 @@ export const GuideOverlay: React.FC = () => {
       window.removeEventListener('scroll', handleScrollOrResize);
       window.removeEventListener('resize', handleScrollOrResize);
     };
-  }, [isOpen, isWalkthrough, currentStep, isCrossPage, updateTargetPosition]);
+  }, [isOpen, isWalkthrough, currentStep, isCrossPage, updateTargetPosition, syncViewport, measurePopover]);
+
+  // Measure the real popover box after every commit so placement is computed
+  // from true dimensions rather than an assumed constant.
+  //
+  // Deliberately dependency-free: a step change, content change, viewport
+  // change or target change all re-measure. The guarded single write per pass
+  // makes it converge instead of looping — the box height depends on content,
+  // width and the max-height cap only, never on the `top`/`left` this
+  // measurement feeds back into, so there is no path to oscillate through.
+  // No ResizeObserver, so no observer feedback loop either.
+  useLayoutEffect(() => {
+    measurePopover();
+  });
 
   // Keyboard navigation: Escape closes
   useEffect(() => {
@@ -192,10 +285,12 @@ export const GuideOverlay: React.FC = () => {
   }
 
   // Calculate collision-aware popover coordinates safely within viewport
-  const winWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
-  const winHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
-  const popoverWidth = Math.min(360, winWidth - 32);
-  const popoverHeight = 220;
+  const winWidth = viewport.width;
+  const winHeight = viewport.height;
+  const popoverWidth = Math.min(360, winWidth - VIEWPORT_PADDING * 2);
+  // Real measured card height; the assumed value only covers the very first
+  // pass (and environments without layout, where measurement reports 0).
+  const popoverHeight = measuredPopoverHeight > 0 ? measuredPopoverHeight : ASSUMED_POPOVER_HEIGHT;
 
   const placementResult = calculatePopoverPlacement(
     targetRect && !isCrossPage
@@ -212,7 +307,7 @@ export const GuideOverlay: React.FC = () => {
     { width: winWidth, height: winHeight },
     {
       preferredSide: currentStep.placement,
-      viewportPadding: 16,
+      viewportPadding: VIEWPORT_PADDING,
       targetGap: 16,
       spotlightPadding: 8,
     }
@@ -223,7 +318,12 @@ export const GuideOverlay: React.FC = () => {
     top: `${placementResult.top}px`,
     left: `${placementResult.left}px`,
     width: `${placementResult.width}px`,
-    maxHeight: 'calc(100vh - 32px)',
+    // Hard ceiling so the card can never outgrow the live viewport, whatever
+    // the content holds. Only the content region scrolls below this cap; the
+    // header and the navigation footer are outside the scroll area.
+    maxHeight: supportsDynamicViewportHeight()
+      ? 'calc(100dvh - 32px)'
+      : `${Math.max(80, winHeight - VIEWPORT_PADDING * 2)}px`,
   };
 
   return (
@@ -268,17 +368,21 @@ export const GuideOverlay: React.FC = () => {
       {/* Floating Popover Card */}
       <div
         ref={popoverRef}
+        id={GUIDE_DIALOG_ID}
         role="dialog"
+        aria-modal="true"
+        aria-labelledby={GUIDE_DIALOG_TITLE_ID}
+        aria-describedby={GUIDE_DIALOG_DESCRIPTION_ID}
         aria-label={currentStep.title}
         tabIndex={-1}
         data-testid="guide-dialog"
-        className="guide-spotlight-popover pointer-events-auto bg-[#111713] border border-[#28352D] rounded-xl shadow-2xl overflow-hidden animate-fade-in text-[#E8F0E9]"
+        className="guide-spotlight-popover pointer-events-auto bg-[#111713] border border-[#28352D] rounded-xl shadow-2xl overflow-hidden animate-fade-in text-[#E8F0E9] flex flex-col"
         style={popoverStyle}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cross-page navigation indicator */}
         {isCrossPage && activeGuide && (
-          <div className="bg-[#2E8B62]/20 border-b border-[#28352D] px-4 py-2 flex items-center justify-between text-xs text-[#46B982]">
+          <div className="shrink-0 bg-[#2E8B62]/20 border-b border-[#28352D] px-4 py-2 flex items-center justify-between text-xs text-[#46B982]">
             <span className="flex items-center gap-1.5 font-medium truncate">
               <CornerUpLeft className="size-3.5 shrink-0" />
               Viewing {activeGuide.currentRoute} from {activeGuide.originRoute} tour
@@ -294,8 +398,8 @@ export const GuideOverlay: React.FC = () => {
           </div>
         )}
 
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 pb-2 border-b border-[#28352D]">
+        {/* Header — fixed chrome, never part of the scrollable region */}
+        <div className="shrink-0 flex items-center justify-between p-4 pb-2 border-b border-[#28352D]">
           <div className="flex items-center gap-2">
             <span className="size-6 rounded-[4px] bg-[#2E8B62]/20 border border-[#46B982]/30 flex items-center justify-center text-[#46B982]">
               <Sparkles className="size-3.5" />
@@ -324,12 +428,20 @@ export const GuideOverlay: React.FC = () => {
           </div>
         </div>
 
-        {/* Content */}
-        <div className="p-4 space-y-2.5" data-testid="guide-step">
-          <h3 className="text-sm font-bold text-[#E8F0E9] tracking-tight">
+        {/* Content — the ONLY scrollable region. Long explanations scroll here;
+            header and footer stay pinned so Previous / Next / Skip / Done are
+            always reachable, no matter how much copy the step carries. */}
+        <div
+          className="p-4 space-y-2.5 grow min-h-0 overflow-y-auto"
+          data-testid="guide-step"
+        >
+          <h3
+            id={GUIDE_DIALOG_TITLE_ID}
+            className="text-sm font-bold text-[#E8F0E9] tracking-tight"
+          >
             {currentStep.title}
           </h3>
-          <p className="text-xs text-[#9AA99F] leading-relaxed">
+          <p id={GUIDE_DIALOG_DESCRIPTION_ID} className="text-xs text-[#9AA99F] leading-relaxed">
             {currentStep.description}
           </p>
 
@@ -368,8 +480,8 @@ export const GuideOverlay: React.FC = () => {
           )}
         </div>
 
-        {/* Footer Navigation Bar */}
-        <div className="px-4 py-3 bg-[#0B100D]/80 border-t border-[#28352D] flex items-center justify-between gap-2">
+        {/* Footer Navigation Bar — outside the scroll region, always visible */}
+        <div className="shrink-0 px-4 py-3 bg-[#0B100D]/80 border-t border-[#28352D] flex items-center justify-between gap-2">
           <Button
             size="xs"
             variant="ghost"

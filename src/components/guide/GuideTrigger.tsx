@@ -8,6 +8,7 @@
 
 import React from 'react';
 import { useGuide } from './GuideContext';
+import { GUIDE_DIALOG_ID } from './GuideOverlay';
 import { usePlacement, type RoutePath } from '../../context/PlacementContext';
 import { Sparkles } from 'lucide-react';
 
@@ -19,9 +20,24 @@ interface GuideTriggerProps {
 export const GuideTrigger: React.FC<GuideTriggerProps> = ({ route, className = '' }) => {
   const { currentRoute } = usePlacement();
   const activeRoute = route || currentRoute;
-  const { startGuide, closeGuide, isOpen, activeGuide, isGuideCompleted } = useGuide();
+  const {
+    startGuide,
+    closeGuide,
+    isOpen,
+    isWalkthrough,
+    currentStep,
+    activeGuide,
+    isGuideCompleted,
+  } = useGuide();
 
-  const isTourActive = isOpen && activeGuide?.originRoute === activeRoute;
+  // aria-expanded must mirror GuideOverlay's own render condition
+  // (isOpen && isWalkthrough && currentStep), scoped to the route this trigger
+  // owns, so assistive tech sees exactly the state the dialog is in.
+  const isTourActive =
+    isOpen &&
+    isWalkthrough &&
+    Boolean(currentStep) &&
+    activeGuide?.originRoute === activeRoute;
   const isCompleted = isGuideCompleted(activeRoute);
 
   const handleClick = () => {
@@ -41,7 +57,7 @@ export const GuideTrigger: React.FC<GuideTriggerProps> = ({ route, className = '
       aria-label={`Toggle ${activeRoute} Guide`}
       aria-haspopup="dialog"
       aria-expanded={isTourActive}
-      aria-controls="placementos-guide-dialog"
+      aria-controls={GUIDE_DIALOG_ID}
       data-testid={testId}
       data-guide-target={testId}
       className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[4px] font-mono text-xs font-medium transition-all cursor-pointer border ${
