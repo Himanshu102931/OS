@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyTaskStateUpdate, nextDayISO } from '../engine/taskStateEngine';
+import { applyTaskStateUpdate, applyTaskStateRestore, captureDeferRestore, nextDayISO, type TaskStateSlice } from '../engine/taskStateEngine';
 import {
   calculateRecoveryUrgency,
   evaluateCandidateTask,
@@ -7,7 +7,7 @@ import {
   selectDailyPlan,
 } from '../engine/adaptiveEngine';
 import type { CandidateTask } from '../engine/adaptiveEngine';
-import type { TaskDefinition, TaskProgress } from '../types';
+import type { TaskDefinition, TaskProgress, TopicSkillState } from '../types';
 
 /**
  * Focused tests for the daily-task postpone/skip capability.
@@ -470,5 +470,150 @@ describe('Completion and reopen safety around postpone/skip', () => {
     expect(recommpleted.progress.state).toBe('completed');
     expect(recommpleted.evidence).not.toBeNull();
     expect(recommpleted.evidence?.id).not.toBe(completed.evidence?.id); // completion semantics unchanged
+  });
+});
+
+// ---------------------------------------------------------------------------
+// C2 — idempotent completion + transactional undo (P0-01 … P0-03)
+// ---------------------------------------------------------------------------
+
+describe('C2 — completion idempotency and undo-equivalent restore', () => {
+  /**
+   * Mirrors the single write transaction in `PlacementContext.updateTaskState`
+   * (progress + the one evidence event + the one skill update) so "exactly
+   * one" can be asserted as a real count over state, not just a non-null field.
+   */
+  const skillTopicId = (s: TopicSkillState) => s.topicId;
+
+  const runUpdate = (
+    state: TaskStateSlice,
+    params: Parameters<typeof applyTaskStateUpdate>[0]
+  ): TaskStateSlice => {
+    const { progress, evidence, skillUpdate } = applyTaskStateUpdate(params);
+    return {
+      taskProgress: { ...state.taskProgress, [params.taskId]: progress },
+      skillStates: skillUpdate
+        ? { ...state.skillStates, [skillTopicId(skillUpdate)]: skillUpdate }
+        : state.skillStates,
+      evidenceLogs: evidence ? [...state.evidenceLogs, evidence] : state.evidenceLogs,
+    };
+  };
+
+  const emptySlice = (): TaskStateSlice => ({ taskProgress: {}, skillStates: {}, evidenceLogs: [] });
+
+  const completionParams = (
+    existing?: TaskProgress,
+    existingSkill?: TopicSkillState
+  ): Parameters<typeof applyTaskStateUpdate>[0] => ({
+    taskId: 'task-1',
+    newState: 'completed',
+    existing,
+    taskDef: makeTask(),
+    existingSkill,
+    now: NOW,
+    todayISO: TODAY,
+  });
+
+  it('1. not_started → completed: task completed, exactly one evidence event, exactly one skill update', () => {
+    const task = makeTask();
+    const start: TaskStateSlice = {
+      taskProgress: { 'task-1': makeProgress() },
+      skillStates: {},
+      evidenceLogs: [],
+    };
+
+    const after = runUpdate(start, completionParams(start.taskProgress['task-1']));
+
+    expect(after.taskProgress['task-1'].state).toBe('completed');
+    expect(after.evidenceLogs).toHaveLength(1);
+    expect(after.evidenceLogs[0].sourceType).toBe('daily_assignment');
+    expect(after.evidenceLogs[0].sourceId).toBe(task.id);
+    expect(Object.keys(after.skillStates)).toHaveLength(1);
+    expect(after.skillStates[task.topicId]).toBeDefined();
+  });
+
+  it('2. completed → completed: task unchanged, evidence === null, skillUpdate === null', () => {
+    const first = runUpdate(
+      { ...emptySlice(), taskProgress: { 'task-1': makeProgress() } },
+      completionParams(makeProgress())
+    );
+    const once = structuredClone(first);
+
+    // Direct contract …
+    const repeat = applyTaskStateUpdate(completionParams(first.taskProgress['task-1'], first.skillStates['topic-dsa-arrays']));
+    expect(repeat.evidence).toBeNull();
+    expect(repeat.skillUpdate).toBeNull();
+    expect(repeat.progress).toEqual(first.taskProgress['task-1']);
+
+    // … and through the write transaction: no additional evidence, no additional skill update.
+    const twice = runUpdate(first, completionParams(first.taskProgress['task-1'], first.skillStates['topic-dsa-arrays']));
+    expect(twice.taskProgress['task-1']).toEqual(once.taskProgress['task-1']);
+    expect(twice.evidenceLogs).toHaveLength(1);
+    expect(twice.skillStates).toEqual(once.skillStates);
+    // the transition is the duplicate test — no timestamp/id is consulted
+    expect(twice.taskProgress['task-1'].updatedAt).toBe(once.taskProgress['task-1'].updatedAt);
+  });
+
+  it('3. postpone → undo-equivalent restore: exact previous TaskProgress restored', () => {
+    const previous = makeProgress({ state: 'in_progress', timeSpentMinutes: 15 });
+    const start: TaskStateSlice = {
+      taskProgress: { 'task-1': previous },
+      skillStates: {},
+      evidenceLogs: [],
+    };
+
+    const snapshot = captureDeferRestore({ taskId: 'task-1', taskProgress: start.taskProgress, skillStates: start.skillStates, evidenceLogs: start.evidenceLogs });
+    const postponed = runUpdate(start, {
+      taskId: 'task-1',
+      newState: 'in_progress',
+      action: 'postpone',
+      existing: previous,
+      taskDef: makeTask(),
+      now: NOW,
+      todayISO: TODAY,
+    });
+
+    // the action really happened …
+    expect(postponed.taskProgress['task-1'].postponeCount).toBe(1);
+    expect(postponed.taskProgress['task-1'].postponedUntil).toBe('2026-09-28');
+    // … and it changed nothing else
+    expect(postponed.evidenceLogs).toHaveLength(0);
+    expect(postponed.skillStates).toEqual({});
+
+    const restored = applyTaskStateRestore(snapshot, postponed);
+
+    expect(restored.taskProgress['task-1']).toEqual(previous);
+    expect(restored.evidenceLogs).toEqual(postponed.evidenceLogs); // undo creates no evidence
+    expect(restored.skillStates).toEqual(postponed.skillStates); // undo creates no skill side effect
+  });
+
+  it('4. skip → undo-equivalent restore: exact previous TaskProgress restored', () => {
+    const previous = makeProgress({ state: 'in_progress', timeSpentMinutes: 40 });
+    const start: TaskStateSlice = {
+      taskProgress: { 'task-1': previous },
+      skillStates: {},
+      evidenceLogs: [],
+    };
+
+    const snapshot = captureDeferRestore({ taskId: 'task-1', taskProgress: start.taskProgress, skillStates: start.skillStates, evidenceLogs: start.evidenceLogs });
+    const skipped = runUpdate(start, {
+      taskId: 'task-1',
+      newState: 'in_progress',
+      action: 'skip',
+      existing: previous,
+      taskDef: makeTask(),
+      now: NOW,
+      todayISO: TODAY,
+    });
+
+    expect(skipped.taskProgress['task-1'].skipCount).toBe(1);
+    expect(skipped.taskProgress['task-1'].state).toBe('in_progress');
+    expect(skipped.evidenceLogs).toHaveLength(0);
+
+    const restored = applyTaskStateRestore(snapshot, skipped);
+
+    expect(restored.taskProgress['task-1']).toEqual(previous);
+    expect(restored.evidenceLogs).toEqual(skipped.evidenceLogs);
+    expect(restored.skillStates).toEqual(skipped.skillStates);
   });
 });

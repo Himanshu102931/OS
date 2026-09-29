@@ -3,6 +3,7 @@ import { usePlacement } from '../../context/PlacementContext';
 import { TaskLearningWorkspaceDrawer } from '../common/TaskLearningWorkspaceDrawer';
 import type { Topic, TaskDefinition } from '../../types';
 import { PREPARATION_TOPICS } from '../../data/preparationDataset';
+import { GuideTrigger } from '../guide/GuideTrigger';
 import {
   Clock,
   Filter,
@@ -17,7 +18,7 @@ export const RoadmapView: React.FC = () => {
   const { phases, modules, topics, taskDefinitions, taskProgress, domains, skillStates, updateTaskState, setRoute, routeState } = usePlacement();
 
   // Deep link support: '#/roadmap/<topic-id>' (used by Preparation → Roadmap)
-  const linkedTopicId = routeState.route === 'roadmap' ? routeState.preparationTopicId : undefined;
+  const linkedTopicId = routeState.route === 'roadmap' ? routeState.targetId : undefined;
   const linkedTopic = linkedTopicId ? topics.find((t) => t.id === linkedTopicId) : undefined;
   const linkedTopicPhaseId = linkedTopic
     ? modules.find((m) => m.id === linkedTopic.moduleId)?.phaseId
@@ -87,13 +88,16 @@ export const RoadmapView: React.FC = () => {
     <div className="space-y-6 max-w-7xl xl:max-w-[1400px] mx-auto font-sans">
       {/* Header & Phase Switcher */}
       <div className="space-y-4 pb-4 border-b border-[#262D38]">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#F1F5F9]">
-            Master Roadmap & Trajectory
-          </h1>
-          <p className="text-xs text-[#8E98A8] mt-1">
-            Progressive placement curriculum broken down into clear phases, modules, and actionable tasks.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-[#F1F5F9]">
+              Master Roadmap & Trajectory
+            </h1>
+            <p className="text-xs text-[#8E98A8] mt-1">
+              Progressive placement curriculum broken down into clear phases, modules, and actionable tasks.
+            </p>
+          </div>
+          <GuideTrigger route="roadmap" />
         </div>
 
         {/* Phase Selector Tabs */}

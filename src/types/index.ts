@@ -175,12 +175,33 @@ export interface UserSettings {
   reminderTime: string; // HH:mm format
 }
 
+/**
+ * An explicit rating the user saved through the skill override UI.
+ *
+ * This is the only thing that may ever be presented as a "Manual Rating
+ * Override". Automatic writers (task completion, DSA attempt, practice attempt,
+ * day sealing) read and spread the parent `TopicSkillState` but never create or
+ * modify this field, so derived evidence can never be promoted into a manual
+ * rating merely because it accumulated a numeric `evidenceStrength`.
+ */
+export interface TopicManualOverride {
+  evidenceStrength: number; // 0 - 100 exactly as the user entered it
+  freshness: SkillFreshnessState; // freshness the user selected
+  updatedAt: string; // ISO timestamp of the override
+}
+
 export interface TopicSkillState {
   topicId: string;
   domainId: DomainId;
   lastPracticedAt?: string; // ISO timestamp
   freshness: SkillFreshnessState;
-  evidenceStrength: number; // 0 - 100 calculated score
+  evidenceStrength: number; // 0 - 100 calculated score (automatic + manual blend input)
+  /**
+   * Present only when the user explicitly saved a rating. Undefined for
+   * automatically derived evidence. Automatic writers must preserve it by
+   * spreading the existing state.
+   */
+  manualOverride?: TopicManualOverride;
 }
 
 export type PlacementMode = 'normal' | 'reduced' | 'exam' | 'placement_sprint';
@@ -366,6 +387,15 @@ export interface PracticeAttempt {
   accuracyPct: number;
   correctCount: number;
   totalQuestions: number;
+  /**
+   * Explicit pass/fail outcome — always present. Computed by the evaluator as
+   * `scorePct >= passingScorePct`; it is NOT an echo of the configured
+   * threshold and is never derived in UI code. Fail-closed: if the session has
+   * no usable threshold there is nothing to have met, so this stays false.
+   */
+  passed: boolean;
+  /** The threshold actually evaluated, when the session defines a valid one. */
+  passingScorePct?: number;
   userAnswers: PracticeUserAnswer[];
   evidenceLogId?: string;
   notes?: string;

@@ -5,6 +5,7 @@ import { TaskLearningWorkspaceDrawer } from '../common/TaskLearningWorkspaceDraw
 import type { DSAProblem, DSAAttempt, DSAProgress } from '../../types';
 import { isProblemUnlocked } from '../../engine/dsaEngine';
 import { PATTERN_LESSONS } from '../../data/dsaDataset';
+import { GuideTrigger } from '../guide/GuideTrigger';
 import {
   Code2,
   BookOpen,
@@ -115,7 +116,9 @@ export const DSAView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-1.5 bg-[#14171D] p-1 border border-[#262D38] rounded-lg">
+        <div className="flex flex-wrap items-center gap-2">
+          <GuideTrigger route="dsa" />
+          <div className="flex items-center gap-1.5 bg-[#14171D] p-1 border border-[#262D38] rounded-lg">
           <button
             onClick={() => setActiveTab('journey')}
             className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
@@ -148,6 +151,7 @@ export const DSAView: React.FC = () => {
           </button>
         </div>
       </div>
+    </div>
 
       {/* 1. PROGRESSION JOURNEY VIEW */}
       {activeTab === 'journey' && (

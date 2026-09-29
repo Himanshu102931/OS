@@ -231,23 +231,24 @@ export function calculateTopicReadiness(
     if (manualState.lastPracticedAt) {
       updateLatestActivity(manualState.lastPracticedAt);
     }
-    // If user saved a manual rating, record it as supporting evidence.
-    // A bridged preparation skill state is not a user override, and its
-    // canonical evidence log is already listed above — never list the same
-    // attempt twice under one topic.
-    if (
-      !skillStateIsBridged &&
-      (manualState.evidenceStrength > 0 || manualState.freshness !== 'untested')
-    ) {
+    // Only an explicit user rating is a manual override. `evidenceStrength` is
+    // an accumulator written by task completion, DSA attempts, practice
+    // attempts and day sealing, so its numeric value alone must never promote
+    // derived evidence into a "Manual Rating Override" row. A bridged
+    // preparation skill state is not a user override either, and its canonical
+    // evidence log is already listed above — never list the same attempt twice
+    // under one topic.
+    const manualOverride = skillStateIsBridged ? undefined : manualState.manualOverride;
+    if (manualOverride) {
       manualOverrideApplied = true;
       ownEvidenceCount++;
       supportingEvidence.push({
         id: `manual-override-${topic.id}`,
         title: 'Manual Rating Override',
         sourceType: 'manual_override',
-        timestamp: manualState.lastPracticedAt,
-        scoreContribution: manualState.evidenceStrength,
-        details: `User override score: ${manualState.evidenceStrength}/100 (${manualState.freshness})`,
+        timestamp: manualOverride.updatedAt || manualState.lastPracticedAt,
+        scoreContribution: manualOverride.evidenceStrength,
+        details: `User override score: ${manualOverride.evidenceStrength}/100 (${manualOverride.freshness})`,
       });
     }
   }

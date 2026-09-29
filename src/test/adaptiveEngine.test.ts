@@ -10,9 +10,12 @@ import {
   getEvaluatedCandidates,
   getTimeBudget,
   selectDailyPlan,
-  calculateNextLeitnerBox,
   calculateEvidenceScore,
 } from '../engine/adaptiveEngine';
+import {
+  calculateNextLeitnerBox,
+  getLeitnerIntervalDays,
+} from '../engine/dsaEngine';
 import type {
   TaskDefinition,
   TaskProgress,
@@ -186,26 +189,41 @@ describe('PlacementOS Adaptive Engine & Scoring Tests', () => {
 });
 
 describe('PlacementOS 4-Box Leitner Matrix Tests', () => {
+  // The canonical transition function lives in dsaEngine (DSA v1.4 Section 12).
+  // These cases previously ran against a second, divergent copy in
+  // adaptiveEngine; they now assert the canonical rules from this call site as
+  // well, so the day-seal path and the DSA attempt path cannot drift apart.
+  const transition = (
+    box: 1 | 2 | 3 | 4,
+    result: 'pass' | 'partial' | 'fail',
+    assistance: 'none' | 'hint' | 'solution'
+  ) => {
+    const nextBox = calculateNextLeitnerBox(box, result, assistance);
+    return { nextBox, intervalDays: getLeitnerIntervalDays(nextBox) };
+  };
+
   it('handles pass + none -> advance 1 box', () => {
-    const res = calculateNextLeitnerBox(1, 'pass', 'none');
+    const res = transition(1, 'pass', 'none');
     expect(res.nextBox).toBe(2);
     expect(res.intervalDays).toBe(3);
   });
 
   it('handles pass + hint -> stay in current box', () => {
-    const res = calculateNextLeitnerBox(2, 'pass', 'hint');
+    const res = transition(2, 'pass', 'hint');
     expect(res.nextBox).toBe(2);
     expect(res.intervalDays).toBe(3);
   });
 
-  it('handles pass + solution -> regresses 1 box', () => {
-    const res = calculateNextLeitnerBox(3, 'pass', 'solution');
-    expect(res.nextBox).toBe(2);
-    expect(res.intervalDays).toBe(3);
+  it('handles pass + solution -> stay in current box', () => {
+    // Reconciled: the retired adaptiveEngine copy regressed a box here, but
+    // DSA v1.4 Section 12 says any assisted pass retains the current box.
+    const res = transition(3, 'pass', 'solution');
+    expect(res.nextBox).toBe(3);
+    expect(res.intervalDays).toBe(7);
   });
 
   it('handles fail -> reset to Box 1 (1 day interval)', () => {
-    const res = calculateNextLeitnerBox(4, 'fail', 'none');
+    const res = transition(4, 'fail', 'none');
     expect(res.nextBox).toBe(1);
     expect(res.intervalDays).toBe(1);
   });

@@ -10,6 +10,7 @@ import type {
   TopicSkillState,
   EvidenceLog,
   DomainId,
+  SkillFreshnessState,
 } from '../types';
 import {
   calculateTopicReadiness,
@@ -23,6 +24,36 @@ type CompanyRequirementStatus =
   | 'developing'
   | 'gap_identified'
   | 'not_configured';
+
+const COMPANY_REQUIREMENT_STATUS_LABELS: Record<CompanyRequirementStatus, string> = {
+  covered: 'Requirement Covered',
+  evidence_present: 'Evidence Present',
+  developing: 'Developing',
+  gap_identified: 'Gap Identified',
+  not_configured: 'Not Configured',
+};
+
+/**
+ * Freshness of language evidence, derived from the real last completion
+ * timestamp of a task tagged with that language. Uses the same 7 / 14 day
+ * thresholds as `skillsEngine.calculateTopicReadiness`; it never asserts
+ * 'fresh' without an actual completion behind it.
+ */
+function calculateLanguageFreshness(
+  lastCompletedAtISO: string | undefined,
+  todayISO: string
+): SkillFreshnessState {
+  if (!lastCompletedAtISO) return 'untested';
+
+  const last = new Date(lastCompletedAtISO.slice(0, 10)).getTime();
+  const today = new Date(todayISO.slice(0, 10)).getTime();
+  if (!Number.isFinite(last) || !Number.isFinite(today)) return 'untested';
+
+  const daysAgo = Math.floor((today - last) / 86_400_000);
+  if (daysAgo <= 7) return 'fresh';
+  if (daysAgo <= 14) return 'aging';
+  return 'stale';
+}
 
 export interface CompanyRequirementMapping {
   requirementId: string;
@@ -92,6 +123,23 @@ export function calculateCompanySnapshot(
 ): CompanyPreparationSnapshot {
   const requirements: CompanyRequirementMapping[] = [];
 
+  /**
+   * C4-03 — normalise the requirement lists once, up front.
+   *
+   * `requiredDomains` / `requiredTopics` / `requiredLanguages` are required by
+   * the type, but a record written by an older build or a hand-edited import
+   * may arrive without them. Absent must mean "no mapped requirements", never a
+   * crash and never an invented default — so coerce to an empty list before
+   * anything downstream (including skillsEngine's target-company matching)
+   * reads them.
+   */
+  const overlay: CompanyOverlay = {
+    ...company,
+    requiredDomains: company.requiredDomains ?? [],
+    requiredTopics: company.requiredTopics ?? [],
+    requiredLanguages: company.requiredLanguages ?? [],
+  };
+
   // Compute readiness for all topics using skillsEngine
   const topicReadinessMap = new Map<string, TopicReadiness>();
   for (const top of topics) {
@@ -106,14 +154,14 @@ export function calculateCompanySnapshot(
       dsaAttempts,
       evidenceLogs,
       skillStates,
-      [company],
+      [overlay],
       todayISO
     );
     topicReadinessMap.set(top.id, tr);
   }
 
   // 1. Process Required Domains
-  for (const domainId of company.requiredDomains || []) {
+  for (const domainId of overlay.requiredDomains) {
     const dom = domains.find((d) => d.id === domainId);
     const domainTopics = topics.filter((t) => t.domainId === domainId);
     const domTopicReadiness = domainTopics
@@ -201,7 +249,7 @@ export function calculateCompanySnapshot(
   }
 
   // 2. Process Explicit Required Topics
-  for (const topicId of company.requiredTopics || []) {
+  for (const topicId of overlay.requiredTopics) {
     const tr = topicReadinessMap.get(topicId);
     if (!tr) continue;
 
@@ -241,42 +289,81 @@ export function calculateCompanySnapshot(
   }
 
   // 3. Process Required Languages
-  for (const lang of company.requiredLanguages || []) {
+  //
+  // The ONLY real evidence a language has is roadmap work tagged with it that
+  // was actually completed. Nothing else may be inferred:
+  //   - no tagged task  → nothing to measure, so report a not_configured
+  //                        baseline (0 / untested / insufficient) instead of
+  //                        the previous hardcoded 60% + 'fresh' + 'Evidence
+  //                        Present' guess that fabricated a satisfied card.
+  //   - tagged task     → completion rate against those tasks, freshness
+  //                        derived from the real last completion timestamp.
+  for (const lang of overlay.requiredLanguages) {
     const matchingTasks = tasks.filter((t) => t.languageTags?.includes(lang.toLowerCase()));
     const completedMatchingTasks = matchingTasks.filter(
       (t) => taskProgressMap[t.id]?.state === 'completed'
     );
 
-    const completionRate =
-      matchingTasks.length > 0
-        ? Math.round((completedMatchingTasks.length / matchingTasks.length) * 100)
-        : 0;
+    const hasEvidence = matchingTasks.length > 0;
 
-    let status: CompanyRequirementStatus = 'gap_identified';
-    if (matchingTasks.length === 0) {
-      status = 'evidence_present'; // Language assumed integrated into DSA/domain practice
-    } else if (completionRate >= 70) {
+    if (!hasEvidence) {
+      requirements.push({
+        requirementId: `req-lang-${lang}`,
+        requirementName: `Language Fluency: ${lang.toUpperCase()}`,
+        category: 'language',
+        evidenceStrength: 0,
+        currentLevel: 0,
+        targetLevel: 4,
+        evidenceClassification: 'insufficient',
+        freshness: 'untested',
+        status: 'not_configured',
+        statusLabel: COMPANY_REQUIREMENT_STATUS_LABELS.not_configured,
+        supportingEvidenceCount: 0,
+        gapExplanation: `No roadmap tasks are tagged with ${lang.toUpperCase()}, so no language evidence exists yet.`,
+        recommendedAction: {
+          label: `Practice ${lang.toUpperCase()} Tasks`,
+          route: 'roadmap',
+          type: 'task',
+        },
+      });
+      continue;
+    }
+
+    const completionRate = Math.round(
+      (completedMatchingTasks.length / matchingTasks.length) * 100
+    );
+
+    const lastCompletionISO = completedMatchingTasks
+      .map((t) => taskProgressMap[t.id]?.lastCompletedAt)
+      .filter((iso): iso is string => Boolean(iso))
+      .sort()
+      .pop();
+
+    let status: CompanyRequirementStatus;
+    if (completionRate >= 70) {
       status = 'covered';
+    } else if (completionRate >= 45) {
+      status = 'evidence_present';
     } else if (completedMatchingTasks.length > 0) {
       status = 'developing';
+    } else {
+      status = 'gap_identified';
     }
 
     requirements.push({
       requirementId: `req-lang-${lang}`,
       requirementName: `Language Fluency: ${lang.toUpperCase()}`,
       category: 'language',
-      evidenceStrength: matchingTasks.length > 0 ? completionRate : 60,
-      currentLevel: matchingTasks.length > 0 ? Math.min(5, Math.floor(completionRate / 20)) : 3,
+      evidenceStrength: completionRate,
+      currentLevel: Math.min(5, Math.floor(completionRate / 20)),
       targetLevel: 4,
-      evidenceClassification: completedMatchingTasks.length > 0 ? 'demonstrated' : 'inferred',
-      freshness: 'fresh',
+      evidenceClassification:
+        completedMatchingTasks.length > 0 ? 'demonstrated' : 'insufficient',
+      freshness: calculateLanguageFreshness(lastCompletionISO, todayISO),
       status,
-      statusLabel: status === 'covered' ? 'Requirement Covered' : 'Evidence Present',
+      statusLabel: COMPANY_REQUIREMENT_STATUS_LABELS[status],
       supportingEvidenceCount: completedMatchingTasks.length,
-      gapExplanation:
-        matchingTasks.length > 0
-          ? `${completedMatchingTasks.length}/${matchingTasks.length} ${lang.toUpperCase()} roadmap tasks completed.`
-          : `Language ${lang.toUpperCase()} practiced through standard DSA and domain problems.`,
+      gapExplanation: `${completedMatchingTasks.length}/${matchingTasks.length} ${lang.toUpperCase()} roadmap tasks completed.`,
       recommendedAction: {
         label: `Practice ${lang.toUpperCase()} Tasks`,
         route: 'roadmap',
@@ -305,7 +392,7 @@ export function calculateCompanySnapshot(
     .sort((a, b) => a.evidenceStrength - b.evidenceStrength);
 
   return {
-    company,
+    company: overlay,
     totalRequirementsCount,
     coveredRequirementsCount,
     gapRequirementsCount,

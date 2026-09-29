@@ -22,8 +22,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   applyTaskStateUpdate,
+  applyTaskStateRestore,
+  captureCompletionRestore,
   computeCompletionSkillStrength,
   applySealAssignmentCompletion,
+  type TaskStateSlice,
 } from '../engine/taskStateEngine';
 import { calculateWeakness, evaluateCandidateTask } from '../engine/adaptiveEngine';
 import { calculateTopicReadiness } from '../engine/skillsEngine';
@@ -175,9 +178,24 @@ describe('Completion → skill-state bridge (updateTaskState path)', () => {
   });
 
   it('5. accumulates across two completions and stays bounded', () => {
+    // Two GENUINE completions: the task must be reopened in between, because
+    // re-completing an already-completed task is now a no-op (P0-01) and no
+    // longer produces a second event. The accumulation, distinct-event and
+    // clamp assertions below are unchanged.
+    const task = makeTask();
+    const reopen = (existing?: TaskProgress, now = NOW) =>
+      applyTaskStateUpdate({
+        taskId: task.id,
+        newState: 'not_started',
+        existing,
+        taskDef: task,
+        now,
+        todayISO: TODAY,
+      });
+
     const first = complete();
     const second = complete({
-      existing: first.progress,
+      existing: reopen(first.progress, NOW + 500).progress,
       existingSkill: first.skillUpdate as TopicSkillState,
       now: NOW + 1_000,
     });
@@ -185,14 +203,19 @@ describe('Completion → skill-state bridge (updateTaskState path)', () => {
     expect(second.skillUpdate?.evidenceStrength).toBe(
       0.7 * (first.skillUpdate as TopicSkillState).evidenceStrength + 0.3 * 80
     );
-    // each completion emits its own event (existing semantics) and the skill follows 1:1
+    // each genuine completion emits its own event and the skill follows 1:1
     expect(second.evidence?.id).not.toBe(first.evidence?.id);
 
     // long run converges, never exceeds the clamp
     let acc: TopicSkillState | undefined;
     let prog: TaskProgress | undefined;
     for (let i = 0; i < 12; i++) {
-      const r = complete({ existing: prog, existingSkill: acc, now: NOW + i + 1 });
+      const reopened = reopen(prog, NOW + i);
+      const r = complete({
+        existing: reopened.progress,
+        existingSkill: acc,
+        now: NOW + i + 1,
+      });
       acc = r.skillUpdate as TopicSkillState;
       prog = r.progress;
     }
@@ -587,5 +610,166 @@ describe('Engine reaction without changing formulas', () => {
       [topic!.id]: { ...skillUpdate, evidenceStrength: 24 },
     });
     expect(naive.evidenceStrength).toBeLessThan(before.evidenceStrength);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// C2 — the completion transaction is idempotent and exactly reversible
+// (P0-01 duplicate credit, P0-02 undo must fully reverse completion)
+// ---------------------------------------------------------------------------
+
+describe('C2 — completion transaction: idempotent and exactly reversible', () => {
+  const TASK = makeTask();
+
+  const slice = (overrides: Partial<TaskStateSlice> = {}): TaskStateSlice => ({
+    taskProgress: {},
+    skillStates: {},
+    evidenceLogs: [],
+    ...overrides,
+  });
+
+  /** `PlacementContext.updateTaskState`'s single write transaction. */
+  const applyCompletion = (
+    state: TaskStateSlice,
+    now = NOW
+  ): TaskStateSlice => {
+    const { progress, evidence, skillUpdate } = applyTaskStateUpdate({
+      taskId: TASK.id,
+      newState: 'completed',
+      existing: state.taskProgress[TASK.id],
+      taskDef: TASK,
+      existingSkill: state.skillStates[TASK.topicId],
+      now,
+      todayISO: TODAY,
+    });
+    return {
+      taskProgress: { ...state.taskProgress, [TASK.id]: progress },
+      skillStates: skillUpdate
+        ? { ...state.skillStates, [skillTopicId(skillUpdate)]: skillUpdate }
+        : state.skillStates,
+      evidenceLogs: evidence ? [...state.evidenceLogs, evidence] : state.evidenceLogs,
+    };
+  };
+
+  const skillTopicId = (s: TopicSkillState) => s.topicId;
+
+  /** DashboardView's capture, taken from the render BEFORE completion is issued. */
+  const capture = (state: TaskStateSlice) =>
+    captureCompletionRestore({
+      taskId: TASK.id,
+      taskDef: TASK,
+      taskProgress: state.taskProgress,
+      skillStates: state.skillStates,
+      evidenceLogs: state.evidenceLogs,
+    });
+
+  it('1. first completion updates skill exactly once', () => {
+    const before = slice({ taskProgress: { [TASK.id]: makeProgress() } });
+    const after = applyCompletion(before);
+
+    expect(after.evidenceLogs).toHaveLength(1);
+    expect(after.evidenceLogs[0].sourceId).toBe(TASK.id);
+    expect(Object.keys(after.skillStates)).toHaveLength(1);
+    expect(after.skillStates[TASK.topicId]).toBeDefined();
+    expect(after.skillStates[TASK.topicId].evidenceStrength).toBe(
+      0.7 * 0 + 0.3 * after.evidenceLogs[0].score
+    );
+  });
+
+  it('2. re-completion produces no second skill update and no second evidence event', () => {
+    const before = slice({ taskProgress: { [TASK.id]: makeProgress() } });
+    const once = applyCompletion(before);
+    const snapshotOfOnce = structuredClone(once);
+
+    const twice = applyCompletion(once, NOW + 1_000);
+
+    // the state transition itself is the duplicate test — no id/timestamp involved
+    expect(twice.taskProgress[TASK.id]).toEqual(once.taskProgress[TASK.id]);
+    expect(twice.evidenceLogs).toHaveLength(1);
+    expect(twice.skillStates).toEqual(snapshotOfOnce.skillStates);
+    expect(twice.skillStates[TASK.topicId].evidenceStrength).toBe(
+      snapshotOfOnce.skillStates[TASK.topicId].evidenceStrength
+    );
+  });
+
+  it('3. completion undo restores the exact previous skill state (snapshot, not inverse math)', () => {
+    const priorSkill = makeSkill({
+      topicId: TASK.topicId,
+      evidenceStrength: 55,
+      freshness: 'stale',
+      lastPracticedAt: '2026-09-20T10:00:00.000Z',
+    });
+    const priorProgress = makeProgress({
+      state: 'in_progress',
+      postponeCount: 2,
+      timeSpentMinutes: 30,
+      lastCompletedAt: '2026-09-25T10:00:00.000Z',
+      updatedAt: '2026-09-26T12:00:00.000Z',
+    });
+    const before = slice({
+      taskProgress: { [TASK.id]: priorProgress },
+      skillStates: { [TASK.topicId]: priorSkill },
+    });
+
+    const snapshot = capture(before);
+    const after = applyCompletion(before);
+    expect(after.skillStates[TASK.topicId].evidenceStrength).toBeGreaterThan(55); // credit applied
+
+    const restored = applyTaskStateRestore(snapshot, after);
+
+    expect(restored.skillStates[TASK.topicId]).toEqual(priorSkill);
+    expect(restored.skillStates[TASK.topicId].evidenceStrength).toBe(55);
+    expect(restored.taskProgress[TASK.id]).toEqual(priorProgress);
+    expect(restored.taskProgress[TASK.id].lastCompletedAt).toBe('2026-09-25T10:00:00.000Z');
+    expect(restored.evidenceLogs).toHaveLength(0);
+  });
+
+  it('4. completion undo does not alter unrelated skill or evidence records', () => {
+    const unrelatedSkill = makeSkill({ topicId: 'topic-dsa-graphs', evidenceStrength: 71 });
+    const unrelatedEvidence: EvidenceLog = {
+      id: 'ev-dsa-1',
+      topicId: 'topic-dsa-graphs',
+      domainId: 'dsa',
+      score: 90,
+      confidence: 4,
+      timestamp: TS,
+      sourceType: 'dsa_attempt',
+      sourceId: 'dsa-1',
+    };
+    // an earlier completion cycle's evidence for the SAME task must survive
+    const priorCompletionEvidence: EvidenceLog = {
+      id: 'evidence-task-bridge-1-previous-cycle',
+      topicId: TASK.topicId,
+      domainId: 'dsa',
+      score: 80,
+      confidence: 4,
+      timestamp: TS,
+      sourceType: 'daily_assignment',
+      sourceId: TASK.id,
+    };
+
+    const before = slice({
+      taskProgress: { [TASK.id]: makeProgress() },
+      skillStates: {
+        [TASK.topicId]: makeSkill({ topicId: TASK.topicId, evidenceStrength: 40 }),
+        'topic-dsa-graphs': unrelatedSkill,
+      },
+      evidenceLogs: [unrelatedEvidence, priorCompletionEvidence],
+    });
+
+    const snapshot = capture(before);
+    const after = applyCompletion(before);
+    expect(after.evidenceLogs).toHaveLength(3); // 2 pre-existing + exactly 1 new
+
+    const restored = applyTaskStateRestore(snapshot, after);
+
+    // only the evidence THIS transaction added is gone
+    expect(restored.evidenceLogs.map((l) => l.id).sort()).toEqual(
+      ['ev-dsa-1', 'evidence-task-bridge-1-previous-cycle'].sort()
+    );
+    // unrelated skill untouched; the task's own skill returned to its snapshot
+    expect(restored.skillStates['topic-dsa-graphs']).toEqual(unrelatedSkill);
+    expect(restored.skillStates[TASK.topicId]).toEqual(before.skillStates[TASK.topicId]);
+    expect(restored.skillStates[TASK.topicId].evidenceStrength).toBe(40);
   });
 });

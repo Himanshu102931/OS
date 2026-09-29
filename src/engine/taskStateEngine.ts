@@ -141,6 +141,17 @@ export function applyTaskStateUpdate(params: TaskStateUpdateParams): TaskStateUp
   }
 
   const isCompleting = newState === 'completed';
+
+  // P0-01 — completion is idempotent. The STATE TRANSITION itself is the
+  // duplicate test: a task that is already `completed` cannot enter
+  // `completed` again, so it must not produce a second evidence event or a
+  // second skill EMA. Deliberately no timestamps, no generated ids — the
+  // guard is a property of the transition, not of when it ran. The evening
+  // seal has an equivalent guard at the bottom of this module.
+  if (isCompleting && existing?.state === 'completed') {
+    return { progress: base, evidence: null, skillUpdate: null };
+  }
+
   const progress: TaskProgress = {
     ...base,
     state: newState,
@@ -282,4 +293,157 @@ export function applySealAssignmentCompletion(
   };
 
   return { progress, evidence, skillUpdate };
+}
+
+// ---------------------------------------------------------------------------
+// Transactional undo — exact snapshot restore for Today's Undo controls
+// ---------------------------------------------------------------------------
+
+/**
+ * Exact snapshot of everything ONE Today transaction is allowed to change.
+ *
+ * Captured by the caller *before* it issues the action, from the same render
+ * that issues it, so it can never disagree with the transaction it reverses.
+ *
+ * Completion fills `skillTopicId` / `previousSkill` /
+ * `priorCompletionEvidenceIds`; postpone and skip leave them unset because
+ * neither ever writes evidence or a skill state.
+ *
+ * The skill value is a SNAPSHOT, never an inverse of the EMA: undo restores
+ * the exact prior object instead of trying to derive `oldStrength` back out of
+ * `0.7 × old + 0.3 × score`.
+ */
+export interface TaskStateRestore {
+  taskId: string;
+  /**
+   * Exact `TaskProgress` captured before the action. `undefined` when the
+   * task had no progress entry at all — restore then removes the entry rather
+   * than inventing one.
+   */
+  previousProgress?: TaskProgress;
+  /** Completion only: topic whose skill state the completion overwrote. */
+  skillTopicId?: string;
+  /**
+   * Completion only: exact pre-completion skill state for `skillTopicId`.
+   * `null` means the topic had no skill state before — restore removes the
+   * state the completion materialized.
+   */
+  previousSkill?: TopicSkillState | null;
+  /**
+   * Completion only: ids of this task's completion evidence that already
+   * existed when the transaction ran. Restore removes only completion
+   * evidence that is NOT in this set — i.e. exactly what this transaction
+   * added — so evidence from an earlier completion cycle, and every unrelated
+   * evidence record, is left untouched.
+   */
+  priorCompletionEvidenceIds?: ReadonlySet<string>;
+}
+
+/** The three collections a Today transaction may write. */
+export interface TaskStateSlice {
+  taskProgress: Record<string, TaskProgress>;
+  skillStates: Record<string, TopicSkillState>;
+  evidenceLogs: EvidenceLog[];
+}
+
+/**
+ * Completion evidence for a task, identified through the EXISTING source
+ * metadata (`sourceType: 'daily_assignment'`, `sourceId: taskId`) rather than
+ * a second evidence model. Evening-seal evidence shares the sourceType but
+ * carries an `assignmentId` (`assign-<date>-<taskId>-<n>`), never the bare
+ * task id, so it is never matched here.
+ */
+export function isTaskCompletionEvidence(log: EvidenceLog, taskId: string): boolean {
+  return log.sourceType === 'daily_assignment' && log.sourceId === taskId;
+}
+
+/**
+ * Reverses ONE captured transaction exactly, with no recomputation:
+ *
+ * - `taskProgress[taskId]` is set back to `previousProgress`, or removed when
+ *   the task had no entry before. `postponeCount`, `skipCount`,
+ *   `postponedUntil`, `lastCompletedAt`, `state` and `updatedAt` all return in
+ *   one write because the whole object is restored, not patched field by field.
+ * - `skillStates[skillTopicId]` is set back to the snapshot, or removed when
+ *   the completion materialized it. No EMA is inverted and no other topic's
+ *   skill state is touched.
+ * - completion evidence added by the transaction is filtered out; anything
+ *   already present in `priorCompletionEvidenceIds` and any non-completion
+ *   evidence is preserved.
+ *
+ * Pure: it never mutates the inputs, never appends evidence and never derives
+ * a skill value. Postpone/skip restores omit the completion fields, so they
+ * touch task progress only.
+ */
+export function applyTaskStateRestore(
+  restore: TaskStateRestore,
+  state: TaskStateSlice
+): TaskStateSlice {
+  const taskProgress = { ...state.taskProgress };
+  if (restore.previousProgress === undefined) {
+    delete taskProgress[restore.taskId];
+  } else {
+    taskProgress[restore.taskId] = restore.previousProgress;
+  }
+
+  let skillStates = state.skillStates;
+  if (restore.skillTopicId !== undefined) {
+    skillStates = { ...state.skillStates };
+    if (restore.previousSkill === null || restore.previousSkill === undefined) {
+      delete skillStates[restore.skillTopicId];
+    } else {
+      skillStates[restore.skillTopicId] = restore.previousSkill;
+    }
+  }
+
+  let evidenceLogs = state.evidenceLogs;
+  if (restore.priorCompletionEvidenceIds !== undefined) {
+    const prior = restore.priorCompletionEvidenceIds;
+    evidenceLogs = state.evidenceLogs.filter(
+      (log) => !(isTaskCompletionEvidence(log, restore.taskId) && !prior.has(log.id))
+    );
+  }
+
+  return { taskProgress, skillStates, evidenceLogs };
+}
+
+/** Everything a capture reads, taken from the render that issues the action. */
+export interface TaskRestoreSource {
+  taskId: string;
+  /** Task definition — only the completion capture needs it (skill topic). */
+  taskDef?: TaskDefinition;
+  taskProgress: Record<string, TaskProgress>;
+  skillStates: Record<string, TopicSkillState>;
+  evidenceLogs: EvidenceLog[];
+}
+
+/**
+ * Postpone / skip capture. Neither action writes evidence or a skill state, so
+ * the whole pre-action TaskProgress is all that is needed to reverse one.
+ */
+export function captureDeferRestore(source: TaskRestoreSource): TaskStateRestore {
+  return { taskId: source.taskId, previousProgress: source.taskProgress[source.taskId] };
+}
+
+/**
+ * Completion capture. Adds the topic's exact prior skill state and the ids of
+ * this task's completion evidence that already exist, so undo restores the
+ * snapshot verbatim and removes only the evidence this transaction adds.
+ */
+export function captureCompletionRestore(source: TaskRestoreSource): TaskStateRestore {
+  const restore = captureDeferRestore(source);
+  // Without a task definition the engine emits no evidence and no skill update.
+  if (!source.taskDef) return restore;
+
+  const topicId = source.taskDef.topicId;
+  return {
+    ...restore,
+    skillTopicId: topicId,
+    previousSkill: source.skillStates[topicId] ?? null,
+    priorCompletionEvidenceIds: new Set(
+      source.evidenceLogs
+        .filter((log) => isTaskCompletionEvidence(log, source.taskId))
+        .map((log) => log.id)
+    ),
+  };
 }

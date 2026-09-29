@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { usePlacement } from '../../context/PlacementContext';
 import { ConfirmFullResetModal } from './ConfirmFullResetModal';
+import { GuideTrigger } from '../guide/GuideTrigger';
 import type { PlacementMode } from '../../types';
 import {
   Download,
   Upload,
   RotateCcw,
-  User,
   CheckCircle2,
   Database,
 } from 'lucide-react';
@@ -82,11 +82,12 @@ export const SettingsView: React.FC = () => {
             Settings & Operational Parameters
           </h1>
           <p className="text-xs text-[#8E98A8] mt-1">
-            Configure profile goals, adaptive mode defaults, data backups, and storage safeguards.
+            Configure adaptive mode defaults, data backups, and storage safeguards.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex flex-wrap items-center gap-2.5 text-xs">
+          <GuideTrigger route="settings" />
           <span className="px-3 py-1 rounded-md bg-[#14171D] border border-[#262D38] text-[#8E98A8]">
             Storage Used: <span className="text-[#FFC665] font-bold font-mono">{formattedKB} KB</span>
           </span>
@@ -116,45 +117,32 @@ export const SettingsView: React.FC = () => {
         </div>
       )}
 
-      {/* Section 1: Profile & Placement Horizon */}
+      {/* Section 1: Placement Mode */}
       <section className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-4 settings-section">
         <div className="flex items-center justify-between border-b border-[#262D38] pb-3">
           <h2 className="text-sm font-semibold text-[#F1F5F9] flex items-center gap-2">
-            <User className="size-4 text-[#E5A93C]" /> Profile & Target Goals
+            <Database className="size-4 text-[#E5A93C]" /> Placement Mode
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-          <div className="space-y-1.5">
-            <label className="text-[#8E98A8] block font-medium">Target Role Goal</label>
-            <input
-              type="text"
-              value={userSettings.targetPlacementGoal}
-              onChange={(e) => {
-                updateUserSettings({ targetPlacementGoal: e.target.value });
-                triggerSaveNotify('Target role goal updated');
-              }}
-              className="w-full bg-[#1B2028] border border-[#262D38] rounded-md p-2.5 text-[#F1F5F9] focus:outline-none settings-control"
-              placeholder="e.g. Software Engineer (SDE-1)"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[#8E98A8] block font-medium">Default Placement Mode</label>
-            <select
-              value={userSettings.placementMode}
-              onChange={(e) => {
-                updateUserSettings({ placementMode: e.target.value as PlacementMode });
-                triggerSaveNotify('Placement mode updated');
-              }}
-              className="w-full bg-[#1B2028] border border-[#262D38] rounded-md p-2.5 text-[#FFC665] font-semibold focus:outline-none cursor-pointer settings-control"
-            >
-              <option value="normal">Normal Mode (Standard daily load)</option>
-              <option value="reduced">Reduced Mode (Light work schedule)</option>
-              <option value="exam">Exam Mode (Pause non-essential topics)</option>
-              <option value="placement_sprint">Placement Sprint (High priority sprint)</option>
-            </select>
-          </div>
+        <div className="space-y-1.5 text-xs">
+          <label className="text-[#8E98A8] block font-medium">Default Placement Mode</label>
+          <select
+            value={userSettings.placementMode}
+            onChange={(e) => {
+              updateUserSettings({ placementMode: e.target.value as PlacementMode });
+              triggerSaveNotify('Placement mode updated');
+            }}
+            className="w-full bg-[#1B2028] border border-[#262D38] rounded-md p-2.5 text-[#FFC665] font-semibold focus:outline-none cursor-pointer settings-control"
+          >
+            <option value="normal">Normal Mode (Standard daily load)</option>
+            <option value="reduced">Reduced Mode (Light work schedule)</option>
+            <option value="exam">Exam Mode (Pause non-essential topics)</option>
+            <option value="placement_sprint">Placement Sprint (High priority sprint)</option>
+          </select>
+          <p className="text-[10px] text-[#8E98A8] mt-1">
+            Affects Today candidate scoring — sprint mode prioritizes company-aligned work.
+          </p>
         </div>
       </section>
 

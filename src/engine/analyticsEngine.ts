@@ -10,8 +10,9 @@ import type {
   DailyCheckIn,
   Phase,
   EvidenceLog,
+  CompanyOverlay,
 } from '../types';
-import { calculateTopicReadiness, calculateDomainReadinessList } from './skillsEngine';
+import { calculateTopicReadiness, calculateDomainReadinessList, type TopicReadiness } from './skillsEngine';
 
 export type TimeWindow = '7d' | '30d' | 'phase' | 'all';
 
@@ -70,6 +71,12 @@ export interface AnalyticsSummary {
   timeWindow: TimeWindow;
   startDateISO: string;
   endDateISO: string;
+  /**
+   * Per-topic readiness produced by the same canonical skillsEngine call
+   * SkillsView makes, with the same company overlays. Exposed (not recomputed)
+   * so consumers and regression tests can verify both pages agree.
+   */
+  topicReadiness: TopicReadiness[];
   activity: ActivityTelemetry;
   quality: QualityTelemetry;
   progress: ProgressTelemetry;
@@ -83,9 +90,11 @@ export interface AnalyticsSummary {
 export function calculateWindowStartDate(
   timeWindow: TimeWindow,
   todayISO: string,
-  activePhase?: Phase
+  activePhase?: Phase,
+  earliestActivityISO?: string
 ): string {
-  const d = new Date(todayISO.slice(0, 10));
+  const today = todayISO.slice(0, 10);
+  const d = new Date(today);
 
   if (timeWindow === '7d') {
     d.setDate(d.getDate() - 7);
@@ -101,7 +110,51 @@ export function calculateWindowStartDate(
     return activePhase.startDate.slice(0, 10);
   }
 
-  return '1970-01-01';
+  // "All time", or a phase window with no known phase start: anchor the window
+  // to the earliest real activity, and to today when there is none. An
+  // uninitialized timestamp (the epoch) must never be presented as history.
+  const earliest = earliestActivityISO?.slice(0, 10);
+  if (earliest && earliest <= today) return earliest;
+  return today;
+}
+
+/**
+ * Earliest date on which anything actually happened.
+ *
+ * Deliberately limited to genuine activity records — completed tasks, DSA
+ * attempts, evidence logs and sealed check-ins. Seeded/idle progress rows are
+ * excluded so a fresh install reports "no activity data" instead of anchoring
+ * to fabricated history. Returns `undefined` when nothing has happened yet.
+ */
+function findEarliestActivityDate(
+  tasks: TaskDefinition[],
+  taskProgressMap: Record<string, TaskProgress>,
+  dsaAttempts: DSAAttempt[],
+  evidenceLogs: EvidenceLog[],
+  dailyCheckIns: DailyCheckIn[]
+): string | undefined {
+  const candidates: string[] = [];
+
+  for (const task of tasks) {
+    const prog = taskProgressMap[task.id];
+    if (prog?.state !== 'completed') continue;
+    const completed = (prog.lastCompletedAt || prog.updatedAt || '').slice(0, 10);
+    if (completed) candidates.push(completed);
+  }
+  for (const att of dsaAttempts) {
+    const attDate = (att.createdAt || att.date || '').slice(0, 10);
+    if (attDate) candidates.push(attDate);
+  }
+  for (const log of evidenceLogs) {
+    const logDate = (log.timestamp || '').slice(0, 10);
+    if (logDate) candidates.push(logDate);
+  }
+  for (const ci of dailyCheckIns) {
+    if (ci.isSealed && ci.date) candidates.push(ci.date.slice(0, 10));
+  }
+
+  if (candidates.length === 0) return undefined;
+  return candidates.reduce((min, candidate) => (candidate < min ? candidate : min));
 }
 
 /**
@@ -129,10 +182,16 @@ export function evaluateAnalyticsTelemetry(
   domains: DomainDefinition[],
   skillStates: Record<string, TopicSkillState>,
   dailyCheckIns: DailyCheckIn[],
+  companyOverlays: CompanyOverlay[],
   activePhase?: Phase,
   evidenceLogs: EvidenceLog[] = []
 ): AnalyticsSummary {
-  const startDateISO = calculateWindowStartDate(timeWindow, todayISO, activePhase);
+  const startDateISO = calculateWindowStartDate(
+    timeWindow,
+    todayISO,
+    activePhase,
+    findEarliestActivityDate(tasks, taskProgressMap, dsaAttempts, evidenceLogs, dailyCheckIns)
+  );
 
   // Filter DSA attempts in window
   const windowAttempts = dsaAttempts.filter((att) => {
@@ -155,9 +214,14 @@ export function evaluateAnalyticsTelemetry(
   });
 
   const checkInMinutes = sealedCheckInsInWindow.reduce((sum, c) => sum + (c.totalActualMinutes || 0), 0);
+  // Actual study time only: `timeSpentMinutes` is accumulated from minutes the
+  // user really recorded (evening reflection) and `totalActualMinutes` comes
+  // from sealed check-ins. The task's estimate is planned time and is never
+  // counted as time studied. `Math.max` keeps the two overlapping recordings of
+  // the same session from being double-counted.
   const taskMinutesInWindow = completedTasksInWindow.reduce((sum, t) => {
     const prog = taskProgressMap[t.id];
-    return sum + (prog?.timeSpentMinutes || t.estimatedMinutes || 0);
+    return sum + (prog?.timeSpentMinutes || 0);
   }, 0);
 
   const totalStudyMinutes = Math.max(checkInMinutes, taskMinutesInWindow);
@@ -240,7 +304,7 @@ export function evaluateAnalyticsTelemetry(
       dsaAttempts,
       evidenceLogs,
       skillStates,
-      [],
+      companyOverlays,
       todayISO
     );
   });
@@ -376,6 +440,7 @@ export function evaluateAnalyticsTelemetry(
     timeWindow,
     startDateISO,
     endDateISO: todayISO,
+    topicReadiness: topicReadinessList,
     activity: {
       completedTasksCount: completedTasksInWindow.length,
       totalTasksInWindow: tasks.length,

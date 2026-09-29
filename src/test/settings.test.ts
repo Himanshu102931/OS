@@ -31,6 +31,13 @@ describe('UserSettings & StorageAdapter', () => {
     expect(loaded.userSettings.dsaDailyCap).toBe(5);
     expect(loaded.userSettings.placementMode).toBe('normal');
     expect(loaded.userSettings.theme).toBe('dark');
+    expect(loaded.userSettings.dailyCheckInReminder).toBe(false);
+  });
+
+  it('fresh default reminder is disabled (no scheduler exists)', () => {
+    const loaded = StorageAdapter.loadState();
+    expect(loaded.userSettings.dailyCheckInReminder).toBe(false);
+    expect(loaded.userSettings.reminderTime).toBe('20:00');
   });
 
   it('persists modified user settings safely', () => {
@@ -94,5 +101,28 @@ describe('UserSettings & StorageAdapter', () => {
     const resetState = StorageAdapter.resetState();
     expect(resetState.userSettings).toEqual(DEFAULT_USER_SETTINGS);
     expect(resetState.schemaVersion).toBe('1.0.0');
+  });
+
+  it('targetPlacementGoal persists through storage but has no visible UI control (C9 regression)', () => {
+    const loaded = StorageAdapter.loadState();
+    expect(loaded.userSettings.targetPlacementGoal).toBeDefined();
+
+    // Update it programmatically (simulating import/backup restore)
+    const updatedSettings = {
+      ...loaded.userSettings,
+      targetPlacementGoal: 'Custom Role from Backup',
+    };
+    StorageAdapter.saveState({ ...loaded, userSettings: updatedSettings });
+
+    const reloaded = StorageAdapter.loadState();
+    expect(reloaded.userSettings.targetPlacementGoal).toBe('Custom Role from Backup');
+
+    // The field survives import/export
+    const json = StorageAdapter.exportJSON(reloaded);
+    expect(json).toContain('Custom Role from Backup');
+
+    const imported = StorageAdapter.importJSON(json);
+    expect(imported.success).toBe(true);
+    expect(imported.state?.userSettings.targetPlacementGoal).toBe('Custom Role from Backup');
   });
 });

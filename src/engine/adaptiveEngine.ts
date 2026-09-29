@@ -351,48 +351,13 @@ export function selectDailyPlan(
 }
 
 /**
- * 4-Box Leitner Spaced Repetition Transition Rules (9 Combinations)
+ * 4-Box Leitner spaced-repetition transitions live in `dsaEngine`
+ * (`calculateNextLeitnerBox`, DSA v1.4 Section 12) together with the review
+ * interval table (`getLeitnerIntervalDays`). This module previously carried a
+ * second, divergent copy of those rules — different paths produced different
+ * box/review-date behaviour for the same attempt. The duplicate was removed
+ * once every caller had been routed through the canonical function.
  */
-export function calculateNextLeitnerBox(
-  currentBox: 1 | 2 | 3 | 4,
-  result: 'pass' | 'partial' | 'fail',
-  assistanceLevel: 'none' | 'hint' | 'solution'
-): { nextBox: 1 | 2 | 3 | 4; intervalDays: number } {
-  let nextBox: 1 | 2 | 3 | 4;
-
-  if (result === 'pass') {
-    if (assistanceLevel === 'none') {
-      nextBox = Math.min(4, currentBox + 1) as 1 | 2 | 3 | 4;
-    } else if (assistanceLevel === 'hint') {
-      nextBox = currentBox;
-    } else {
-      nextBox = Math.max(1, currentBox - 1) as 1 | 2 | 3 | 4;
-    }
-  } else if (result === 'partial') {
-    if (assistanceLevel === 'none') {
-      nextBox = currentBox;
-    } else if (assistanceLevel === 'hint') {
-      nextBox = Math.max(1, currentBox - 1) as 1 | 2 | 3 | 4;
-    } else {
-      nextBox = 1;
-    }
-  } else {
-    // result === 'fail'
-    nextBox = 1;
-  }
-
-  const boxIntervals: Record<number, number> = {
-    1: 1,
-    2: 3,
-    3: 7,
-    4: 14,
-  };
-
-  return {
-    nextBox,
-    intervalDays: boxIntervals[nextBox],
-  };
-}
 
 /**
  * Deterministic Evidence Score Calculation

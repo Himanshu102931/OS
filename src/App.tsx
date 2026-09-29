@@ -10,6 +10,10 @@ import { ProjectLabView } from './components/project/ProjectLabView';
 import { CompaniesView } from './components/companies/CompaniesView';
 import { AnalyticsView } from './components/analytics/AnalyticsView';
 import { SettingsView } from './components/settings/SettingsView';
+import { PracticeView } from './components/practice/PracticeView';
+import { GuideOverlay } from './components/guide/GuideOverlay';
+import { GuideProvider } from './components/guide/GuideContext';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 
 const MainContent: React.FC = () => {
   const { currentRoute } = usePlacement();
@@ -24,8 +28,9 @@ const MainContent: React.FC = () => {
     case 'skills':
       return <SkillsView />;
     case 'preparation':
-    case 'practice':
       return <PreparationHubView />;
+    case 'practice':
+      return <PracticeView />;
     case 'project':
       return <ProjectLabView />;
     case 'companies':
@@ -42,9 +47,14 @@ const MainContent: React.FC = () => {
 function App() {
   return (
     <PlacementProvider>
-      <AppShell>
-        <MainContent />
-      </AppShell>
+      <GuideProvider>
+        <ErrorBoundary>
+          <AppShell>
+            <MainContent />
+            <GuideOverlay />
+          </AppShell>
+        </ErrorBoundary>
+      </GuideProvider>
     </PlacementProvider>
   );
 }

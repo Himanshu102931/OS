@@ -173,6 +173,57 @@ export function evaluateTopicPreparedness(input: PreparednessInput): TopicPrepar
 }
 
 /**
+ * Zero-filled stage record map for a topic progress record, carrying forward
+ * any prior per-stage records (the type requires every stage key).
+ */
+function cloneStageProgress(
+  existing: PreparationTopicProgress | undefined
+): PreparationTopicProgress['stageProgress'] {
+  const stageProgress: PreparationTopicProgress['stageProgress'] = {
+    orient: { timeSpentMinutes: 0 },
+    learn: { timeSpentMinutes: 0 },
+    apply: { timeSpentMinutes: 0 },
+    assess: { timeSpentMinutes: 0 },
+    review: { timeSpentMinutes: 0 },
+    interview: { timeSpentMinutes: 0 },
+    evidence: { timeSpentMinutes: 0 },
+  };
+  for (const key of Object.keys(stageProgress) as TopicStageId[]) {
+    const prior = existing?.stageProgress[key];
+    if (prior) stageProgress[key] = { ...prior };
+  }
+  return stageProgress;
+}
+
+/**
+ * Immutable stage-selection update: records the stage the user is actually
+ * looking at without claiming it was completed. This is what makes
+ * `currentStage` readable state instead of write-only state — the workspace
+ * restores it on reload and per topic, so no stage leaks between topics.
+ */
+export function selectPreparationStage(
+  topic: PreparationTopic,
+  existing: PreparationTopicProgress | undefined,
+  stage: TopicStageId,
+  nowISO: string
+): PreparationTopicProgress {
+  return {
+    topicId: topic.id,
+    sectionId: topic.sectionId,
+    domainId: topic.domainId,
+    currentStage: stage,
+    completedStages: existing?.completedStages ?? [],
+    stageProgress: cloneStageProgress(existing),
+    lastAccessedAt: nowISO,
+    totalTimeSpentMinutes: existing?.totalTimeSpentMinutes ?? 0,
+    evidenceStrength: existing?.evidenceStrength ?? 0,
+    freshness: existing?.freshness ?? 'untested',
+    createdAt: existing?.createdAt ?? nowISO,
+    updatedAt: nowISO,
+  };
+}
+
+/**
  * Immutable stage-completion update: returns a new PreparationTopicProgress
  * with `stage` marked complete (idempotent) and the current stage advanced to
  * the next incomplete stage of the topic's curriculum order.
@@ -188,19 +239,7 @@ export function applyStageCompletion(
     : [...(existing?.completedStages ?? []), stage];
 
   // Zero-fill the full stage record map (type requires every stage key).
-  const stageProgress: PreparationTopicProgress['stageProgress'] = {
-    orient: { timeSpentMinutes: 0 },
-    learn: { timeSpentMinutes: 0 },
-    apply: { timeSpentMinutes: 0 },
-    assess: { timeSpentMinutes: 0 },
-    review: { timeSpentMinutes: 0 },
-    interview: { timeSpentMinutes: 0 },
-    evidence: { timeSpentMinutes: 0 },
-  };
-  for (const key of Object.keys(stageProgress) as TopicStageId[]) {
-    const prior = existing?.stageProgress[key];
-    if (prior) stageProgress[key] = { ...prior };
-  }
+  const stageProgress = cloneStageProgress(existing);
   const priorStage = stageProgress[stage];
   stageProgress[stage] = {
     ...priorStage,
@@ -225,4 +264,55 @@ export function applyStageCompletion(
     createdAt: existing?.createdAt ?? nowISO,
     updatedAt: nowISO,
   };
+}
+
+/**
+ * The stage a topic must open on: the persisted `currentStage` when it is a
+ * stage this topic actually has, otherwise the topic's first stage. Never read
+ * from anywhere else, so a stage saved for topic A can never be restored for
+ * topic B.
+ */
+export function resolveInitialStage(
+  topic: PreparationTopic,
+  existing: PreparationTopicProgress | undefined
+): TopicStageId {
+  const saved = existing?.currentStage;
+  if (saved && topic.stages.includes(saved)) return saved;
+  return topic.stages[0] ?? 'orient';
+}
+
+export interface PrerequisiteStatus {
+  /** True while at least one declared prerequisite has not been worked through. */
+  isLocked: boolean;
+  /** Ids of the unmet prerequisites, in declaration order (empty when open). */
+  unmetPrerequisiteIds: string[];
+}
+
+/**
+ * Availability of a preparation topic from its declared prerequisites.
+ *
+ * The dataset's contract for `prerequisiteTopicIds` is that they are topics
+ * that "must be worked through first", and working a topic through is exactly
+ * what the persisted stage record says: every stage of that prerequisite topic
+ * marked complete. That is the ONLY rule here — no readiness thresholds, no
+ * score gates, no ordering rules of our own. Because it reads persisted
+ * progress, unlocking survives reload automatically and completing a
+ * prerequisite changes availability with nothing else to keep in sync.
+ *
+ * Fail-closed: an unresolvable prerequisite id counts as unmet, because we can
+ * never claim a requirement was met when we cannot even see it.
+ */
+export function evaluatePrerequisiteStatus(
+  topic: PreparationTopic,
+  resolveTopic: (topicId: string) => PreparationTopic | undefined,
+  progressById: Record<string, PreparationTopicProgress>
+): PrerequisiteStatus {
+  const unmetPrerequisiteIds = topic.prerequisiteTopicIds.filter((prereqId) => {
+    const prereq = resolveTopic(prereqId);
+    if (!prereq) return true;
+    const completed = progressById[prereqId]?.completedStages ?? [];
+    return !prereq.stages.every((stage) => completed.includes(stage));
+  });
+
+  return { isLocked: unmetPrerequisiteIds.length > 0, unmetPrerequisiteIds };
 }

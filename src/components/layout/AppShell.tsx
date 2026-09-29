@@ -13,6 +13,8 @@ import {
   Layers,
   Terminal,
   Target,
+  GraduationCap,
+  Dumbbell,
 } from 'lucide-react';
 
 
@@ -27,7 +29,9 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
     { id: 'dashboard', label: 'Today', icon: LayoutDashboard },
     { id: 'roadmap', label: 'Roadmap', icon: Map },
     { id: 'dsa', label: 'DSA', icon: Code2 },
+    { id: 'skills', label: 'Skills', icon: GraduationCap },
     { id: 'preparation', label: 'Preparation', icon: Target },
+    { id: 'practice', label: 'Practice', icon: Dumbbell },
     { id: 'project', label: 'Project Lab', icon: Terminal },
     { id: 'companies', label: 'Companies', icon: Building2 },
     { id: 'analytics', label: 'Review', icon: BarChart3 },

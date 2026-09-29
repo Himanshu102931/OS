@@ -65,6 +65,9 @@ function buildAttempt(accuracyPct: number, id = 'att-1', topicId = 'prep-sql'): 
     correctCount: Math.round((accuracyPct / 100) * 4),
     accuracyPct,
     scorePct: accuracyPct,
+    // Historical attempt against that session's real threshold (70).
+    passed: accuracyPct >= 70,
+    passingScorePct: 70,
     userAnswers: [],
   };
 }

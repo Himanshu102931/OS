@@ -31,12 +31,21 @@ import {
 import { PRACTICE_SESSIONS } from '../data/practiceDataset';
 import { StorageAdapter, DEFAULT_USER_SETTINGS, type AppStorageState } from '../storage/storageAdapter';
 import { getPreparationTopicIdByRoadmapId } from '../data/preparationDataset';
-import { applyTaskStateUpdate, type TaskStateAction } from '../engine/taskStateEngine';
+import { applyTaskStateUpdate, applyTaskStateRestore, type TaskStateAction, type TaskStateRestore } from '../engine/taskStateEngine';
+import { applyPracticeAttempt } from '../engine/practiceEngine';
 
 export type RoutePath = 'dashboard' | 'roadmap' | 'dsa' | 'skills' | 'practice' | 'preparation' | 'project' | 'companies' | 'analytics' | 'settings';
 
+/** Optional target identifier for route-specific deep links.
+ *  - preparation: topicId (existing)
+ *  - skills: topicId (for topic detail)
+ *  - dsa: problemId (for problem detail)
+ *  - roadmap: taskId (for task detail)
+ *  - practice: sessionId (for session detail) */
 interface RouteState {
   route: RoutePath;
+  targetId?: string;
+  /** @deprecated use targetId; kept for backward compatibility */
   preparationTopicId?: string;
 }
 
@@ -76,6 +85,14 @@ interface PlacementContextType {
   preparationTopicProgress: Record<string, PreparationTopicProgress>;
   activePhase: Phase;
   updateTaskState: (taskId: string, newState: TaskProgress['state'], action?: TaskStateAction) => void;
+  /**
+   * Reverses ONE captured Today transaction (completion, postpone or skip)
+   * exactly as it was before. Writes task progress, the completion's skill
+   * snapshot and the completion's evidence in a single state transaction —
+   * it never recomputes, never appends evidence and never touches anything
+   * the capture did not name.
+   */
+  restoreTaskTransaction: (restore: TaskStateRestore) => void;
   commitDailyPlan: (checkIn: DailyCheckIn, assignments: DailyTaskAssignment[]) => void;
   sealDayExecution: (
     updatedCheckIn: DailyCheckIn,
@@ -98,6 +115,7 @@ interface PlacementContextType {
   updateSkillState: (updatedSkillState: TopicSkillState) => void;
   updatePreparationTopicProgress: (updatedProgress: PreparationTopicProgress) => void;
   saveCompanyOverlay: (company: CompanyOverlay) => void;
+  deleteCompanyOverlay: (companyId: string) => void;
   decomposeTask: (parentTask: TaskDefinition, subtasks: TaskDefinition[]) => void;
   resetApplicationData: () => void;
   exportBackupJSON: () => string;
@@ -113,7 +131,8 @@ function getTodayISO(): string {
   return `${year}-${month}-${day}`;
 }
 
-const PlacementContext = createContext<PlacementContextType | undefined>(undefined);
+export type { PlacementContextType };
+export const PlacementContext = createContext<PlacementContextType | undefined>(undefined);
 
 export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [routeState, setRouteState] = useState<RouteState>({ route: 'dashboard' });
@@ -172,8 +191,8 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const route = parts[0] as RoutePath;
       
       if (['dashboard', 'roadmap', 'dsa', 'skills', 'practice', 'preparation', 'project', 'companies', 'analytics', 'settings'].includes(route)) {
-        const preparationTopicId = parts[1];
-        setRouteState({ route, preparationTopicId });
+        const targetId = parts[1];
+        setRouteState({ route, targetId });
       } else {
         setRouteState({ route: 'dashboard' });
       }
@@ -184,10 +203,10 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  const setRoute = (route: RoutePath, preparationTopicId?: string) => {
-    const hash = preparationTopicId ? `#/${route}/${preparationTopicId}` : `#/${route}`;
+  const setRoute = (route: RoutePath, targetId?: string) => {
+    const hash = targetId ? `#/${route}/${targetId}` : `#/${route}`;
     window.location.hash = hash;
-    setRouteState({ route, preparationTopicId });
+    setRouteState({ route, targetId });
   };
 
   const setPlacementMode = (mode: PlacementMode) => {
@@ -219,17 +238,6 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       userSettings: DEFAULT_USER_SETTINGS,
     }));
   };
-
-  useEffect(() => {
-    const root = document.documentElement;
-    const settings = appState.userSettings || DEFAULT_USER_SETTINGS;
-    if (settings.theme) {
-      root.setAttribute('data-[#theme]', settings.theme);
-    }
-    if (settings.densityMode) {
-      root.setAttribute('data-[#density]', settings.densityMode);
-    }
-  }, [appState.userSettings]);
 
   const activePhase = PHASES[0];
 
@@ -278,6 +286,29 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         ...(skillUpdate
           ? { skillStates: { ...prev.skillStates, [skillUpdate.topicId]: skillUpdate } }
           : {}),
+      };
+    });
+  };
+
+  /**
+   * Single write transaction for every Today Undo. The snapshot is applied
+   * verbatim — no evidence is created, no skill value is recalculated, and
+   * only the task, skill topic and completion evidence named by the capture
+   * are touched.
+   */
+  const restoreTaskTransaction = (restore: TaskStateRestore) => {
+    setAppState((prev) => {
+      const restored = applyTaskStateRestore(restore, {
+        taskProgress: prev.taskProgress,
+        skillStates: prev.skillStates,
+        evidenceLogs: prev.evidenceLogs || [],
+      });
+
+      return {
+        ...prev,
+        taskProgress: restored.taskProgress,
+        skillStates: restored.skillStates,
+        evidenceLogs: restored.evidenceLogs,
       };
     });
   };
@@ -386,37 +417,20 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     attempt: PracticeAttempt,
     evidenceLog: EvidenceLog
   ) => {
-    setAppState((prev) => {
-      const topicId = evidenceLog.topicId;
-      const domainId = evidenceLog.domainId;
-
-      const existingSkill = prev.skillStates[topicId] || {
-        topicId,
-        domainId,
-        freshness: 'untested',
-        evidenceStrength: 0,
-      };
-
-      const newEvidenceStrength = Math.min(
-        100,
-        Math.max(0, existingSkill.evidenceStrength + Math.round(evidenceLog.score * 0.2))
-      );
-
-      return {
-        ...prev,
-        practiceAttempts: [attempt, ...(prev.practiceAttempts || [])],
-        skillStates: {
-          ...prev.skillStates,
-          [topicId]: {
-            ...existingSkill,
-            lastPracticedAt: new Date().toISOString(),
-            freshness: 'fresh',
-            evidenceStrength: newEvidenceStrength,
-          },
+    setAppState((prev) => ({
+      ...prev,
+      // The evaluator's scorePct / passed are persisted verbatim — this
+      // transaction only decides where they land, it never recomputes them.
+      ...applyPracticeAttempt(
+        {
+          practiceAttempts: prev.practiceAttempts || [],
+          skillStates: prev.skillStates,
+          evidenceLogs: prev.evidenceLogs || [],
         },
-        evidenceLogs: [...(prev.evidenceLogs || []), evidenceLog],
-      };
-    });
+        attempt,
+        evidenceLog
+      ),
+    }));
   };
 
   const updateDSAProgress = (updatedProgress: DSAProgress) => {
@@ -434,7 +448,19 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       ...prev,
       skillStates: {
         ...prev.skillStates,
-        [updatedSkillState.topicId]: updatedSkillState,
+        [updatedSkillState.topicId]: {
+          ...updatedSkillState,
+          // This is the only manual writer (sole caller: SkillOverrideModal via
+          // SkillsView). Stamping provenance here — rather than inferring it
+          // later from `evidenceStrength > 0` — is what keeps a user rating
+          // identifiable no matter what automatic evidence lands on the topic.
+          manualOverride: {
+            evidenceStrength: updatedSkillState.evidenceStrength,
+            freshness: updatedSkillState.freshness,
+            updatedAt:
+              updatedSkillState.lastPracticedAt || new Date().toISOString(),
+          },
+        },
       },
     }));
   };
@@ -451,12 +477,29 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const saveCompanyOverlay = (company: CompanyOverlay) => {
     setAppState((prev) => {
-      const filtered = prev.companyOverlays.filter((c) => c.id !== company.id);
+      const index = prev.companyOverlays.findIndex((c) => c.id === company.id);
+      // Update in place so an edit changes only the intended record and does
+      // not silently reorder the list; a new id appends.
+      if (index === -1) {
+        return {
+          ...prev,
+          companyOverlays: [...prev.companyOverlays, company],
+        };
+      }
+      const next = [...prev.companyOverlays];
+      next[index] = company;
       return {
         ...prev,
-        companyOverlays: [...filtered, company],
+        companyOverlays: next,
       };
     });
+  };
+
+  const deleteCompanyOverlay = (companyId: string) => {
+    setAppState((prev) => ({
+      ...prev,
+      companyOverlays: prev.companyOverlays.filter((c) => c.id !== companyId),
+    }));
   };
 
   const decomposeTask = (parentTask: TaskDefinition, subtasks: TaskDefinition[]) => {
@@ -566,6 +609,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         preparationTopicProgress: appState.preparationTopicProgress || {},
         activePhase,
         updateTaskState,
+        restoreTaskTransaction,
         commitDailyPlan,
         sealDayExecution,
         logDSAAttempt,
@@ -574,6 +618,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         updateSkillState,
         updatePreparationTopicProgress,
         saveCompanyOverlay,
+        deleteCompanyOverlay,
         decomposeTask,
         resetApplicationData,
         exportBackupJSON,

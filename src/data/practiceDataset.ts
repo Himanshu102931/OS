@@ -298,7 +298,7 @@ export const PRACTICE_SESSIONS: PracticeSessionDefinition[] = [
     title: 'System & Project Architecture Defense',
     description: 'Structured self-defense simulation for your portfolio project (Architecture, Data Flow, Security, Bottlenecks, Trade-offs).',
     category: 'project_defense',
-    domainId: 'projects',
+    domainId: 'interviews',
     topicId: 'prep-interview-career',
     estimatedMinutes: 20,
     questionCount: 4,
@@ -307,7 +307,7 @@ export const PRACTICE_SESSIONS: PracticeSessionDefinition[] = [
       {
         id: 'q-proj-1',
         category: 'project_defense',
-        domainId: 'projects',
+        domainId: 'interviews',
         topicId: 'prep-interview-career',
         categoryTag: 'Architecture & Data Flow',
         questionType: 'defense_prompt',
@@ -318,7 +318,7 @@ export const PRACTICE_SESSIONS: PracticeSessionDefinition[] = [
       {
         id: 'q-proj-2',
         category: 'project_defense',
-        domainId: 'projects',
+        domainId: 'interviews',
         topicId: 'prep-interview-career',
         categoryTag: 'Trade-offs & Technical Choices',
         questionType: 'defense_prompt',
@@ -329,7 +329,7 @@ export const PRACTICE_SESSIONS: PracticeSessionDefinition[] = [
       {
         id: 'q-proj-3',
         category: 'project_defense',
-        domainId: 'projects',
+        domainId: 'interviews',
         topicId: 'prep-interview-career',
         categoryTag: 'Scalability & Failure Recovery',
         questionType: 'defense_prompt',
@@ -340,7 +340,7 @@ export const PRACTICE_SESSIONS: PracticeSessionDefinition[] = [
       {
         id: 'q-proj-4',
         category: 'project_defense',
-        domainId: 'projects',
+        domainId: 'interviews',
         topicId: 'prep-interview-career',
         categoryTag: 'Security & Auth',
         questionType: 'defense_prompt',

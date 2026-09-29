@@ -3,6 +3,7 @@ import { usePlacement } from '../../context/PlacementContext';
 import { calculateCompanySnapshot, type CompanyRequirementMapping } from '../../engine/companyEngine';
 import { CompanyModal } from './CompanyModal';
 import { CompanyRequirementDetailModal } from './CompanyRequirementDetailModal';
+import { GuideTrigger } from '../guide/GuideTrigger';
 import type { CompanyOverlay } from '../../types';
 import {
   Building2,
@@ -10,6 +11,7 @@ import {
   AlertCircle,
   Plus,
   ArrowRight,
+  Trash2,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 
@@ -27,12 +29,38 @@ export const CompaniesView: React.FC = () => {
     skillStates,
     todayDate,
     saveCompanyOverlay,
+    deleteCompanyOverlay,
   } = usePlacement();
 
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<CompanyOverlay | null>(null);
   const [selectedCompanyDetail, setSelectedCompanyDetail] = useState<CompanyOverlay | null>(null);
   const [selectedReqDetail, setSelectedReqDetail] = useState<CompanyRequirementMapping | null>(null);
+  /** C4-02 — the company awaiting an explicit delete confirmation. */
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+
+  const openAddCompany = () => {
+    setEditingCompany(null);
+    setIsCompanyModalOpen(true);
+  };
+
+  const openEditCompany = (company: CompanyOverlay) => {
+    setEditingCompany(company);
+    setIsCompanyModalOpen(true);
+  };
+
+  /**
+   * C4-02 — the delete API already existed in PlacementContext with zero
+   * callers; this wires it. Only the selected company is removed, and any
+   * selection pointing at it is cleared so the view stays coherent.
+   */
+  const handleConfirmDelete = (companyId: string) => {
+    deleteCompanyOverlay(companyId);
+    setPendingDeleteId(null);
+    setEditingCompany((prev) => (prev?.id === companyId ? null : prev));
+    setSelectedCompanyDetail((prev) => (prev?.id === companyId ? null : prev));
+    setSelectedReqDetail(null);
+  };
 
   // Compute live preparation snapshot for all companies via companyEngine
   const companySnapshotMap = useMemo(() => {
@@ -80,19 +108,40 @@ export const CompaniesView: React.FC = () => {
           </p>
         </div>
 
-        <Button
-          size="sm"
-          onClick={() => {
-            setEditingCompany(null);
-            setIsCompanyModalOpen(true);
-          }}
-          className="text-xs font-semibold bg-[#E5A93C] hover:bg-[#FFC665] text-[#432C00] rounded-md h-9 px-3.5"
-        >
-          <Plus className="size-4 mr-1.5" /> Add Target Company
-        </Button>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <GuideTrigger route="companies" />
+          <Button
+            size="sm"
+            onClick={openAddCompany}
+            className="text-xs font-semibold bg-[#E5A93C] hover:bg-[#FFC665] text-[#432C00] rounded-md h-9 px-3.5"
+          >
+            <Plus className="size-4 mr-1.5" /> Add Target Company
+          </Button>
+        </div>
       </div>
 
+      {/* C4-05 — clean baseline now has zero companies, so say what this page is for. */}
+      {companyOverlays.length === 0 && (
+        <div className="border border-dashed border-[#262D38] rounded-xl bg-[#14171D] px-6 py-12 text-center space-y-3">
+          <Building2 className="size-7 text-[#8E98A8] mx-auto" />
+          <h2 className="text-base font-bold text-[#F1F5F9]">No target companies yet</h2>
+          <p className="text-xs text-[#8E98A8] max-w-md mx-auto leading-relaxed">
+            Add a company to map its assessment date, required domains, topics and languages
+            against your live preparation evidence — so you can see the gaps that matter before
+            you apply.
+          </p>
+          <Button
+            size="sm"
+            onClick={openAddCompany}
+            className="text-xs font-semibold bg-[#E5A93C] hover:bg-[#FFC665] text-[#432C00] rounded-md h-9 px-3.5"
+          >
+            <Plus className="size-4 mr-1.5" /> Add Company
+          </Button>
+        </div>
+      )}
+
       {/* Target Companies Cards */}
+      {companyOverlays.length > 0 && (
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 stagger-in">
         {companyOverlays.map((company) => {
           const snapshot = companySnapshotMap[company.id];
@@ -134,7 +183,16 @@ export const CompaniesView: React.FC = () => {
                   <AlertCircle className="size-3 text-[#F59E0B]" /> Top Preparation Gaps:
                 </span>
                 {keyGaps.length === 0 ? (
-                  <p className="text-xs text-[#10B981] font-medium state-success">All key requirements on track!</p>
+                  snapshot && snapshot.requirements.length === 0 ? (
+                    <p className="text-xs text-[#8E98A8] font-medium">
+                      No mapped requirements — this company has no required domains, topics or
+                      languages configured yet.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-[#10B981] font-medium state-success">
+                      All key requirements on track!
+                    </p>
+                  )
                 ) : (
                   <div className="space-y-1">
                     {keyGaps.slice(0, 3).map((gap) => (
@@ -148,33 +206,69 @@ export const CompaniesView: React.FC = () => {
               </div>
 
               {/* Actions */}
-              <div className="pt-3 border-t border-[#262D38] flex items-center justify-between">
-                <button
-                  onClick={() => setSelectedCompanyDetail(company)}
-                  className="text-xs text-[#E5A93C] hover:underline font-semibold flex items-center gap-1"
-                >
-                  Inspect Requirements <ArrowRight className="size-3.5" />
-                </button>
+              {pendingDeleteId === company.id ? (
+                <div className="pt-3 border-t border-[#262D38] flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs text-rose-400">
+                    Delete {company.companyName}? This permanently removes the company and its
+                    requirement mapping.
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      onClick={() => setPendingDeleteId(null)}
+                      className="h-7 text-xs border-[#262D38] bg-[#1B2028] text-[#8E98A8] hover:text-[#F1F5F9] rounded-md"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      size="xs"
+                      onClick={() => handleConfirmDelete(company.id)}
+                      className="h-7 text-xs bg-rose-500 hover:bg-rose-600 text-white font-semibold rounded-md"
+                    >
+                      Confirm Delete
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="pt-3 border-t border-[#262D38] flex flex-wrap items-center justify-between gap-2">
+                  <button
+                    onClick={() => setSelectedCompanyDetail(company)}
+                    className="text-xs text-[#E5A93C] hover:underline font-semibold flex items-center gap-1"
+                  >
+                    Inspect Requirements <ArrowRight className="size-3.5" />
+                  </button>
 
-                <Button
-                  size="xs"
-                  variant="outline"
-                  onClick={() => {
-                    setEditingCompany(company);
-                    setIsCompanyModalOpen(true);
-                  }}
-                  className="h-7 text-xs border-[#262D38] bg-[#1B2028] text-[#8E98A8] hover:text-[#F1F5F9] rounded-md settings-control"
-                >
-                  Edit Company
-                </Button>
-              </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      onClick={() => openEditCompany(company)}
+                      className="h-7 text-xs border-[#262D38] bg-[#1B2028] text-[#8E98A8] hover:text-[#F1F5F9] rounded-md settings-control"
+                    >
+                      Edit Company
+                    </Button>
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      onClick={() => setPendingDeleteId(company.id)}
+                      className="h-7 text-xs border-[#262D38] bg-[#1B2028] text-rose-400 hover:text-rose-300 rounded-md"
+                    >
+                      <Trash2 className="size-3.5 mr-1" /> Delete
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
       </div>
+      )}
 
-      {/* Add / Edit Company Modal */}
+      {/* Add / Edit Company Modal — keyed by isOpen + company id (C4-01) so
+          the form always re-initialises from the exact target. */}
       <CompanyModal
+        key={`${isCompanyModalOpen ? 'open' : 'closed'}:${editingCompany?.id ?? 'new'}`}
         isOpen={isCompanyModalOpen}
         onClose={() => setIsCompanyModalOpen(false)}
         company={editingCompany}
@@ -206,21 +300,28 @@ export const CompaniesView: React.FC = () => {
                 Requirements ({companySnapshotMap[selectedCompanyDetail.id]?.requirements.length || 0})
               </h4>
               <div className="space-y-2">
-                {(companySnapshotMap[selectedCompanyDetail.id]?.requirements || []).map((req) => (
-                  <div key={req.requirementId} className="p-3 bg-[#0D0F12] border border-[#262D38] rounded-lg flex items-center justify-between text-xs">
-                    <div>
-                      <span className="font-semibold text-[#F1F5F9]">{req.requirementName}</span>
-                      <p className="text-[11px] text-[#8E98A8] mt-0.5">Evidence Confidence: {req.evidenceStrength}% · Status: {req.statusLabel}</p>
+                {(companySnapshotMap[selectedCompanyDetail.id]?.requirements || []).length === 0 ? (
+                  <p className="text-xs text-[#8E98A8] bg-[#0D0F12] border border-[#262D38] rounded-lg p-3">
+                    No mapped requirements — this company has no required domains, topics or
+                    languages configured yet.
+                  </p>
+                ) : (
+                  (companySnapshotMap[selectedCompanyDetail.id]?.requirements || []).map((req) => (
+                    <div key={req.requirementId} className="p-3 bg-[#0D0F12] border border-[#262D38] rounded-lg flex items-center justify-between text-xs">
+                      <div>
+                        <span className="font-semibold text-[#F1F5F9]">{req.requirementName}</span>
+                        <p className="text-[11px] text-[#8E98A8] mt-0.5">Evidence Confidence: {req.evidenceStrength}% · Status: {req.statusLabel}</p>
+                      </div>
+                      <Button
+                        size="xs"
+                        onClick={() => setSelectedReqDetail(req)}
+                        className="h-7 text-xs bg-[#1B2028] text-[#FFC665] border border-[#E5A93C]/30 rounded-md"
+                      >
+                        Detail
+                      </Button>
                     </div>
-                    <Button
-                      size="xs"
-                      onClick={() => setSelectedReqDetail(req)}
-                      className="h-7 text-xs bg-[#1B2028] text-[#FFC665] border border-[#E5A93C]/30 rounded-md"
-                    >
-                      Detail
-                    </Button>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           </div>

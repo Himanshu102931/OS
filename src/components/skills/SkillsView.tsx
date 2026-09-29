@@ -8,6 +8,7 @@ import {
 import { SkillOverrideModal } from './SkillOverrideModal';
 import { EvidenceTraceabilityModal } from './EvidenceTraceabilityModal';
 import { DomainSummaryCards } from './DomainSummaryCards';
+import { GuideTrigger } from '../guide/GuideTrigger';
 import type { Topic } from '../../types';
 import {
   Search,
@@ -146,27 +147,30 @@ export const SkillsView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-1.5 bg-[#14171D] p-1 border border-[#262D38] rounded-lg">
-          <button
-            onClick={() => setViewMode('matrix')}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
-              viewMode === 'matrix'
-                ? 'bg-[#E5A93C] text-[#432C00]'
-                : 'text-[#8E98A8] hover:text-[#F1F5F9]'
-            }`}
-          >
-            <List className="size-3.5" /> Topics Matrix
-          </button>
-          <button
-            onClick={() => setViewMode('domains')}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
-              viewMode === 'domains'
-                ? 'bg-[#E5A93C] text-[#432C00]'
-                : 'text-[#8E98A8] hover:text-[#F1F5F9]'
-            }`}
-          >
-            <LayoutGrid className="size-3.5" /> Domains Breakdown
-          </button>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <GuideTrigger route="skills" />
+          <div className="flex items-center gap-1.5 bg-[#14171D] p-1 border border-[#262D38] rounded-lg">
+            <button
+              onClick={() => setViewMode('matrix')}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                viewMode === 'matrix'
+                  ? 'bg-[#E5A93C] text-[#432C00]'
+                  : 'text-[#8E98A8] hover:text-[#F1F5F9]'
+              }`}
+            >
+              <List className="size-3.5" /> Topics Matrix
+            </button>
+            <button
+              onClick={() => setViewMode('domains')}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                viewMode === 'domains'
+                  ? 'bg-[#E5A93C] text-[#432C00]'
+                  : 'text-[#8E98A8] hover:text-[#F1F5F9]'
+              }`}
+            >
+              <LayoutGrid className="size-3.5" /> Domains Breakdown
+            </button>
+          </div>
         </div>
       </div>
 

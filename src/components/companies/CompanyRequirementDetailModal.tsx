@@ -31,13 +31,8 @@ export const CompanyRequirementDetailModal: React.FC<CompanyRequirementDetailMod
 
   const handleActionClick = () => {
     onClose();
-    if (requirement.recommendedAction.route === 'dsa') {
-      setRoute('dsa');
-    } else if (requirement.recommendedAction.route === 'roadmap') {
-      setRoute('roadmap');
-    } else if (requirement.recommendedAction.route === 'skills') {
-      setRoute('skills');
-    }
+    const { route, targetId } = requirement.recommendedAction;
+    setRoute(route, targetId);
   };
 
   const getStatusBadge = () => {

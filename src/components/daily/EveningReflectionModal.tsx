@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { usePlacement } from '../../context/PlacementContext';
+import { calculateEvidenceScore } from '../../engine/adaptiveEngine';
 import {
   calculateNextLeitnerBox,
-  calculateEvidenceScore,
-} from '../../engine/adaptiveEngine';
+  getLeitnerIntervalDays,
+} from '../../engine/dsaEngine';
 import { applySealAssignmentCompletion } from '../../engine/taskStateEngine';
 import type {
   DailyTaskAssignment,
@@ -171,19 +172,19 @@ export const EveningReflectionModal: React.FC<EveningReflectionModalProps> = ({
             updatedAt: new Date().toISOString(),
           };
 
-          const transition = calculateNextLeitnerBox(
+          const nextBox = calculateNextLeitnerBox(
             existingDsaProg.currentBox,
             ref.dsaResult,
             ref.assistanceLevel
           );
 
           const nextReviewDate = new Date();
-          nextReviewDate.setDate(nextReviewDate.getDate() + transition.intervalDays);
+          nextReviewDate.setDate(nextReviewDate.getDate() + getLeitnerIntervalDays(nextBox));
           const nextReviewStr = nextReviewDate.toISOString().split('T')[0];
 
           updatedDsaProgressMap[dsaProblem.id] = {
             ...existingDsaProg,
-            currentBox: transition.nextBox,
+            currentBox: nextBox,
             nextReviewAt: nextReviewStr,
             lastAttemptAt: new Date().toISOString(),
             attemptCount: (existingDsaProg?.attemptCount || 0) + 1,

@@ -1,7 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { PracticeSessionDefinition, PracticeUserAnswer } from '../../types';
 import { usePlacement } from '../../context/PlacementContext';
-import { evaluatePracticeAttempt } from '../../engine/practiceEngine';
+import {
+  evaluatePracticeAttempt,
+  getSessionTimeLimitSeconds,
+  isObjectiveQuestionType,
+  summarizePracticeAnswers,
+  type PracticeEvaluationResult,
+} from '../../engine/practiceEngine';
 import {
   X,
   Clock,
@@ -12,6 +18,7 @@ import {
   Sparkles,
   ShieldCheck,
   Award,
+  AlertTriangle,
 } from 'lucide-react';
 
 
@@ -23,38 +30,55 @@ interface PracticeSessionRunnerProps {
 type RunnerStep = 'intro' | 'active' | 'result';
 
 export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ session, onClose }) => {
-  const { todayDate, recordPracticeAttempt } = usePlacement();
+  const { todayDate, recordPracticeAttempt, setRoute } = usePlacement();
   const [step, setStep] = useState<RunnerStep>('intro');
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [userAnswers, setUserAnswers] = useState<PracticeUserAnswer[]>([]);
   const [showHint, setShowHint] = useState<boolean>(false);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+  // The ONE stored result of this run — every number on the result screen is
+  // read from it, never recomputed by the UI.
+  const [evaluation, setEvaluation] = useState<PracticeEvaluationResult | null>(null);
+  const finishedRef = useRef<boolean>(false);
 
   // Form states for current question
   const [selectedOption, setSelectedOption] = useState<number | undefined>(undefined);
   const [textResponse, setTextResponse] = useState<string>('');
   const [confidence, setConfidence] = useState<1 | 2 | 3 | 4 | 5>(3);
+  // Explicit self-certification for questions with no objective answer key.
+  const [selfCertified, setSelfCertified] = useState<boolean>(false);
 
-  // Timer effect during active work
+  // Configured limit for timed sets only (null = untimed, count-up display).
+  const timeLimitSeconds = getSessionTimeLimitSeconds(session);
+
+  const currentQuestion = session.questions[currentIndex];
+  const isObjective = currentQuestion
+    ? isObjectiveQuestionType(currentQuestion.questionType)
+    : false;
+
+  // Timer effect during active work — never runs past a configured limit.
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     if (step === 'active') {
       interval = setInterval(() => {
-        setElapsedSeconds((prev) => prev + 1);
+        setElapsedSeconds((prev) => {
+          if (timeLimitSeconds !== null && prev >= timeLimitSeconds) return prev;
+          return prev + 1;
+        });
       }, 1000);
     }
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [step]);
-
-  const currentQuestion = session.questions[currentIndex];
+  }, [step, timeLimitSeconds]);
 
   const handleStart = () => {
     setStep('active');
     setCurrentIndex(0);
     setElapsedSeconds(0);
     setUserAnswers([]);
+    setEvaluation(null);
+    finishedRef.current = false;
     resetQuestionState();
   };
 
@@ -62,11 +86,12 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
     setSelectedOption(undefined);
     setTextResponse('');
     setConfidence(3);
+    setSelfCertified(false);
     setShowHint(false);
   };
 
   const recordCurrentAnswer = () => {
-    if (!currentQuestion) return;
+    if (!currentQuestion) return userAnswers;
 
     const answer: PracticeUserAnswer = {
       questionId: currentQuestion.id,
@@ -74,6 +99,9 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
       userResponse: textResponse,
       usedHint: showHint,
       confidence,
+      // Response and certification are stored separately: the text is what the
+      // user wrote, `isCorrect` is only their own explicit certification of it.
+      ...(isObjective ? {} : { isCorrect: selfCertified }),
     };
 
     const updated = [...userAnswers.filter((a) => a.questionId !== currentQuestion.id), answer];
@@ -88,23 +116,52 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
       resetQuestionState();
     } else {
       // Complete Session
-      finishSession(updatedAnswers || userAnswers);
+      finishSession(updatedAnswers);
     }
   };
 
-  const finishSession = (finalAnswers: PracticeUserAnswer[]) => {
-    const evaluation = evaluatePracticeAttempt(session, finalAnswers, elapsedSeconds, todayDate);
-    recordPracticeAttempt(evaluation.attempt, evaluation.evidenceLog);
+  const finishSession = (finalAnswers: PracticeUserAnswer[], totalSeconds?: number) => {
+    // One submission ⇒ one attempt and one evidence row, ever.
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+
+    const seconds = totalSeconds ?? elapsedSeconds;
+    const cappedSeconds =
+      timeLimitSeconds !== null ? Math.min(seconds, timeLimitSeconds) : seconds;
+    const result = evaluatePracticeAttempt(session, finalAnswers, cappedSeconds, todayDate);
+    recordPracticeAttempt(result.attempt, result.evidenceLog);
+    setEvaluation(result);
     setStep('result');
   };
 
+  // Time-limited sets submit themselves the moment the limit is reached, with
+  // whatever has actually been answered — blank items stay blank and unscored.
+  // We track whether we've already auto-submitted to avoid multiple submissions
+  // and avoid the ESLint "setState in effect" false positive.
+  const autoSubmittedRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    if (step !== 'active' || timeLimitSeconds === null) return;
+    if (elapsedSeconds < timeLimitSeconds) return;
+    if (autoSubmittedRef.current) return;
+    autoSubmittedRef.current = true;
+    finishSession(recordCurrentAnswer(), timeLimitSeconds);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, elapsedSeconds, timeLimitSeconds]);
+
   const formatTimer = (secs: number) => {
-    const mins = Math.floor(secs / 60);
-    const s = secs % 60;
+    const safe = Math.max(0, secs);
+    const mins = Math.floor(safe / 60);
+    const s = safe % 60;
     return `${mins.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
   const totalQuestions = session.questions.length;
+
+  // Everything on the result screen is read from the stored evaluation.
+  const resultAttempt = evaluation?.attempt ?? null;
+  const resultSummary = evaluation ? summarizePracticeAnswers(session, evaluation.attempt) : null;
+  const hasVerdict = resultAttempt?.passingScorePct !== undefined;
 
   return (
     <div className="fixed inset-0 z-50 bg-[#0D0F12]/95 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
@@ -139,7 +196,9 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
                 <span className="text-base font-bold text-[#F1F5F9] mt-0.5 block">{session.questionCount}</span>
               </div>
               <div>
-                <span className="text-[10px] text-[#8E98A8] uppercase block">Est. Duration</span>
+                <span className="text-[10px] text-[#8E98A8] uppercase block">
+                  {timeLimitSeconds !== null ? 'Time Limit' : 'Est. Duration'}
+                </span>
                 <span className="text-base font-bold text-[#F1F5F9] mt-0.5 block">{session.estimatedMinutes} mins</span>
               </div>
               <div>
@@ -181,7 +240,11 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
               </span>
               <div className="flex items-center gap-1.5 text-[#E5A93C]">
                 <Clock className="size-3.5" />
-                <span>{formatTimer(elapsedSeconds)}</span>
+                <span data-testid={timeLimitSeconds !== null ? 'session-countdown' : 'session-elapsed'}>
+                  {timeLimitSeconds !== null
+                    ? `${formatTimer(timeLimitSeconds - elapsedSeconds)} left`
+                    : formatTimer(elapsedSeconds)}
+                </span>
               </div>
             </div>
 
@@ -199,8 +262,8 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
 
             {/* Input Controls Based on Question Type */}
             <div className="space-y-3 pt-2">
-              {/* Type: MCQ / Multiple Choice */}
-              {(currentQuestion.questionType === 'mcq' || currentQuestion.questionType === 'multiple_choice') && currentQuestion.options && (
+              {/* Type: MCQ / Multiple Choice — the same objective set the evaluator grades */}
+              {isObjective && currentQuestion.options && (
                 <div className="space-y-2">
                   {currentQuestion.options.map((optionText, optIdx) => (
                     <button
@@ -224,8 +287,11 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
               )}
 
               {/* Type: Short Answer / SQL Query / Explanation / Defense / Interview */}
-              {currentQuestion.questionType !== 'mcq' && currentQuestion.questionType !== 'multiple_choice' && (
+              {!isObjective && (
                 <div className="space-y-3">
+                  <span className="text-[11px] text-[#8E98A8] font-mono block">
+                    Your response (recorded exactly as written)
+                  </span>
                   <textarea
                     rows={4}
                     value={textResponse}
@@ -238,9 +304,32 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
                     className="w-full p-3 bg-[#1B2028] border border-[#262D38] rounded text-xs text-[#F1F5F9] font-mono focus:outline-none focus:border-[#E5A93C] placeholder-[#5C6675]"
                   />
 
+                  {/* Self-certification — visually distinct from "I answered":
+                      this is the only thing that can make a non-MCQ item count. */}
+                  <div className="p-3 bg-[#14171D] border border-[#3B4556] rounded space-y-2" data-testid="self-certification">
+                    <label className="flex items-start gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selfCertified}
+                        onChange={(e) => setSelfCertified(e.target.checked)}
+                        className="mt-0.5 size-4 accent-[#E5A93C] shrink-0"
+                      />
+                      <span className="text-xs text-[#F1F5F9] font-medium">
+                        I can verify this response is correct (self-certified)
+                      </span>
+                    </label>
+                    <p className="text-[11px] text-[#8E98A8] leading-relaxed">
+                      This question type has no answer key, so nothing is graded automatically.
+                      Writing a response only records that you completed it — it counts as correct
+                      only when you certify it here against the model answer.
+                    </p>
+                  </div>
+
                   {/* Self-Rating Confidence Bar */}
                   <div className="p-3 bg-[#1B2028]/50 border border-[#262D38] rounded space-y-2">
-                    <span className="text-[11px] text-[#8E98A8] font-mono block">Self Confidence Rating (1 = Unsure, 5 = Confident)</span>
+                    <span className="text-[11px] text-[#8E98A8] font-mono block">
+                      Self Confidence Rating (1 = Unsure, 5 = Confident) — recorded, never scored
+                    </span>
                     <div className="flex gap-2">
                       {([1, 2, 3, 4, 5] as const).map((rating) => (
                         <button
@@ -300,38 +389,88 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
           </div>
         )}
 
-        {/* STEP 3: RESULT STATE */}
-        {step === 'result' && (
+        {/* STEP 3: RESULT STATE — every value below is read from the stored
+            evaluation produced by `evaluatePracticeAttempt`, never recomputed. */}
+        {step === 'result' && resultAttempt && resultSummary && (
           <div className="p-6 sm:p-8 space-y-6 text-center">
-            <div className="size-12 rounded-full bg-[#E5A93C]/15 border border-[#E5A93C]/30 text-[#E5A93C] flex items-center justify-center mx-auto">
-              <Award className="size-6" />
+            <div
+              className={`size-12 rounded-full border flex items-center justify-center mx-auto ${
+                hasVerdict && !resultAttempt.passed
+                  ? 'bg-[#EF4444]/15 border-[#EF4444]/30 text-[#EF4444]'
+                  : 'bg-[#E5A93C]/15 border-[#E5A93C]/30 text-[#E5A93C]'
+              }`}
+            >
+              {hasVerdict && !resultAttempt.passed ? (
+                <AlertTriangle className="size-6" />
+              ) : (
+                <Award className="size-6" />
+              )}
             </div>
 
             <div className="space-y-1">
-              <h3 className="text-xl font-bold text-[#F1F5F9]">Assessment Completed</h3>
-              <p className="text-xs text-[#8E98A8]">Evidence event recorded in PlacementOS telemetry engine.</p>
+              <h3
+                className={`text-xl font-bold ${
+                  hasVerdict && !resultAttempt.passed ? 'text-[#EF4444]' : 'text-[#F1F5F9]'
+                }`}
+                data-testid="result-verdict"
+              >
+                {hasVerdict ? (resultAttempt.passed ? 'PASS' : 'FAIL') : 'Assessment Completed'}
+              </h3>
+              {hasVerdict && (
+                <p className="text-xs text-[#8E98A8]">
+                  {resultAttempt.scorePct}% against a {resultAttempt.passingScorePct}% pass
+                  threshold
+                </p>
+              )}
             </div>
 
             {/* Results Grid */}
-            <div className="grid grid-cols-2 gap-3 p-4 bg-[#1B2028] border border-[#262D38] rounded font-mono text-center">
+            <div className="grid grid-cols-3 gap-3 p-4 bg-[#1B2028] border border-[#262D38] rounded font-mono text-center">
               <div>
-                <span className="text-[10px] text-[#8E98A8] uppercase block">Accuracy Score</span>
-                <span className="text-2xl font-bold text-[#E5A93C] mt-1 block">
-                  {evaluatePracticeAttempt(session, userAnswers, elapsedSeconds, todayDate).attempt.accuracyPct}%
+                <span className="text-[10px] text-[#8E98A8] uppercase block">Score</span>
+                <span className="text-2xl font-bold text-[#E5A93C] mt-1 block" data-testid="result-score">
+                  {resultAttempt.scorePct}%
                 </span>
               </div>
               <div>
-                <span className="text-[10px] text-[#8E98A8] uppercase block">Completion Time</span>
+                <span className="text-[10px] text-[#8E98A8] uppercase block">Correct</span>
                 <span className="text-2xl font-bold text-[#F1F5F9] mt-1 block">
-                  {formatTimer(elapsedSeconds)}
+                  {resultAttempt.correctCount} / {resultAttempt.totalQuestions}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-[#8E98A8] uppercase block">Time</span>
+                <span className="text-2xl font-bold text-[#F1F5F9] mt-1 block">
+                  {formatTimer(resultAttempt.totalTimeSeconds)}
                 </span>
               </div>
             </div>
 
+            {resultSummary.unansweredCount > 0 && (
+              <div
+                className="p-3 bg-[#F59E0B]/10 border border-[#F59E0B]/30 rounded text-xs text-[#F59E0B] flex items-center justify-center gap-2"
+                data-testid="result-unanswered"
+              >
+                <AlertTriangle className="size-4 shrink-0" />
+                <span>
+                  {resultSummary.unansweredCount} of {session.questions.length} items were left
+                  unanswered and were not scored.
+                </span>
+              </div>
+            )}
+
             <div className="p-3 bg-[#10B981]/10 border border-[#10B981]/30 rounded text-xs text-[#10B981] flex items-center justify-center gap-2">
               <CheckCircle2 className="size-4 shrink-0" />
-              <span>Evidence log generated. Skills Matrix freshness updated.</span>
+              <span>One attempt and one evidence event recorded for this session.</span>
             </div>
+
+            <p className="text-xs text-[#8E98A8]" data-testid="result-next-action">
+              {hasVerdict && !resultAttempt.passed
+                ? 'Next: review what you missed, then retake this session.'
+                : resultSummary.unansweredCount > 0
+                  ? 'Next: unanswered items were left blank — retake if you want them scored.'
+                  : 'Next: continue to your next stage, or retake to improve the score.'}
+            </p>
 
             <div className="flex justify-center gap-3 pt-2">
               <button
@@ -342,7 +481,10 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
                 <span>Retake Session</span>
               </button>
               <button
-                onClick={onClose}
+                onClick={() => {
+                  onClose();
+                  setRoute('preparation');
+                }}
                 className="px-5 py-2 rounded bg-[#E5A93C] hover:bg-[#F5B84C] text-[#0D0F12] font-bold text-xs transition-all shadow-sm"
               >
                 Return to Preparation Hub

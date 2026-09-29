@@ -9,6 +9,7 @@ import {
   processAttemptForRemediation,
   calculatePatternMastery,
   getDSASignals,
+  getLeitnerIntervalDays,
 } from '../engine/dsaEngine';
 import { getDefaultStorageState, validateStorageState } from '../storage/storageAdapter';
 import type { DSAProgress, PatternSelfCheckEvidence } from '../types';
@@ -450,6 +451,107 @@ describe('PlacementOS DSA Subsystem & Engine Tests (v1.4 Spec Compliance)', () =
       expect(calculateNextReviewDate(2, fromDate)).toBe('2026-09-27');
       expect(calculateNextReviewDate(3, fromDate)).toBe('2026-10-01');
       expect(calculateNextReviewDate(4, fromDate)).toBe('2026-10-08');
+    });
+
+    // -----------------------------------------------
+    // C5-04 — one canonical transition for every path
+    // -----------------------------------------------
+    const BOXES: readonly (1 | 2 | 3 | 4)[] = [1, 2, 3, 4];
+    const RESULTS = ['fail', 'partial', 'pass'] as const;
+    const ASSISTANCE = ['none', 'hint', 'solution'] as const;
+    const INTERVALS: Record<number, number> = { 1: 1, 2: 3, 3: 7, 4: 14 };
+
+    /** DSA v1.4 Section 12, stated independently of the implementation. */
+    const specBox = (
+      box: 1 | 2 | 3 | 4,
+      result: (typeof RESULTS)[number],
+      assistance: (typeof ASSISTANCE)[number]
+    ): 1 | 2 | 3 | 4 => {
+      if (result === 'fail') return 1;
+      if (result === 'partial') return Math.max(1, box - 1) as 1 | 2 | 3 | 4;
+      if (assistance === 'none') return Math.min(4, box + 1) as 1 | 2 | 3 | 4;
+      return box;
+    };
+
+    /** Mirrors the engine's local-date arithmetic so interval wiring is isolated. */
+    const addDays = (iso: string, days: number) => {
+      const d = new Date(iso);
+      d.setDate(d.getDate() + days);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
+    it('matches the spec for all 36 box/result/assistance combinations', () => {
+      for (const box of BOXES) {
+        for (const result of RESULTS) {
+          for (const assistance of ASSISTANCE) {
+            expect(
+              calculateNextLeitnerBox(box, result, assistance),
+              `box ${box} / ${result} / ${assistance}`
+            ).toBe(specBox(box, result, assistance));
+          }
+        }
+      }
+    });
+
+    it('holds the Box 1 floor and Box 4 ceiling for every outcome', () => {
+      // Box 1 never falls below 1
+      expect(calculateNextLeitnerBox(1, 'fail', 'none')).toBe(1);
+      expect(calculateNextLeitnerBox(1, 'partial', 'solution')).toBe(1);
+      expect(calculateNextLeitnerBox(1, 'pass', 'hint')).toBe(1);
+      expect(calculateNextLeitnerBox(1, 'pass', 'solution')).toBe(1);
+      // Box 4 never exceeds 4
+      expect(calculateNextLeitnerBox(4, 'pass', 'none')).toBe(4);
+      expect(calculateNextLeitnerBox(4, 'pass', 'hint')).toBe(4);
+      expect(calculateNextLeitnerBox(4, 'pass', 'solution')).toBe(4);
+      expect(calculateNextLeitnerBox(4, 'partial', 'none')).toBe(3);
+      // a failure resets regardless of starting box or assistance
+      expect(calculateNextLeitnerBox(4, 'fail', 'solution')).toBe(1);
+    });
+
+    it('derives the review date from the interval of the box the transition produced', () => {
+      const fromDate = '2026-09-24';
+      for (const box of BOXES) {
+        for (const result of RESULTS) {
+          for (const assistance of ASSISTANCE) {
+            const nextBox = calculateNextLeitnerBox(box, result, assistance);
+            expect(getLeitnerIntervalDays(nextBox), `box ${nextBox}`).toBe(INTERVALS[nextBox]);
+            expect(
+              calculateNextReviewDate(nextBox, fromDate),
+              `box ${box} / ${result} / ${assistance}`
+            ).toBe(addDays(fromDate, INTERVALS[nextBox]));
+          }
+        }
+      }
+    });
+
+    it('gives the DSA attempt path and the day-seal path the same box and review date', () => {
+      const fromDate = '2026-09-24';
+      for (const box of BOXES) {
+        for (const result of RESULTS) {
+          for (const assistance of ASSISTANCE) {
+            // DSA attempt path: DSAAttemptModal → calculateNextReviewDate
+            const attemptBox = calculateNextLeitnerBox(box, result, assistance);
+            const attemptDate = calculateNextReviewDate(attemptBox, fromDate);
+            // Day-seal path: EveningReflectionModal → interval from the same table
+            const sealBox = calculateNextLeitnerBox(box, result, assistance);
+            const sealDate = addDays(fromDate, getLeitnerIntervalDays(sealBox));
+
+            expect(sealBox, `box ${box} / ${result} / ${assistance}`).toBe(attemptBox);
+            expect(sealDate, `box ${box} / ${result} / ${assistance}`).toBe(attemptDate);
+          }
+        }
+      }
+    });
+
+    it('exposes exactly one transition implementation — the adaptiveEngine duplicate is gone', async () => {
+      const adaptiveEngine = await import('../engine/adaptiveEngine');
+      expect(adaptiveEngine).not.toHaveProperty('calculateNextLeitnerBox');
+      expect(adaptiveEngine).not.toHaveProperty('getLeitnerIntervalDays');
+      expect(typeof calculateNextLeitnerBox).toBe('function');
+      expect(typeof getLeitnerIntervalDays).toBe('function');
     });
   });
 

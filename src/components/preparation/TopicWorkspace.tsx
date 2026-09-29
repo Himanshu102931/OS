@@ -1,7 +1,14 @@
 import React, { useState } from 'react';
 import type { PreparationTopic, TopicStageId } from '../../types';
 import { usePlacement } from '../../context/PlacementContext';
-import { evaluateTopicPreparedness, applyStageCompletion } from '../../engine/preparationEngine';
+import {
+  evaluateTopicPreparedness,
+  applyStageCompletion,
+  selectPreparationStage,
+  resolveInitialStage,
+  evaluatePrerequisiteStatus,
+} from '../../engine/preparationEngine';
+import { summarizePracticeAnswers } from '../../engine/practiceEngine';
 import { PHASES } from '../../data/seedData';
 import { getPreparationTopic } from '../../data/preparationDataset';
 import {
@@ -40,7 +47,15 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
     preparationTopicProgress,
     updatePreparationTopicProgress,
   } = usePlacement();
-  const [activeStage, setActiveStage] = useState<TopicStageId>(topic.stages[0] || 'orient');
+
+  const topicProgress = preparationTopicProgress[topic.id];
+
+  // Restores the stage THIS topic saved (PreparationHubView remounts the
+  // workspace with `key={topic.id}`, so topic A's stage can never leak into
+  // topic B), and falls back to the topic's first stage when nothing is saved.
+  const [activeStage, setActiveStage] = useState<TopicStageId>(() =>
+    resolveInitialStage(topic, topicProgress)
+  );
   const [openCardKey, setOpenCardKey] = useState<string | null>(null);
 
   const topicSkill = skillStates[topic.id] || {
@@ -50,7 +65,15 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
     evidenceStrength: 0,
   };
 
-  const topicProgress = preparationTopicProgress[topic.id];
+  // Availability comes from the persisted prerequisite chain only.
+  const prerequisiteStatus = evaluatePrerequisiteStatus(
+    topic,
+    getPreparationTopic,
+    preparationTopicProgress
+  );
+  const unmetPrerequisiteTopics = prerequisiteStatus.unmetPrerequisiteIds
+    .map((id) => getPreparationTopic(id))
+    .filter((t): t is PreparationTopic => Boolean(t));
 
   // Reusable preparedness model (coverage / application / assessment / evidence)
   const preparedness = evaluateTopicPreparedness({
@@ -65,6 +88,14 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
 
   const recommendedPhase = PHASES.find((p) => p.id === topic.recommendedPhase);
 
+  // Persisting the stage the user opened is what makes it restorable.
+  const handleStageSelect = (stage: TopicStageId) => {
+    setActiveStage(stage);
+    updatePreparationTopicProgress(
+      selectPreparationStage(topic, topicProgress, stage, new Date().toISOString())
+    );
+  };
+
   const handleMarkStageComplete = () => {
     const updated = applyStageCompletion(
       topic,
@@ -73,6 +104,11 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
       new Date().toISOString()
     );
     updatePreparationTopicProgress(updated);
+    // Follow the persisted cursor so the open stage and the saved stage stay
+    // the same thing — reloading must not land somewhere else.
+    if (topic.stages.includes(updated.currentStage)) {
+      setActiveStage(updated.currentStage);
+    }
   };
 
   // Topic specific sessions
@@ -246,9 +282,13 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
           <div className="flex items-center gap-2 text-xs">
             <Sparkles className="size-4 text-[#E5A93C]" />
             <span className="text-[#8E98A8]">Next Recommended Action:</span>
-            <span className="text-[#F1F5F9] font-medium">{preparedness.nextAction}</span>
+            <span className="text-[#F1F5F9] font-medium">
+              {prerequisiteStatus.isLocked
+                ? `Complete ${unmetPrerequisiteTopics.map((t) => t.title).join(', ')} first to unlock this topic`
+                : preparedness.nextAction}
+            </span>
           </div>
-          {onStartSession && (
+          {!prerequisiteStatus.isLocked && onStartSession && matchingSessions.length > 0 && (
             <button
               onClick={() => onStartSession(matchingSessions[0]?.id)}
               className="flex items-center justify-center gap-2 px-4 py-2 rounded-[4px] bg-[#E5A93C] hover:bg-[#F5B84C] text-[#0D0F12] font-semibold text-xs transition-all shadow-sm shrink-0"
@@ -260,6 +300,58 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
         </div>
       </div>
 
+      {/* Prerequisite gate — replaces stage tabs + stage content so a locked
+          topic cannot be worked through by jumping routes or tabs. */}
+      {prerequisiteStatus.isLocked && (
+        <div
+          className="bg-[#14171D] border border-[#262D38] rounded-[6px] p-5 sm:p-6 space-y-4"
+          data-testid="prerequisite-gate"
+        >
+          <div className="space-y-1.5">
+            <h3 className="text-sm font-semibold text-[#F1F5F9] uppercase tracking-wider flex items-center gap-2">
+              <ShieldCheck className="size-4 text-[#F59E0B]" />
+              <span>Prerequisite Required</span>
+            </h3>
+            <p className="text-xs text-[#8E98A8] leading-relaxed">
+              Complete every stage of the prerequisite topic{unmetPrerequisiteTopics.length > 1 ? 's' : ''}{' '}
+              below to unlock {topic.title}.
+            </p>
+          </div>
+
+          <ul className="space-y-2">
+            {unmetPrerequisiteTopics.map((prereq) => {
+              const prereqProgress = preparationTopicProgress[prereq.id];
+              const doneStages = prereqProgress?.completedStages ?? [];
+              const doneCount = prereq.stages.filter((s) => doneStages.includes(s)).length;
+              return (
+                <li
+                  key={prereq.id}
+                  className="p-3.5 bg-[#1B2028] border border-[#262D38] rounded flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                >
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-semibold text-[#F1F5F9] block">{prereq.title}</span>
+                    <span className="text-[11px] text-[#8E98A8] font-mono block">
+                      {doneCount} of {prereq.stages.length} stages complete — required before{' '}
+                      {topic.title}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRoute('preparation', prereq.id)}
+                    className="px-3 py-1.5 rounded-[4px] bg-[#14171D] border border-[#3B4556] text-xs font-medium text-[#E5A93C] hover:border-[#E5A93C] transition-all shrink-0 flex items-center gap-1.5"
+                  >
+                    <span>Open {prereq.title}</span>
+                    <ArrowRight className="size-3" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
+      {!prerequisiteStatus.isLocked && (
+      <>
       {/* Progressive Disclosure Stage Selector Tabs */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-[#262D38]">
         {topic.stages.map((stageId) => {
@@ -268,7 +360,7 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
           return (
             <button
               key={stageId}
-              onClick={() => setActiveStage(stageId)}
+              onClick={() => handleStageSelect(stageId)}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-[4px] text-xs font-medium transition-all whitespace-nowrap ${
                 isActive
                   ? 'bg-[#1B2028] text-[#E5A93C] border border-[#3B4556] font-semibold shadow-xs'
@@ -328,7 +420,7 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
               {topic.prerequisiteTopicIds.length > 0 && (
                 <div className="mt-3">
                   <span className="text-[11px] font-mono uppercase tracking-wider text-[#5C6675] block mb-1.5">
-                    Study these first
+                    Prerequisites completed
                   </span>
                   <div className="flex flex-wrap gap-2">
                     {topic.prerequisiteTopicIds.map((prereqId) => {
@@ -528,7 +620,7 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
             <p className="text-xs text-[#8E98A8] max-w-md mx-auto">
               Test your proficiency with timed questions. Successful completion logs objective evidence into PlacementOS.
             </p>
-            {onStartSession && (
+            {onStartSession && matchingSessions.length > 0 ? (
               <button
                 onClick={() => onStartSession(matchingSessions[0]?.id)}
                 className="px-5 py-2.5 bg-[#E5A93C] hover:bg-[#F5B84C] text-[#0D0F12] font-bold text-xs rounded shadow transition-all inline-flex items-center gap-2"
@@ -536,6 +628,10 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
                 <span>Launch Assessment Session</span>
                 <ArrowRight className="size-4" />
               </button>
+            ) : (
+              <p className="text-xs text-[#8E98A8]">
+                No assessment session is defined for this topic yet.
+              </p>
             )}
             <div className="text-left max-w-md mx-auto pt-3 border-t border-[#262D38]">
               <h4 className="text-[11px] font-mono uppercase tracking-wider text-[#5C6675] mb-2">Assessment Types</h4>
@@ -564,18 +660,36 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
               </div>
             ) : (
               <div className="space-y-2">
-                {topicAttempts.map((attempt) => (
-                  <div key={attempt.id} className="p-3 bg-[#1B2028] border border-[#262D38] rounded flex items-center justify-between text-xs">
-                    <div>
-                      <span className="font-medium text-[#F1F5F9]">{attempt.sessionTitle}</span>
-                      <span className="text-[10px] text-[#8E98A8] block">{attempt.date} • {Math.round(attempt.totalTimeSeconds / 60)} mins</span>
+                {topicAttempts.map((attempt) => {
+                  const attemptSession = practiceSessions.find((s) => s.id === attempt.sessionId);
+                  const summary = attemptSession
+                    ? summarizePracticeAnswers(attemptSession, attempt)
+                    : null;
+                  return (
+                    <div key={attempt.id} className="p-3 bg-[#1B2028] border border-[#262D38] rounded flex items-center justify-between gap-3 text-xs">
+                      <div>
+                        <span className="font-medium text-[#F1F5F9]">{attempt.sessionTitle}</span>
+                        <span className="text-[10px] text-[#8E98A8] block">{attempt.date} • {Math.round(attempt.totalTimeSeconds / 60)} mins</span>
+                        {summary && summary.unansweredCount > 0 && (
+                          <span className="text-[10px] text-[#F59E0B] block">
+                            {summary.unansweredCount} unanswered
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-right font-mono">
+                        <span className="text-[#E5A93C] font-bold">{attempt.accuracyPct}% Accuracy</span>
+                        <span className="text-[10px] text-[#8E98A8] block">{attempt.correctCount}/{attempt.totalQuestions} correct</span>
+                        {attempt.passingScorePct !== undefined && (
+                          <span
+                            className={`text-[10px] font-bold block ${attempt.passed ? 'text-[#10B981]' : 'text-[#EF4444]'}`}
+                          >
+                            {attempt.passed ? 'PASS' : 'FAIL'} · needs {attempt.passingScorePct}%
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-right font-mono">
-                      <span className="text-[#E5A93C] font-bold">{attempt.accuracyPct}% Accuracy</span>
-                      <span className="text-[10px] text-[#8E98A8] block">{attempt.correctCount}/{attempt.totalQuestions} correct</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -635,6 +749,8 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 };

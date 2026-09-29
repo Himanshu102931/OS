@@ -1,9 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { PREPARATION_SECTIONS, PREPARATION_TOPICS, getTopicsBySection } from '../../data/preparationDataset';
+import React, { useState } from 'react';
+import {
+  PREPARATION_SECTIONS,
+  PREPARATION_TOPICS,
+  getTopicsBySection,
+  getPreparationTopic,
+} from '../../data/preparationDataset';
 import type { PreparationTopic, PreparationSection } from '../../types';
 import { usePlacement } from '../../context/PlacementContext';
+import { evaluateTopicPreparedness, evaluatePrerequisiteStatus } from '../../engine/preparationEngine';
 import { TopicWorkspace } from './TopicWorkspace';
 import { PracticeSessionRunner } from './PracticeSessionRunner';
+import { GuideTrigger } from '../guide/GuideTrigger';
 import {
   Code2,
   Cpu,
@@ -13,33 +20,31 @@ import {
   Sparkles,
   ChevronRight,
   Compass,
+  Lock,
 } from 'lucide-react';
 
 export const PreparationHubView: React.FC = () => {
-  const { skillStates, practiceSessions, routeState, setRoute } = usePlacement();
-  const [selectedTopic, setSelectedTopic] = useState<PreparationTopic | null>(null);
+  const {
+    skillStates,
+    practiceSessions,
+    practiceAttempts,
+    preparationTopicProgress,
+    routeState,
+    setRoute,
+  } = usePlacement();
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
-  // Auto-select topic from URL on mount
-  useEffect(() => {
-    if (routeState.route === 'preparation' && routeState.preparationTopicId) {
-      const topic = PREPARATION_TOPICS.find(t => t.id === routeState.preparationTopicId);
-      if (topic) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setSelectedTopic(topic);
-      }
-    } else if (routeState.route !== 'preparation') {
-      setSelectedTopic(null);
-    }
-  }, [routeState.route, routeState.preparationTopicId]);
+  // Route state IS the single source of truth — no local mirror needed.
+  const selectedTopic: PreparationTopic | null =
+    routeState.route === 'preparation' && routeState.targetId
+      ? PREPARATION_TOPICS.find((t) => t.id === routeState.targetId) ?? null
+      : null;
 
   const handleTopicSelect = (topic: PreparationTopic) => {
-    setSelectedTopic(topic);
     setRoute('preparation', topic.id);
   };
 
   const handleBackToHub = () => {
-    setSelectedTopic(null);
     setRoute('preparation');
   };
 
@@ -48,6 +53,53 @@ export const PreparationHubView: React.FC = () => {
     core_cs: Cpu,
     aptitude_communication: Calculator,
     interview_career: Briefcase,
+  };
+
+  /**
+   * The section's real active topic: the most recently accessed topic that has
+   * persisted preparation progress. Never falls back to `topics[0]` — a section
+   * with no progress at all has no active topic, and says so.
+   */
+  const getSectionActiveTopic = (topics: PreparationTopic[]): PreparationTopic | null => {
+    let active: PreparationTopic | null = null;
+    let latest = '';
+    for (const topic of topics) {
+      const progress = preparationTopicProgress[topic.id];
+      if (!progress) continue;
+      const accessedAt = progress.lastAccessedAt || '';
+      if (!active || accessedAt > latest) {
+        active = topic;
+        latest = accessedAt;
+      }
+    }
+    return active;
+  };
+
+  /** Honest per-section status: active topic (or baseline) + its real next action. */
+  const getSectionStatus = (section: PreparationSection) => {
+    const topics = getTopicsBySection(section.id);
+    const activeTopic = getSectionActiveTopic(topics);
+    if (!activeTopic) {
+      return {
+        activeTopic: null as PreparationTopic | null,
+        activeTopicLabel: 'Choose a topic to begin',
+        nextAction: 'Choose a topic to begin',
+      };
+    }
+    const skill = skillStates[activeTopic.id];
+    const preparedness = evaluateTopicPreparedness({
+      topic: activeTopic,
+      progress: preparationTopicProgress[activeTopic.id],
+      skillState: skill
+        ? { evidenceStrength: skill.evidenceStrength, freshness: skill.freshness }
+        : undefined,
+      attempts: practiceAttempts,
+    });
+    return {
+      activeTopic,
+      activeTopicLabel: activeTopic.title,
+      nextAction: preparedness.nextAction,
+    };
   };
 
   // Helper to get section average evidence score
@@ -71,18 +123,16 @@ export const PreparationHubView: React.FC = () => {
   const handleStartSession = (sessionId?: string) => {
     if (sessionId) {
       setActiveSessionId(sessionId);
-    } else if (selectedTopic) {
-      const s = practiceSessions.find(
-        (sess) => sess.topicId === selectedTopic.id || sess.domainId === selectedTopic.domainId
-      );
-      if (s) {
-        setActiveSessionId(s.id);
-      } else {
-        setActiveSessionId(practiceSessions[0]?.id || null);
-      }
-    } else {
-      setActiveSessionId(practiceSessions[0]?.id || null);
+      return;
     }
+    // Only ever launch a session that actually belongs to the open topic —
+    // never fall back to an unrelated session from another domain.
+    const matched = selectedTopic
+      ? practiceSessions.find(
+          (sess) => sess.topicId === selectedTopic.id || sess.domainId === selectedTopic.domainId
+        )
+      : undefined;
+    setActiveSessionId(matched?.id ?? null);
   };
 
   // If a topic is selected, render TopicWorkspace view
@@ -90,6 +140,7 @@ export const PreparationHubView: React.FC = () => {
     return (
       <div className="space-y-6">
         <TopicWorkspace
+          key={selectedTopic.id}
           topic={selectedTopic}
           onBackToHub={handleBackToHub}
           onStartSession={handleStartSession}
@@ -108,14 +159,17 @@ export const PreparationHubView: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* Header Banner */}
-      <div className="border-b border-[#262D38] pb-5 space-y-1">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 bg-[#E5A93C]/15 text-[#E5A93C] rounded border border-[#E5A93C]/30 font-bold">
-            System Subsystem
-          </span>
+      <div className="border-b border-[#262D38] pb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 bg-[#E5A93C]/15 text-[#E5A93C] rounded border border-[#E5A93C]/30 font-bold">
+              System Subsystem
+            </span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#F1F5F9] tracking-tight">PREPARATION</h1>
+          <p className="text-sm text-[#8E98A8]">Build the skills required for placement.</p>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-[#F1F5F9] tracking-tight">PREPARATION</h1>
-        <p className="text-sm text-[#8E98A8]">Build the skills required for placement.</p>
+        <GuideTrigger route="preparation" />
       </div>
 
       {/* 4 Major Sections Grid */}
@@ -124,7 +178,11 @@ export const PreparationHubView: React.FC = () => {
           const Icon = sectionIcons[section.id] || Compass;
           const stats = getSectionStats(section);
           const topics = getTopicsBySection(section.id);
-          const currentTopic = topics[0] || PREPARATION_TOPICS[0];
+          const status = getSectionStatus(section);
+          // Entering the workspace opens the real active topic when there is
+          // one, otherwise the section's first topic (navigation only — it
+          // claims nothing about progress).
+          const workspaceTopic = status.activeTopic ?? topics[0];
 
           /* Domain-specific SVG motif */
           const sectionMotif = (() => {
@@ -209,13 +267,20 @@ export const PreparationHubView: React.FC = () => {
 
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="text-[#5C6675]">Active Topic:</span>
-                  <span className="text-[#F1F5F9] font-medium">{currentTopic.title}</span>
+                  <span
+                    className={`font-medium ${status.activeTopic ? 'text-[#F1F5F9]' : 'text-[#8E98A8]'}`}
+                    data-testid={`active-topic-${section.id}`}
+                  >
+                    {status.activeTopicLabel}
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-1.5 text-[11px] text-[#8E98A8] pt-1 border-t border-[#262D38]">
                   <Sparkles className="size-3 text-[#E5A93C]" />
                   <span>Next Action:</span>
-                  <span className="text-[#F1F5F9] truncate font-medium">Take {currentTopic.title} Assessment</span>
+                  <span className="text-[#F1F5F9] truncate font-medium" data-testid={`next-action-${section.id}`}>
+                    {status.nextAction}
+                  </span>
                 </div>
               </div>
 
@@ -223,32 +288,58 @@ export const PreparationHubView: React.FC = () => {
               <div className="space-y-2 pt-1">
                 <span className="text-[11px] font-mono text-[#5C6675] uppercase block">Topics in Section</span>
                 <div className="space-y-1.5">
-                  {topics.map((topic) => (
-                    <button
-                      key={topic.id}
-                      onClick={() => handleTopicSelect(topic)}
-                      className="w-full p-2.5 bg-[#1B2028]/60 hover:bg-[#1B2028] border border-[#262D38] hover:border-[#3B4556] rounded text-left flex items-center justify-between text-xs transition-all group/btn"
-                    >
-                      <span className="text-[#8E98A8] group-hover/btn:text-[#F1F5F9] font-medium">{topic.title}</span>
-                      <div className="flex items-center gap-2 text-[11px]">
-                        {topic.priority === 'high' && (
-                          <span className="px-1.5 py-0.5 text-[9px] font-mono uppercase rounded bg-[#E5A93C]/15 text-[#E5A93C] border border-[#E5A93C]/30">
-                            high
+                  {topics.map((topic) => {
+                    const prereqStatus = evaluatePrerequisiteStatus(
+                      topic,
+                      getPreparationTopic,
+                      preparationTopicProgress
+                    );
+                    const unmetTitles = prereqStatus.unmetPrerequisiteIds
+                      .map((id) => getPreparationTopic(id)?.title)
+                      .filter((t): t is string => Boolean(t));
+                    return (
+                      <button
+                        key={topic.id}
+                        onClick={() => handleTopicSelect(topic)}
+                        className="w-full p-2.5 bg-[#1B2028]/60 hover:bg-[#1B2028] border border-[#262D38] hover:border-[#3B4556] rounded text-left flex items-center justify-between gap-3 text-xs transition-all group/btn"
+                      >
+                        <span className="min-w-0">
+                          <span className="text-[#8E98A8] group-hover/btn:text-[#F1F5F9] font-medium block">
+                            {topic.title}
                           </span>
-                        )}
-                        <span className="text-[#E5A93C] flex items-center gap-1">
-                          <span>Open</span>
-                          <ChevronRight className="size-3.5" />
+                          {prereqStatus.isLocked && (
+                            <span className="text-[10px] text-[#F59E0B] block truncate">
+                              Requires: {unmetTitles.join(', ')}
+                            </span>
+                          )}
                         </span>
-                      </div>
-                    </button>
-                  ))}
+                        <div className="flex items-center gap-2 text-[11px] shrink-0">
+                          {topic.priority === 'high' && (
+                            <span className="px-1.5 py-0.5 text-[9px] font-mono uppercase rounded bg-[#E5A93C]/15 text-[#E5A93C] border border-[#E5A93C]/30">
+                              high
+                            </span>
+                          )}
+                          {prereqStatus.isLocked ? (
+                            <span className="flex items-center gap-1 text-[#F59E0B]">
+                              <Lock className="size-3.5" />
+                              <span>Locked</span>
+                            </span>
+                          ) : (
+                            <span className="text-[#E5A93C] flex items-center gap-1">
+                              <span>Open</span>
+                              <ChevronRight className="size-3.5" />
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               {/* Primary Section Action */}
               <button
-                onClick={() => handleTopicSelect(currentTopic)}
+                onClick={() => handleTopicSelect(workspaceTopic)}
                 className="w-full py-2.5 px-4 rounded-[4px] bg-[#1B2028] hover:bg-[#222833] border border-[#3B4556] text-[#F1F5F9] font-semibold text-xs transition-all flex items-center justify-center gap-2"
               >
                 <span>Enter {section.title} Workspace</span>

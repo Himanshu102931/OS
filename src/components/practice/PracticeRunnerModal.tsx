@@ -112,8 +112,10 @@ const PracticeRunnerModalContent: React.FC<InnerContentProps> = ({
       [qId]: {
         ...prev[qId],
         questionId: qId,
+        // Self-rating is self-reported metadata only. It is recorded on the
+        // answer and never converted into `isCorrect` — scoring belongs to
+        // `evaluatePracticeAttempt`, not to UI code.
         confidence: rating,
-        isCorrect: rating >= 3,
       },
     }));
   };

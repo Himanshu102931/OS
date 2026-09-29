@@ -11,24 +11,35 @@ interface CompanyModalProps {
   onSaveCompany: (company: CompanyOverlay) => void;
 }
 
+/** Starting selections shown for a brand-new company. */
+const NEW_COMPANY_DOMAINS: DomainId[] = ['dsa', 'dbms'];
+const NEW_COMPANY_LANGUAGES: string[] = ['cpp', 'java'];
+
 export const CompanyModal: React.FC<CompanyModalProps> = ({
   company,
   isOpen,
   onClose,
   onSaveCompany,
 }) => {
-  const [companyName, setCompanyName] = useState<string>(company?.companyName || '');
-  const [targetRole, setTargetRole] = useState<string>(company?.targetRole || '');
+  const [companyName, setCompanyName] = useState<string>(company?.companyName ?? '');
+  const [targetRole, setTargetRole] = useState<string>(company?.targetRole ?? '');
   const [applicationStatus, setApplicationStatus] = useState<CompanyOverlay['applicationStatus']>(
-    company?.applicationStatus || 'target'
+    company?.applicationStatus ?? 'target'
   );
-  const [eventDate, setEventDate] = useState<string>(company?.eventDate || '');
+  const [eventDate, setEventDate] = useState<string>(company?.eventDate ?? '');
   const [requiredDomains, setRequiredDomains] = useState<DomainId[]>(
-    company?.requiredDomains || ['dsa', 'dbms']
+    company?.requiredDomains ? [...company.requiredDomains] : [...NEW_COMPANY_DOMAINS]
   );
   const [requiredLanguagesStr, setRequiredLanguagesStr] = useState<string>(
-    (company?.requiredLanguages || ['cpp', 'java']).join(', ')
+    (company?.requiredLanguages ?? NEW_COMPANY_LANGUAGES).join(', ')
   );
+
+  // C4-01 — form initialisers above only run on mount, so CompaniesView keys
+  // this component by `isOpen + company?.id`. That makes every open, every
+  // target switch (A → B) and every close/reopen a remount, so the form is
+  // always initialised from the exact target and can never carry the previous
+  // company's (or an abandoned edit's) values across. All hooks stay
+  // unconditional — no lifecycle effect is needed.
 
   if (!isOpen) return null;
 
@@ -46,15 +57,20 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
       .map((s) => s.trim().toLowerCase())
       .filter(Boolean);
 
+    // Spread the existing record first so every field that is not an exposed
+    // form control (id, requiredTopics, and anything added later) survives an
+    // edit — the form never reconstructs the company from scratch.
     const saved: CompanyOverlay = {
-      id: company?.id || `comp-${Date.now()}`,
-      companyName: companyName.trim() || 'Target Company',
-      targetRole: targetRole.trim() || 'Software Engineer',
+      ...company,
+      id: company?.id ?? `comp-${Date.now()}`,
+      companyName: companyName.trim() || company?.companyName || 'Target Company',
+      targetRole: targetRole.trim() || company?.targetRole || 'Software Engineer',
       applicationStatus,
       eventDate: eventDate || undefined,
-      requiredDomains: requiredDomains.length > 0 ? requiredDomains : ['dsa'],
-      requiredTopics: company?.requiredTopics || ['topic-dsa-arrays'],
-      requiredLanguages: langs.length > 0 ? langs : ['cpp'],
+      requiredDomains: [...requiredDomains],
+      // Never invent a topic requirement: absent stays absent, empty stays empty.
+      requiredTopics: company?.requiredTopics ?? [],
+      requiredLanguages: [...langs],
     };
 
     onSaveCompany(saved);

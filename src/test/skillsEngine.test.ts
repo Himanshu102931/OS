@@ -171,6 +171,8 @@ describe('skillsEngine', () => {
   });
 
   it('integrates manual override correctly', () => {
+    // A genuine user override: the rating is declared through `manualOverride`,
+    // not inferred from the numeric `evidenceStrength`.
     const skillStates: Record<string, TopicSkillState> = {
       'topic-dsa-arrays': {
         topicId: 'topic-dsa-arrays',
@@ -178,6 +180,11 @@ describe('skillsEngine', () => {
         freshness: 'fresh',
         evidenceStrength: 85,
         lastPracticedAt: '2026-09-25T10:00:00Z',
+        manualOverride: {
+          evidenceStrength: 85,
+          freshness: 'fresh',
+          updatedAt: '2026-09-25T10:00:00Z',
+        },
       },
     };
 
@@ -300,6 +307,11 @@ describe('skillsEngine — preparation → roadmap evidence bridge', () => {
       freshness: 'fresh',
       evidenceStrength: 85,
       lastPracticedAt: '2026-09-25T09:00:00Z',
+      manualOverride: {
+        evidenceStrength: 85,
+        freshness: 'fresh',
+        updatedAt: '2026-09-25T09:00:00Z',
+      },
     };
 
     const readiness = calculateTopicReadiness(
@@ -326,6 +338,11 @@ describe('skillsEngine — preparation → roadmap evidence bridge', () => {
       domainId: 'dsa',
       freshness: 'stale',
       evidenceStrength: 60,
+      manualOverride: {
+        evidenceStrength: 60,
+        freshness: 'stale',
+        updatedAt: '2026-09-01T09:00:00Z',
+      },
     };
 
     const readiness = calculateTopicReadiness(

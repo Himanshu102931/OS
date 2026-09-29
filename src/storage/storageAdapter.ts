@@ -17,12 +17,32 @@ import {
   TASK_PROGRESS,
   INITIAL_DSA_PROGRESS,
   INITIAL_SKILL_STATES,
-  COMPANY_OVERLAYS,
 } from '../data/seedData';
 
 const STORAGE_KEY = 'placementos_v1_state';
+// Recovery copy of a payload that failed hydration, written before the
+// primary key is overwritten. Never read by the app — it exists so that
+// persisted user progress is preserved rather than silently discarded.
+const QUARANTINE_KEY = 'placementos_v1_state_quarantine';
 const CURRENT_SCHEMA_VERSION = '1.0.0';
 const CURRENT_APP_VERSION = '1.0.0';
+
+/**
+ * Copies an unreadable payload to a separate key before the primary key is
+ * rewritten with defaults, so existing user progress stays recoverable.
+ * Best effort: a failure here must never block recovery to a usable state.
+ */
+function quarantineUnreadableState(raw: string, reason: string): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(
+      QUARANTINE_KEY,
+      JSON.stringify({ quarantinedAt: new Date().toISOString(), reason, payload: raw }),
+    );
+  } catch {
+    /* quota or serialization failure — ignore */
+  }
+}
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   placementHorizonDate: '2027-05-31',
@@ -34,7 +54,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   theme: 'dark',
   densityMode: 'compact',
   showExplanationTooltips: true,
-  dailyCheckInReminder: true,
+  dailyCheckInReminder: false,
   reminderTime: '20:00',
 };
 
@@ -63,21 +83,72 @@ export interface AppExtendedStorageState extends AppStorageState {
 
 /**
  * Creates default seed state object when no local storage state exists.
+ *
+ * CLEAN FIRST-RUN BASELINE (intentional):
+ *   - taskProgress        -> every task `not_started`, zero activity
+ *   - dsaProgress         -> every problem Box 1, zero attempts
+ *   - skillStates         -> every skill `untested`, evidenceStrength 0
+ *   - companyOverlays     -> [] (no demo companies)
+ *   - evidence/collections-> empty
+ * Curriculum metadata (phases, modules, topics, DSA problems, preparation
+ * content) is NOT held in storage — it lives in `src/data` and is therefore
+ * never affected by this baseline.
+ *
+ * SCHEMA-COMPATIBILITY DECISION (AGENTS.md "Extend storage schema"):
+ * `CURRENT_SCHEMA_VERSION` is deliberately left at '1.0.0'. This change alters
+ * only the DEFAULT VALUES used for a fresh install, not the shape of
+ * `AppStorageState` — no field was added, removed or renamed — so it is not a
+ * breaking schema change. Existing stored state still hydrates, and
+ * `loadState()` merges it with the user's values taking precedence, so no
+ * persisted progress is discarded. Bumping the version here would be the
+ * breaking move instead: `validateImportState()` requires an exact version
+ * match and would reject every backup exported before this change.
  */
 export function getDefaultStorageState(): AppStorageState {
+  // Clean task progress: all tasks start as not_started with zero activity
   const taskProgressMap: Record<string, TaskProgress> = {};
   TASK_PROGRESS.forEach((tp) => {
-    taskProgressMap[tp.taskId] = tp;
+    taskProgressMap[tp.taskId] = {
+      taskId: tp.taskId,
+      state: 'not_started',
+      postponeCount: 0,
+      skipCount: 0,
+      timeSpentMinutes: 0,
+      updatedAt: new Date().toISOString(),
+    };
   });
 
+  // Clean DSA progress: all problems start at Box 1 with zero attempts
   const dsaProgressMap: Record<string, DSAProgress> = {};
   INITIAL_DSA_PROGRESS.forEach((dp) => {
-    dsaProgressMap[dp.problemId] = dp;
+    dsaProgressMap[dp.problemId] = {
+      problemId: dp.problemId,
+      currentBox: 1,
+      attemptCount: 0,
+      passedIndependently: false,
+      consecutiveAssistedPasses: 0,
+      assistedProvisional: false,
+      consecutiveFailures: 0,
+      remediationRequired: false,
+      patternLessonViewed: false,
+      patternLessonCompleted: false,
+      remediationSelfCheckPassed: false,
+      evidenceStrength: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
   });
 
+  // Clean skill states: all topics start as untested with zero evidence
   const skillStateMap: Record<string, TopicSkillState> = {};
   INITIAL_SKILL_STATES.forEach((sk) => {
-    skillStateMap[sk.topicId] = sk;
+    skillStateMap[sk.topicId] = {
+      topicId: sk.topicId,
+      domainId: sk.domainId,
+      freshness: 'untested',
+      evidenceStrength: 0,
+      lastPracticedAt: undefined,
+    };
   });
 
   return {
@@ -89,7 +160,7 @@ export function getDefaultStorageState(): AppStorageState {
     taskProgress: taskProgressMap,
     dsaProgress: dsaProgressMap,
     skillStates: skillStateMap,
-    companyOverlays: COMPANY_OVERLAYS,
+    companyOverlays: [],
     dailyCheckIns: [],
     dailyTaskAssignments: [],
     practiceAttempts: [],
@@ -107,7 +178,11 @@ export function validateStorageState(data: unknown): data is Partial<AppExtended
 
   // Required top-level fields for safe merging
   if (typeof state.schemaVersion !== 'string') return false;
-  // Accept current or older schema versions for backward compatibility
+  // Hydration is intentionally version-lenient: whatever build wrote the
+  // stored payload must still be readable, so no version gate is applied
+  // here. Version ENFORCEMENT lives in validateImportState() (strict,
+  // exact match) — that is the path that replaces user state from an
+  // external file, where an unsupported version must be rejected.
 
   if (!state.taskProgress || typeof state.taskProgress !== 'object') return false;
   if (!state.dsaProgress || typeof state.dsaProgress !== 'object') return false;
@@ -396,12 +471,13 @@ export const StorageAdapter = {
    * Falls back gracefully to baseline seed defaults if corrupted or missing.
    */
   loadState(): AppStorageState {
+    let raw: string | null = null;
     try {
       if (typeof localStorage === 'undefined') {
         return getDefaultStorageState();
       }
 
-      const raw = localStorage.getItem(STORAGE_KEY);
+      raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) {
         const defaults = getDefaultStorageState();
         this.saveState(defaults);
@@ -445,6 +521,11 @@ export const StorageAdapter = {
         // parsed is guaranteed to have required fields by validateStorageState
         const validatedParsed = parsed as AppExtendedStorageState;
 
+        // Merge with defaults (AGENTS.md storage step 3). User values always
+        // win over the clean baseline; defaults only fill fields a pre-change
+        // payload predates, so a legacy backup hydrates complete instead of
+        // leaving `undefined` collections that downstream `.filter/.map`
+        // would crash on. Nothing stored is dropped.
         const migratedState: AppExtendedStorageState = {
           ...validatedParsed,
           userSettings: {
@@ -454,19 +535,31 @@ export const StorageAdapter = {
           taskProgress: mergedTaskProgress,
           skillStates: mergedSkillStates,
           dsaProgress: mergedDsaProgress,
-          practiceAttempts: parsed.practiceAttempts || [],
-          preparationTopicProgress: parsed.preparationTopicProgress || {},
+          companyOverlays: validatedParsed.companyOverlays || [],
+          dailyCheckIns: validatedParsed.dailyCheckIns || [],
+          dailyTaskAssignments: validatedParsed.dailyTaskAssignments || [],
+          practiceAttempts: validatedParsed.practiceAttempts || [],
+          preparationTopicProgress: validatedParsed.preparationTopicProgress || {},
+          dsaAttempts: validatedParsed.dsaAttempts || [],
+          evidenceLogs: validatedParsed.evidenceLogs || [],
+          customTaskDefinitions: validatedParsed.customTaskDefinitions || [],
         };
         this.saveState(migratedState);
         return migratedState;
       } else {
-        console.warn('[PlacementOS] Local storage data failed integrity check. Reverting to baseline default state.');
+        console.warn(
+          '[PlacementOS] Local storage data failed integrity check. ' +
+            'Reverting to baseline default state; the unreadable payload was ' +
+            'preserved under a quarantine key instead of being discarded.',
+        );
+        quarantineUnreadableState(raw, 'failed integrity check');
         const defaults = getDefaultStorageState();
         this.saveState(defaults);
         return defaults;
       }
     } catch (err) {
       console.error('[PlacementOS] Failed to read from localStorage:', err);
+      if (raw) quarantineUnreadableState(raw, 'unreadable payload');
       return getDefaultStorageState();
     }
   },

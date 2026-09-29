@@ -12,6 +12,7 @@ import {
   Sliders,
   CheckCircle2,
   FileCode,
+  FileText,
   Code,
 } from 'lucide-react';
 import { Button } from '../ui/button';
@@ -212,8 +213,10 @@ export const EvidenceTraceabilityModal: React.FC<EvidenceTraceabilityModalProps>
                       <Code className="size-4 text-[#4EAE79]" />
                     ) : ev.sourceType === 'task' ? (
                       <FileCode className="size-4 text-[#FFC665]" />
-                    ) : (
+                    ) : ev.sourceType === 'manual_override' ? (
                       <Sliders className="size-4 text-[#60A5FA]" />
+                    ) : (
+                      <FileText className="size-4 text-[#8E98A8]" />
                     )}
                     <div>
                       <span className="font-semibold text-[#F1F5F9] block">{ev.title}</span>
