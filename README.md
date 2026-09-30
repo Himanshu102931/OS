@@ -17,23 +17,23 @@ Unlike generic educational tools or consumer platforms, PlacementOS operates as 
   - **Box 3**: 7-day interval
   - **Box 4**: 14-day interval (Mastered)
 - **4-Phase Authoritative Roadmap**:
-  - **Phase 1** (Sep 1 – Nov 30, 2026): Core Foundations & Early Skills (DSA, Python, SQL, DBMS, OOP, CN, Aptitude)
-  - **Phase 2** (Dec 1, 2026 – Jan 31, 2027): Advanced Topics & Core CS Deep-Dive (OS, DBMS, CN, OOP)
+  - **Phase 1** (Sep 1 – Nov 30, 2026): Core Foundations & Early Skills (DSA, Python, SQL, DBMS, OS, CN, OOP, Aptitude, Communication, Projects, Mock Interviews)
+  - **Phase 2** (Dec 1, 2026 – Jan 31, 2027): Advanced Topics & Core CS Deep-Dive (DSA, Python, SQL, OS, CN, OOP)
   - **Phase 3** (Feb 1 – Mar 31, 2027): Intensive Mock Drills & Timed Assessments
   - **Phase 4** (Apr 1 – May 31, 2027): Placement Sprint & Final Drive Sweep
 - **11-Domain Skill Matrix**: Real-time strength calculation (0–100) and freshness tracking (`Fresh`, `Aging`, `Untested`) across DSA, SQL, Python, DBMS, OS, CN, OOP, Projects, Communication, Aptitude, and Mock Interviews.
-- **Company Target Overlays**: Priority boosting for active hiring drives (e.g., Amazon, TCS Digital, Microsoft).
+- **Company Target Overlays**: Priority boosting for active hiring drives (e.g., Amazon, TCS Digital).
 - **Daily Execution & Sealing Protocol**: Structured workflow featuring Morning Planning, Task Execution, Evidence Logging, Evening Reflection, and Day Sealing immutability.
 
 ---
 
 ## 🛠️ Technology Stack
 
-- **Framework**: React 19 + TypeScript 5.6
-- **Build Tool**: Vite 6
+- **Framework**: React 19 + TypeScript 6.0
+- **Build Tool**: Vite 8
 - **Styling**: TailwindCSS 4 (Dark mode studio design system: `surface-canvas` `#0D0F12`, warm bronze accent `#E5A93C`)
 - **Icons**: Lucide React
-- **Testing**: Vitest (18 automated scenario & engine tests)
+- **Testing**: Vitest (476 automated scenario & engine tests across 27 test files)
 - **Routing**: Client-side hash routing (`#/${route}`)
 - **Persistence**: `StorageAdapter` with JSON backup export/import
 

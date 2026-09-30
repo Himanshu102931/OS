@@ -206,7 +206,11 @@ const OVERLAY: CompanyOverlay = {
 
 const dsaAttempt = (todayISO: string): DSAAttempt => ({
   id: 'att-c6-1',
-  problemId: 'dsa-001',
+  // dsa-014 (Majority Element) is the FIRST topic-dsa-arrays problem in
+  // DSA_PROBLEMS (Two Sum moved to topic-dsa-hashtable in the D1 retag) —
+  // getEvaluatedCandidates links a task to its topic's first problem, so this
+  // is the attempt that feeds task-101's spaced-repetition breakdown.
+  problemId: 'dsa-014',
   date: todayISO,
   result: 'pass',
   assistanceLevel: 'none',
@@ -215,7 +219,7 @@ const dsaAttempt = (todayISO: string): DSAAttempt => ({
 });
 
 const dsaProgress = (todayISO: string): DSAProgress => ({
-  problemId: 'dsa-001',
+  problemId: 'dsa-014',
   currentBox: 2,
   nextReviewAt: todayISO,
   attemptCount: 1,

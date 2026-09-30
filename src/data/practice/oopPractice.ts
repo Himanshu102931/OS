@@ -1,7 +1,7 @@
 import { makeSession } from './bank';
 
 /**
- * Phase 2B — OOP question bank (topic `prep-oop`), 26 questions across two sessions.
+ * Phase 2B — OOP question bank (topic `prep-oop`), 27 questions across two sessions.
  */
 
 export const OOP_SESSIONS = [
@@ -187,6 +187,20 @@ export const OOP_SESSIONS = [
         explanation:
           'Implementation inheritance is usually limited to one class, while any number of interfaces can be adopted — that is how the diamond problem is avoided.',
         hint: 'Contracts are not implementation slots.',
+      },
+      {
+        id: 'q-cs-4',
+        tag: 'OOP Principles',
+        prompt: 'What is the main difference between Method Overloading and Method Overriding?',
+        options: [
+          'Overloading is compile-time (same class); Overriding is runtime (subclass).',
+          'Overloading happens in child class; Overriding happens in interface.',
+          'Overloading changes return type only; Overriding changes parameters.',
+          'There is no functional difference.',
+        ],
+        answer: 0,
+        explanation:
+          'Overloading (compile-time polymorphism) has same method name with different parameters in same class. Overriding (runtime polymorphism) redefines parent method in child class.',
       },
     ],
   }),

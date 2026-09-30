@@ -66,7 +66,9 @@ const mountApp = () =>
 /** Automatic DSA attempt — must never be read back as a manual rating. */
 const dsaAttempt = (): DSAAttempt => ({
   id: 'att-c5-dsa',
-  problemId: 'dsa-001',
+  // dsa-011 (3Sum) is a topic-dsa-arrays problem (Two Sum moved to
+  // topic-dsa-hashtable in the D1 retag), so this attempt feeds TOPIC_ID.
+  problemId: 'dsa-011',
   date: getCtx().todayDate,
   result: 'pass',
   assistanceLevel: 'none',
@@ -75,7 +77,7 @@ const dsaAttempt = (): DSAAttempt => ({
 });
 
 const dsaProgress = (): DSAProgress => ({
-  problemId: 'dsa-001',
+  problemId: 'dsa-011',
   currentBox: 2,
   nextReviewAt: getCtx().todayDate,
   attemptCount: 1,

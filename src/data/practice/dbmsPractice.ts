@@ -1,7 +1,7 @@
 import { makeSession } from './bank';
 
 /**
- * Phase 2B — DBMS question bank (topic `prep-dbms`), 30 questions across two sessions.
+ * Phase 2B — DBMS question bank (topic `prep-dbms`), 31 questions across two sessions.
  */
 
 export const DBMS_SESSIONS = [
@@ -199,6 +199,14 @@ export const DBMS_SESSIONS = [
         explanation:
           'It guarantees every foreign key value matches an existing parent row (or is NULL). RESTRICT blocks deleting a referenced parent; CASCADE deletes the child rows along with the parent.',
         hint: 'One blocks, the other propagates.',
+      },
+      {
+        id: 'q-cs-2',
+        tag: 'DBMS ACID',
+        prompt: 'Which ACID property guarantees that executed transactions persist even in case of system power failure?',
+        options: ['Atomicity', 'Consistency', 'Isolation', 'Durability'],
+        answer: 3,
+        explanation: 'Durability ensures committed transaction state is stored in non-volatile memory.',
       },
     ],
   }),

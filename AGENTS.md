@@ -7,7 +7,7 @@ npm install          # Install dependencies
 npm run dev          # Start dev server at http://localhost:5173
 npm run build        # Type-check + production build (outputs to dist/)
 npm run lint         # ESLint check
-npm test             # Run Vitest suite (18 tests)
+npm test             # Run Vitest suite (476 tests)
 ```
 
 ## Architecture Overview
@@ -79,8 +79,8 @@ npm test -- --watch        # Watch mode
 npm test -- src/test/adaptiveEngine.test.ts  # Single file
 ```
 
-- **Framework**: Vitest (no DOM, pure logic tests)
-- **Coverage**: 18 tests covering adaptive scoring, Leitner transitions, evidence calculation, storage integrity, skills readiness.
+- **Framework**: Vitest (jsdom DOM tests + pure logic tests)
+- **Coverage**: 476 tests covering adaptive scoring, Leitner transitions, evidence calculation, storage integrity, skills readiness.
 - **Fixtures**: Inline mock objects in test files — no shared fixture directory.
 
 ## Common Tasks

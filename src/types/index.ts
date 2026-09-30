@@ -116,6 +116,16 @@ export interface DSAProblem {
   secondaryPatterns?: string[];
   dataStructure: string;
   algorithmicTechnique: string;
+  /**
+   * Scheduling phase, not teaching phase: the earliest roadmap phase in which
+   * this individual problem is recommended to be attempted (1..4). It gates
+   * problem availability in `dsaEngine` ("Locked until Phase N").
+   *
+   * It is intentionally allowed to differ from the teaching phase of the
+   * problem's topic/module: a topic may be taught in one phase while its
+   * practice problems are scheduled earlier or later. `topicId` locates where
+   * the problem is taught; `recommendedPhase` locates when it is unlocked.
+   */
   recommendedPhase: number;
   progressionTier: ProgressionTier;
   prerequisites: string[]; // Problem IDs

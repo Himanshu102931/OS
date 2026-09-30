@@ -1869,7 +1869,7 @@ export const PREPARATION_TOPICS: PreparationTopic[] = [
     recommendedPhase: 'phase-1',
     practiceActivities: [
       'Record a 60-90s self-intro and self-score against the rubric',
-      'Build 6 STAR stories and rehearse each twice',
+      'Build 3 STAR stories and rehearse each twice',
       'Write 3 professional emails: follow-up, decline, status update',
       'Explain your personal project aloud in 3 minutes',
       'Work through the 25 structured prompts out loud, no automated grading',
@@ -1886,7 +1886,7 @@ export const PREPARATION_TOPICS: PreparationTopic[] = [
     ],
     completionCriteria: [
       'Self-intro recorded and refined at least twice',
-      'Six STAR stories written down',
+      'Three STAR stories written down',
       'Assessment/self-evaluation at 70%+ rubric score',
     ],
     evidenceCriteria: [

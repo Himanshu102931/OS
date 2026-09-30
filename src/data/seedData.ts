@@ -4,12 +4,14 @@ import type {
   Module,
   Topic,
   TaskDefinition,
+  TaskLearningMetadata,
   TaskProgress,
   DSAProgress,
   CompanyOverlay,
   TopicSkillState,
 } from '../types';
-import { DSA_PROBLEMS } from './dsaDataset';
+import { DSA_PROBLEMS, PATTERN_LESSONS, LEARNING_RESOURCES } from './dsaDataset';
+import { PREPARATION_TOPICS, getPreparationTopicIdByRoadmapId } from './preparationDataset';
 
 export { DSA_PROBLEMS };
 
@@ -574,6 +576,89 @@ export const TOPICS: Topic[] = [
   },
 ];
 
+/**
+ * Builds the authored learning-workspace metadata for a roadmap task from the
+ * task's Preparation curriculum. Every field except `practiceItems` is derived
+ * verbatim from the linked PreparationTopic at module load (single source of
+ * truth — the Roadmap drawer and the Preparation workspace cannot drift), and
+ * `practiceItems` reference real practice sessions / DSA problems by id.
+ *
+ * Returns undefined when the task's roadmap topic has no Preparation bridge
+ * and no explicit same-domain PreparationTopic is supplied — the drawer then
+ * simply omits the optional sections rather than showing invented content.
+ */
+const buildTaskLearningMetadata = (
+  roadmapTopicId: string,
+  practiceItems: string[],
+  explicitPrepTopicId?: string,
+): TaskLearningMetadata | undefined => {
+  const prepTopicId = explicitPrepTopicId ?? getPreparationTopicIdByRoadmapId(roadmapTopicId);
+  const prep = prepTopicId ? PREPARATION_TOPICS.find((t) => t.id === prepTopicId) : undefined;
+  if (!prep) return undefined;
+  const primary = prep.recommendedResources.find((r) => r.role === 'primary');
+  const supporting = prep.recommendedResources.filter((r) => r.role !== 'primary');
+  return {
+    learningSteps: [...prep.learningObjectives],
+    ...(primary
+      ? {
+          primaryResource: {
+            title: primary.title,
+            ...(primary.url ? { url: primary.url } : {}),
+            type: primary.type,
+          },
+        }
+      : {}),
+    ...(supporting.length > 0
+      ? {
+          supportingResources: supporting.map((r) => ({
+            title: r.title,
+            ...(r.url ? { url: r.url } : {}),
+            type: r.type,
+          })),
+        }
+      : {}),
+    practiceItems,
+    selfCheckQuestions: [...prep.interviewCheckpoints],
+    completionCriteria: [...prep.completionCriteria],
+  };
+};
+
+/**
+ * Learning metadata for tasks whose roadmap topic has no Preparation bridge.
+ *
+ * Several DSA roadmap topics (`topic-dsa-hashtable`, `topic-dsa-linkedlist`,
+ * `topic-dsa-trees`, `topic-dsa-graphs`, `topic-dsa-dp`) have no `prep-*`
+ * counterpart — `prep-coding-ds` already bridges to `topic-dsa-arrays`, and the
+ * index keeps a first-declaration-wins rule, so reusing it would silently drop
+ * evidence attribution. `topic-mock-drill` has no bridge either.
+ *
+ * Rather than leaving those tasks blank, this helper attaches only what the
+ * existing curriculum really states: `primaryResource` is the resource the
+ * topic's pattern lesson points at, and every practice item is an existing
+ * problem/session ID named by the task itself. Sections with no authoritative
+ * source stay absent, so the drawer omits them instead of showing invented
+ * content.
+ */
+const buildDsaTaskLearningMetadata = (
+  patternName: string | undefined,
+  practiceItems: string[],
+): TaskLearningMetadata => {
+  const lesson = patternName ? PATTERN_LESSONS.find((p) => p.name === patternName) : undefined;
+  const resource = lesson ? LEARNING_RESOURCES.find((r) => r.id === lesson.primaryResourceId) : undefined;
+  return {
+    ...(resource
+      ? {
+          primaryResource: {
+            title: resource.title,
+            ...(resource.url ? { url: resource.url } : {}),
+            type: resource.type,
+          },
+        }
+      : {}),
+    practiceItems,
+  };
+};
+
 export const TASK_DEFINITIONS: TaskDefinition[] = [
   // --- PHASE 1 TASKS ---
   {
@@ -589,6 +674,12 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     languageTags: ['cpp', 'java', 'python'],
     dueDate: '2026-09-28',
     createdAt: '2026-09-01T00:00:00Z',
+    learningMetadata: buildTaskLearningMetadata('topic-dsa-arrays', [
+      'Two Sum II - Input Array Is Sorted (dsa-026)',
+      'Container With Most Water (dsa-012)',
+      '3Sum (dsa-011)',
+      'Trapping Rain Water (dsa-028)',
+    ]),
   },
   {
     id: 'task-102',
@@ -603,6 +694,10 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     languageTags: ['sql'],
     dueDate: '2026-09-29',
     createdAt: '2026-09-01T00:00:00Z',
+    learningMetadata: buildTaskLearningMetadata('topic-dbms-acid', [
+      'DBMS Foundations: Keys, Normalization & Transactions (practice-dbms-01)',
+      'DBMS Systems: Indexing, Concurrency & Recovery (practice-dbms-02)',
+    ]),
   },
   {
     id: 'task-103',
@@ -617,6 +712,11 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     languageTags: ['sql'],
     dueDate: '2026-09-30',
     createdAt: '2026-09-02T00:00:00Z',
+    learningMetadata: buildTaskLearningMetadata('topic-sql-joins', [
+      'SQL Query Scenarios & Optimization (practice-sql-01)',
+      'SQL Fundamentals: Filtering, Joins & Aggregates (practice-sql-02)',
+      'SQL Advanced: Subqueries, Windows & Indexes (practice-sql-03)',
+    ]),
   },
   {
     id: 'task-104',
@@ -630,6 +730,9 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     taskType: 'learning',
     dueDate: '2026-10-02',
     createdAt: '2026-09-02T00:00:00Z',
+    learningMetadata: buildTaskLearningMetadata('topic-os-scheduling', [
+      'OS Foundations: Processes, Scheduling & Concurrency (practice-os-01)',
+    ]),
   },
   {
     id: 'task-105',
@@ -644,11 +747,14 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     languageTags: ['python'],
     dueDate: '2026-10-03',
     createdAt: '2026-09-03T00:00:00Z',
+    learningMetadata: buildTaskLearningMetadata('topic-py-basics', [
+      'Python Fundamentals Drill (practice-python-01)',
+    ]),
   },
   {
     id: 'task-106',
     title: 'Practice Time & Work Aptitude Numerical Problems',
-    description: 'Complete 15 timed quantitative aptitude questions on work efficiency and pipes.',
+    description: 'Complete the 15-question timed quantitative aptitude set (20 minutes): percentages, fractions, profit & loss, simple interest, time & work, speed, ratio, average, HCF & LCM, algebra, and time & distance.',
     domainId: 'aptitude',
     topicId: 'topic-apt-work',
     phaseId: 'phase-1',
@@ -657,6 +763,9 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     taskType: 'practice',
     dueDate: '2026-10-04',
     createdAt: '2026-09-03T00:00:00Z',
+    learningMetadata: buildTaskLearningMetadata('topic-apt-work', [
+      'Timed Quant Assessment — 15 Questions / 20 Minutes (practice-quant-timed-01)',
+    ]),
   },
   {
     id: 'task-107',
@@ -671,6 +780,9 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     languageTags: ['cpp', 'java', 'python'],
     dueDate: '2026-10-05',
     createdAt: '2026-09-04T00:00:00Z',
+    learningMetadata: buildTaskLearningMetadata('topic-oop-solid', [
+      'OOP Principles: The Four Pillars (practice-oop-01)',
+    ]),
   },
   {
     id: 'task-108',
@@ -684,7 +796,17 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     taskType: 'learning',
     dueDate: '2026-10-06',
     createdAt: '2026-09-04T00:00:00Z',
+    learningMetadata: buildTaskLearningMetadata('topic-comm-star', [
+      'Communication Foundations: Clarity, Structure & Delivery (practice-comm-01)',
+      'Behavioral & HR STAR Method Drill (practice-behavioral-01)',
+    ]),
   },
+  // task-109 intentionally carries no `learningMetadata`: the projects domain
+  // has no Preparation topic (13 prep topics, none projects), none of the 34
+  // practice sessions has domainId 'projects', `topic-proj-rest` owns no DSA
+  // problems, and no resource in the datasets covers REST/OpenAPI/rate
+  // limiting. Any item here would have to be invented, so the section stays
+  // empty and the drawer omits it.
   {
     id: 'task-109',
     title: 'Design RESTful API Endpoint Schemas & Rate Limiter',
@@ -711,6 +833,10 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     taskType: 'learning',
     dueDate: '2026-10-10',
     createdAt: '2026-09-05T00:00:00Z',
+    learningMetadata: buildDsaTaskLearningMetadata(undefined, [
+      'System & Project Architecture Defense (practice-project-defense-01)',
+      'Technical Interview Viva & Code Defense (practice-tech-interview-01)',
+    ]),
   },
   {
     id: 'task-111',
@@ -725,6 +851,11 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     languageTags: ['cpp', 'java', 'python'],
     dueDate: '2026-10-14',
     createdAt: '2026-09-06T00:00:00Z',
+    learningMetadata: buildTaskLearningMetadata('topic-dsa-arrays', [
+      'Minimum Size Subarray Sum (dsa-030)',
+      'Longest Substring Without Repeating Characters (dsa-031)',
+      'Sliding Window Maximum (dsa-036)',
+    ]),
   },
   {
     id: 'task-112',
@@ -739,6 +870,11 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     languageTags: ['python', 'cpp'],
     dueDate: '2026-10-18',
     createdAt: '2026-09-07T00:00:00Z',
+    learningMetadata: buildDsaTaskLearningMetadata('Arrays & Hashing', [
+      'Two Sum (dsa-001)',
+      'Valid Anagram (dsa-013)',
+      'Group Anagrams (dsa-015)',
+    ]),
   },
   {
     id: 'task-113',
@@ -753,6 +889,10 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     languageTags: ['cpp', 'java', 'python'],
     dueDate: '2026-10-28',
     createdAt: '2026-09-08T00:00:00Z',
+    learningMetadata: buildDsaTaskLearningMetadata('Linked List', [
+      'Reverse Linked List (dsa-006)',
+      'Linked List Cycle (dsa-055)',
+    ]),
   },
   {
     id: 'task-114',
@@ -766,6 +906,9 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     taskType: 'learning',
     dueDate: '2026-11-05',
     createdAt: '2026-09-09T00:00:00Z',
+    learningMetadata: buildTaskLearningMetadata('topic-cn-tcp', [
+      'CN Foundations: Layers, Addressing & LAN (practice-cn-01)',
+    ]),
   },
 
   // --- PHASE 2 TASKS ---
@@ -782,6 +925,10 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     languageTags: ['cpp', 'java', 'python'],
     dueDate: '2026-12-15',
     createdAt: '2026-09-10T00:00:00Z',
+    learningMetadata: buildDsaTaskLearningMetadata('Trees & BST', [
+      'Binary Tree Level Order Traversal (dsa-068)',
+      'Construct Binary Tree from Preorder and Inorder Traversal (dsa-073)',
+    ]),
   },
   {
     id: 'task-202',
@@ -796,6 +943,11 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     languageTags: ['cpp', 'java', 'python'],
     dueDate: '2027-01-15',
     createdAt: '2026-09-11T00:00:00Z',
+    learningMetadata: buildDsaTaskLearningMetadata('Graph Algorithms', [
+      'Clone Graph (dsa-100)',
+      'Number of Connected Components in an Undirected Graph (dsa-099)',
+      'Course Schedule (dsa-105)',
+    ]),
   },
   {
     id: 'task-203',
@@ -810,6 +962,11 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     languageTags: ['sql'],
     dueDate: '2026-12-18',
     createdAt: '2026-09-12T00:00:00Z',
+    learningMetadata: buildTaskLearningMetadata(
+      'topic-sql-window',
+      ['SQL Advanced: Subqueries, Windows & Indexes (practice-sql-03)'],
+      'prep-sql',
+    ),
   },
   {
     id: 'task-204',
@@ -823,6 +980,14 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     taskType: 'learning',
     dueDate: '2027-01-10',
     createdAt: '2026-09-13T00:00:00Z',
+    learningMetadata: buildTaskLearningMetadata(
+      'topic-os-memory',
+      [
+        'OS Memory, Paging & File Systems (practice-os-02)',
+        'Operating Systems: Deadlock Conditions Drill (practice-corecs-01)',
+      ],
+      'prep-os',
+    ),
   },
   {
     id: 'task-205',
@@ -836,6 +1001,14 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     taskType: 'learning',
     dueDate: '2027-01-16',
     createdAt: '2026-09-14T00:00:00Z',
+    learningMetadata: buildTaskLearningMetadata(
+      'topic-cn-web',
+      [
+        'CN Foundations: Layers, Addressing & LAN (practice-cn-01)',
+        'CN Applications: HTTP, Security & Subnetting (practice-cn-02)',
+      ],
+      'prep-cn',
+    ),
   },
   {
     id: 'task-206',
@@ -850,6 +1023,14 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     languageTags: ['cpp', 'java', 'python'],
     dueDate: '2027-01-05',
     createdAt: '2026-09-15T00:00:00Z',
+    learningMetadata: buildTaskLearningMetadata(
+      'topic-oop-design',
+      [
+        'OOP Principles: The Four Pillars (practice-oop-01)',
+        'OOP in Practice: Design, Memory & Language Features (practice-oop-02)',
+      ],
+      'prep-oop',
+    ),
   },
 
   // --- PHASE 3 TASKS ---
@@ -866,6 +1047,11 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     languageTags: ['cpp', 'java', 'python'],
     dueDate: '2027-02-20',
     createdAt: '2026-09-16T00:00:00Z',
+    learningMetadata: buildDsaTaskLearningMetadata('1D Dynamic Programming', [
+      'Climbing Stairs (dsa-112)',
+      'House Robber (dsa-114)',
+      'Coin Change (dsa-119)',
+    ]),
   },
   {
     id: 'task-302',
@@ -880,9 +1066,18 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     languageTags: ['cpp', 'java', 'python'],
     dueDate: '2027-03-15',
     createdAt: '2026-09-17T00:00:00Z',
+    learningMetadata: buildTaskLearningMetadata('topic-mock-screener', [
+      'Technical Interview: DSA Explanation Drill (practice-interview-dsa-01)',
+      'DSA Complexity & Problem Solving Set (practice-coding-01)',
+    ]),
   },
 
   // --- PHASE 4 TASKS ---
+  // task-401 intentionally carries no `learningMetadata`: `topic-dsa-leitner`
+  // is the review-system curriculum topic (0 owned DSA problems, no Preparation
+  // bridge), and the work this task describes is the live Leitner box state
+  // held in `DSAProgress` — there is no static problem/session/lesson record
+  // in the datasets that could be cited without inventing one.
   {
     id: 'task-401',
     title: 'Execute Daily Leitner Spaced Repetition Review Sweep',
@@ -908,6 +1103,10 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     taskType: 'assessment',
     dueDate: '2027-05-10',
     createdAt: '2026-09-19T00:00:00Z',
+    learningMetadata: buildTaskLearningMetadata('topic-mock-final', [
+      'Full Technical & Behavioral Mock Interview (practice-mock-interview-01)',
+      'System & Project Architecture Defense (practice-project-defense-01)',
+    ]),
   },
 ];
 

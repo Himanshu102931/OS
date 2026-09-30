@@ -1,7 +1,7 @@
 import { makeSession } from './bank';
 
 /**
- * Phase 2B — Computer Networks question bank (topic `prep-cn`), 30 questions.
+ * Phase 2B — Computer Networks question bank (topic `prep-cn`), 31 questions.
  */
 
 export const CN_SESSIONS = [
@@ -377,6 +377,14 @@ export const CN_SESSIONS = [
         answer: 0,
         explanation: 'Successful ICMP to a literal IP proves layer 1-3 connectivity; a hostname failure isolates the fault to DNS.',
         hint: 'Numeric IP works, hostname does not.',
+      },
+      {
+        id: 'q-cs-3',
+        tag: 'Computer Networks TCP',
+        prompt: 'What are the three flags sent in order during the TCP 3-way handshake connection establishment?',
+        options: ['SYN, ACK, FIN', 'SYN, SYN-ACK, ACK', 'ACK, SYN-ACK, SYN', 'FIN, ACK, FIN-ACK'],
+        answer: 1,
+        explanation: 'Client sends SYN -> Server responds SYN-ACK -> Client sends ACK.',
       },
     ],
   }),

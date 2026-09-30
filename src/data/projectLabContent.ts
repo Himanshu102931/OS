@@ -199,5 +199,44 @@ export const PROJECT_LAB_CONTENT: LabSectionContent[] = [
     heading: 'Project Defense Evidence History',
     intro:
       'Defense attempts below are recorded evidence: each session logs accuracy, time, and a domain evidence event that feeds the skills view.',
+    flow:
+      'Defense Session (practice-project-defense-01, 4 prompts, 80% pass) → PracticeAttempt (scorePct, pass/fail computed once) → EvidenceLog (score 0-100, confidence 1-5, sourceType practice_session) → Skill credit (+round(score × 0.2) on prep-interview-career) → Readiness, freshness & the adaptive weakness factor',
+    cards: [
+      {
+        label: 'Defense Session',
+        value: 'practice-project-defense-01 — 4 defense prompts, 80% pass threshold',
+        detail: 'Prompts cover architecture, data flow, security, and trade-off defense.',
+      },
+      {
+        label: 'Attempt Record',
+        value: 'scorePct, correct/total, PASS/FAIL, submitted timestamp',
+        detail: 'Pass is computed once at evaluation (scorePct ≥ 80) and stored — never re-derived in the view.',
+      },
+      {
+        label: 'Evidence Event',
+        value: 'EvidenceLog: score 0-100, confidence 1-5, sourceType practice_session',
+        detail: 'Confidence maps from score (≥85→5, ≥70→4, ≥50→3, ≥30→2, else 1); the attempt links it via evidenceLogId.',
+      },
+      {
+        label: 'Skill Credit',
+        value: '+round(evidence score × 0.2) evidence strength on prep-interview-career',
+        detail: 'Freshness decays with inactivity: fresh ≤7 days, aging ≤14 days (×0.9), stale beyond (×0.75).',
+      },
+    ],
+    points: [
+      'Attempts are append-only — every defense run records its own attempt; earlier history is never overwritten.',
+      'The Evidence section completes only from recorded attempts (projectAttempts.length > 0); opening the tab proves nothing.',
+      'Unanswered prompts count against accuracy — there is no partial credit derived from response length or a confidence self-rating.',
+    ],
+    blocks: [
+      {
+        title: 'What an interviewer can verify',
+        body: 'Each entry shows session title, date, submitted timestamp, correct/total, the configured threshold, and the PASS/FAIL verdict straight from the recorded attempt — the view renders stored values and recomputes nothing.',
+      },
+      {
+        title: 'Where the evidence lands',
+        body: 'The evidence event carries topicId prep-interview-career (domainId interviews), so the credit raises that topic\'s evidence strength and freshness, which in turn drives the adaptive engine\'s weakness factor for the next recommendation.',
+      },
+    ],
   },
 ];
