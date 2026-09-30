@@ -321,6 +321,181 @@ export interface EvidenceLog {
   details?: string;
 }
 
+// --- Assessment Types (Phase A Foundation) ---
+
+export type AssessmentKind = 'diagnostic_assessment' | 'weekly_assessment' | 'full_reassessment';
+
+export type AssessmentStatus = 'in_progress' | 'submitted' | 'auto_submitted' | 'abandoned';
+
+export type AssessmentItemResult = 'correct' | 'incorrect' | 'dont_know' | 'unanswered';
+
+export type AssessmentConfidence = 'confident' | 'somewhat' | 'guessing';
+
+export interface AssessmentDefinition {
+  id: string;
+  kind: AssessmentKind;
+  name: string;
+  timeLimitMinutes: number;
+  modules: AssessmentModule[];
+  version: number;
+}
+
+export interface AssessmentModule {
+  domainId: DomainId;
+  timeBudget: number;
+  itemCount: number;
+  difficultyMix: { easy: number; medium: number; hard: number };
+}
+
+export interface AssessmentItem {
+  id: string;
+  domainId: DomainId;
+  topicId: string;
+  subtopicId?: string;
+  competency: string;
+  difficulty: 1 | 2 | 3 | 4;
+  estimatedMinutes: number;
+  questionType: AssessmentQuestionType;
+  assessmentRole: 'anchor' | 'branch' | 'confirm';
+  eligibleFor: AssessmentEligibility[];
+  exposurePolicy: AssessmentExposurePolicy;
+  scoring: AssessmentScoring;
+  prerequisites?: string[];
+  parallelGroup?: string;
+  prompt: string;
+  options?: string[];
+  key?: number | string;
+  explanation: string;
+  errorCategories: string[];
+  origin: 'assessment';
+}
+
+export type AssessmentQuestionType =
+  | 'mcq'
+  | 'multiple_response'
+  | 'short_answer'
+  | 'normalized_match'
+  | 'code_trace'
+  | 'debug_item'
+  | 'coding_constrained'
+  | 'sql_query'
+  | 'scenario'
+  | 'structured_written'
+  | 'rubric_written';
+
+export type AssessmentEligibility = 'baseline' | 'weekly' | 'released_practice';
+
+export interface AssessmentExposurePolicy {
+  maxEstimationUses: number;
+  releaseToPractice: boolean;
+}
+
+export interface AssessmentScoring {
+  kind: 'objective' | 'normalized_match' | 'rubric';
+  key?: number | string;
+  rubricId?: string;
+  weight: number;
+  acceptableForms?: string[];
+}
+
+export interface AssessmentAttempt {
+  id: string;
+  definitionId: string;
+  definitionVersion: number;
+  kind: AssessmentKind;
+  status: AssessmentStatus;
+  startedAt: string; // ISO timestamp
+  endedAt?: string; // ISO timestamp
+  timeLimitSeconds: number;
+  seed: string;
+  selectedItemIds: string[];
+  selectionExceptions?: string[];
+}
+
+export interface AssessmentResponse {
+  id: string;
+  attemptId: string;
+  itemId: string;
+  response: number | string; // option index or text
+  result: AssessmentItemResult;
+  responseConfidence?: AssessmentConfidence;
+  timeSpentSeconds: number;
+  errorCategories: string[];
+  scoredCredit: number;
+  weightApplied: number;
+}
+
+export interface AssessmentItemExposure {
+  itemId: string;
+  exposureCount: number;
+  lastSeenAt: string; // ISO timestamp
+  lastAttemptId: string;
+  lastResult: AssessmentItemResult;
+  previousAssessmentUsage: AssessmentKind[];
+  estimationUses: number;
+  eligibleForFutureEstimation: boolean;
+  releasedToPractice: boolean;
+}
+
+export interface DomainAssessmentResult {
+  domainId: DomainId;
+  abilityScore: number; // 0-100
+  level: 0 | 1 | 2 | 3 | 4 | 5;
+  confidence: 'none' | 'low' | 'medium' | 'high';
+  status: 'assessed' | 'partially_assessed' | 'unassessed';
+  coverage: {
+    topicsCovered: number;
+    topicsTotal: number;
+    competenciesCovered: string[];
+    difficultyBands: number[];
+  };
+  assessmentDate: string; // ISO timestamp
+  provisional: boolean;
+  constructScope?: string;
+  attemptId: string;
+  kind: AssessmentKind;
+}
+
+export interface AssessmentSnapshot {
+  id: string;
+  takenAt: string; // ISO timestamp
+  kind: AssessmentKind;
+  trigger: 'scheduled' | 'manual' | 'post_baseline';
+  domainResults: DomainAssessmentResult[];
+  priorSnapshotId?: string;
+}
+
+export interface WeaknessSignal {
+  id: string;
+  domainId: DomainId;
+  topicId?: string;
+  competency?: string;
+  errorCategory: string;
+  strength: 1 | 2 | 3;
+  status: 'open' | 'reinforced' | 'resolved';
+  firstSeenAt: string; // ISO timestamp
+  lastSeenAt: string; // ISO timestamp
+  occurrences: number;
+  sourceAttemptIds: string[];
+}
+
+export interface AssessmentProfile {
+  baselineCompletedAt?: string; // ISO timestamp
+  lastSundayAt?: string; // ISO timestamp
+  pendingSunday: boolean;
+  nextReassessmentSuggestedAt?: string; // ISO timestamp
+}
+
+export interface AssessmentState {
+  attempts: AssessmentAttempt[];
+  responses: AssessmentResponse[];
+  exposures: Record<string, AssessmentItemExposure>;
+  domainResults: DomainAssessmentResult[];
+  snapshots: AssessmentSnapshot[];
+  weaknessSignals: WeaknessSignal[];
+  profile: AssessmentProfile;
+}
+
 // --- Practice & Assessment Subsystem Types ---
 
 export type PracticeCategory =

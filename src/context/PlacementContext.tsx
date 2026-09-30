@@ -19,6 +19,7 @@ import type {
   PracticeSessionDefinition,
   PracticeAttempt,
   PreparationTopicProgress,
+  AssessmentState,
 } from '../types';
 import {
   DOMAINS,
@@ -54,6 +55,7 @@ interface AppExtendedStorageState extends AppStorageState {
   customTaskDefinitions?: TaskDefinition[];
   dsaAttempts: DSAAttempt[];
   evidenceLogs: EvidenceLog[];
+  assessmentState?: AssessmentState;
 }
 
 interface PlacementContextType {
@@ -64,6 +66,7 @@ interface PlacementContextType {
   currentMode: PlacementMode;
   setPlacementMode: (mode: PlacementMode) => void;
   userSettings: UserSettings;
+  assessmentState?: AssessmentState;
   updateUserSettings: (newSettings: Partial<UserSettings>) => void;
   resetUserSettingsOnly: () => void;
   phases: Phase[];
@@ -177,6 +180,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       evidenceLogs: loaded.evidenceLogs || [],
       practiceAttempts: loaded.practiceAttempts || [],
       preparationTopicProgress: loaded.preparationTopicProgress || {},
+      assessmentState: loaded.assessmentState,
     };
   });
 
@@ -550,6 +554,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       dsaAttempts: [],
       evidenceLogs: [],
       practiceAttempts: [],
+      assessmentState: undefined,
     });
   };
 
@@ -568,6 +573,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           evidenceLogs: result.state.evidenceLogs || [],
           practiceAttempts: result.state.practiceAttempts || [],
           preparationTopicProgress: result.state.preparationTopicProgress || {},
+          assessmentState: result.state.assessmentState,
         });
         return { success: true };
       }
@@ -607,6 +613,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         practiceSessions: PRACTICE_SESSIONS,
         practiceAttempts: appState.practiceAttempts || [],
         preparationTopicProgress: appState.preparationTopicProgress || {},
+        assessmentState: appState.assessmentState,
         activePhase,
         updateTaskState,
         restoreTaskTransaction,

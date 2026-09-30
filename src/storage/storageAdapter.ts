@@ -12,6 +12,10 @@ import type {
   DSAAttempt,
   EvidenceLog,
   TaskDefinition,
+  AssessmentState,
+  AssessmentResponse,
+  AssessmentItemExposure,
+  AssessmentProfile,
 } from '../types';
 import {
   TASK_PROGRESS,
@@ -72,6 +76,7 @@ export interface AppStorageState {
   dailyTaskAssignments: DailyTaskAssignment[];
   practiceAttempts?: PracticeAttempt[];
   preparationTopicProgress: Record<string, PreparationTopicProgress>;
+  assessmentState?: AssessmentState;
 }
 
 /** Extended state with additional runtime fields */
@@ -79,6 +84,7 @@ export interface AppExtendedStorageState extends AppStorageState {
   customTaskDefinitions?: TaskDefinition[];
   dsaAttempts?: DSAAttempt[];
   evidenceLogs?: EvidenceLog[];
+  // assessmentState is already optional in AppStorageState
 }
 
 /**
@@ -165,6 +171,7 @@ export function getDefaultStorageState(): AppStorageState {
     dailyTaskAssignments: [],
     practiceAttempts: [],
     preparationTopicProgress: {},
+    assessmentState: undefined,
   };
 }
 
@@ -197,6 +204,7 @@ export function validateStorageState(data: unknown): data is Partial<AppExtended
   if (state.dsaAttempts !== undefined && !Array.isArray(state.dsaAttempts)) return false;
   if (state.evidenceLogs !== undefined && !Array.isArray(state.evidenceLogs)) return false;
   if (state.customTaskDefinitions !== undefined && !Array.isArray(state.customTaskDefinitions)) return false;
+  if (state.assessmentState !== undefined && !validateAssessmentState(state.assessmentState)) return false;
 
   // userSettings is optional for lenient validation - will be merged with defaults
   if (state.userSettings !== undefined && typeof state.userSettings !== 'object') return false;
@@ -300,6 +308,10 @@ export function validateImportState(data: unknown): data is AppExtendedStorageSt
       if (typeof task.taskType !== 'string') return false;
       if (typeof task.createdAt !== 'string') return false;
     }
+  }
+
+  if (state.assessmentState !== undefined) {
+    if (!validateAssessmentState(state.assessmentState)) return false;
   }
 
   // appVersion and lastSavedAt are validated as strings if present
@@ -462,6 +474,183 @@ function validatePreparationTopicProgress(progress: Record<string, unknown>): bo
   return true;
 }
 
+function validateAssessmentState(state: unknown): state is AssessmentState {
+  if (!state || typeof state !== 'object') return false;
+  const s = state as Partial<AssessmentState>;
+
+  if (s.attempts !== undefined) {
+    if (!Array.isArray(s.attempts)) return false;
+    for (const attempt of s.attempts) {
+      if (!attempt || typeof attempt !== 'object') return false;
+      if (typeof attempt.id !== 'string') return false;
+      if (typeof attempt.definitionId !== 'string') return false;
+      if (typeof attempt.definitionVersion !== 'number') return false;
+      if (typeof attempt.kind !== 'string') return false;
+      if (!['diagnostic_assessment', 'weekly_assessment', 'full_reassessment'].includes(attempt.kind)) return false;
+      if (typeof attempt.status !== 'string') return false;
+      if (!['in_progress', 'submitted', 'auto_submitted', 'abandoned'].includes(attempt.status)) return false;
+      if (typeof attempt.startedAt !== 'string') return false;
+      if (typeof attempt.timeLimitSeconds !== 'number') return false;
+      if (typeof attempt.seed !== 'string') return false;
+      if (!Array.isArray(attempt.selectedItemIds)) return false;
+    }
+  }
+
+  if (s.responses !== undefined) {
+    if (!Array.isArray(s.responses)) return false;
+    for (const response of s.responses) {
+      if (!response || typeof response !== 'object') return false;
+      if (typeof response.id !== 'string') return false;
+      if (typeof response.attemptId !== 'string') return false;
+      if (typeof response.itemId !== 'string') return false;
+      if (typeof response.response !== 'number' && typeof response.response !== 'string') return false;
+      if (typeof response.result !== 'string') return false;
+      if (!['correct', 'incorrect', 'dont_know', 'unanswered'].includes(response.result)) return false;
+      if (typeof response.timeSpentSeconds !== 'number') return false;
+      if (!Array.isArray(response.errorCategories)) return false;
+      if (typeof response.scoredCredit !== 'number') return false;
+      if (typeof response.weightApplied !== 'number') return false;
+    }
+  }
+
+  if (s.exposures !== undefined) {
+    if (typeof s.exposures !== 'object') return false;
+    for (const [, exposure] of Object.entries(s.exposures)) {
+      if (!exposure || typeof exposure !== 'object') return false;
+      const exp = exposure as Partial<AssessmentItemExposure>;
+      if (typeof exp.itemId !== 'string') return false;
+      if (typeof exp.exposureCount !== 'number') return false;
+      if (typeof exp.lastSeenAt !== 'string') return false;
+      if (typeof exp.lastAttemptId !== 'string') return false;
+      if (typeof exp.lastResult !== 'string') return false;
+      if (!Array.isArray(exp.previousAssessmentUsage)) return false;
+      if (typeof exp.estimationUses !== 'number') return false;
+      if (typeof exp.eligibleForFutureEstimation !== 'boolean') return false;
+      if (typeof exp.releasedToPractice !== 'boolean') return false;
+    }
+  }
+
+  if (s.domainResults !== undefined) {
+    if (!Array.isArray(s.domainResults)) return false;
+    for (const result of s.domainResults) {
+      if (!result || typeof result !== 'object') return false;
+      if (typeof result.domainId !== 'string') return false;
+      if (typeof result.abilityScore !== 'number') return false;
+      if (typeof result.level !== 'number') return false;
+      if (![0, 1, 2, 3, 4, 5].includes(result.level)) return false;
+      if (typeof result.confidence !== 'string') return false;
+      if (!['none', 'low', 'medium', 'high'].includes(result.confidence)) return false;
+      if (typeof result.status !== 'string') return false;
+      if (!['assessed', 'partially_assessed', 'unassessed'].includes(result.status)) return false;
+      if (typeof result.assessmentDate !== 'string') return false;
+      if (typeof result.provisional !== 'boolean') return false;
+      if (typeof result.attemptId !== 'string') return false;
+      if (typeof result.kind !== 'string') return false;
+      if (!['diagnostic_assessment', 'weekly_assessment', 'full_reassessment'].includes(result.kind)) return false;
+    }
+  }
+
+  if (s.snapshots !== undefined) {
+    if (!Array.isArray(s.snapshots)) return false;
+    for (const snapshot of s.snapshots) {
+      if (!snapshot || typeof snapshot !== 'object') return false;
+      if (typeof snapshot.id !== 'string') return false;
+      if (typeof snapshot.takenAt !== 'string') return false;
+      if (typeof snapshot.kind !== 'string') return false;
+      if (!['diagnostic_assessment', 'weekly_assessment', 'full_reassessment'].includes(snapshot.kind)) return false;
+      if (typeof snapshot.trigger !== 'string') return false;
+      if (!['scheduled', 'manual', 'post_baseline'].includes(snapshot.trigger)) return false;
+      if (!Array.isArray(snapshot.domainResults)) return false;
+    }
+  }
+
+  if (s.weaknessSignals !== undefined) {
+    if (!Array.isArray(s.weaknessSignals)) return false;
+    for (const signal of s.weaknessSignals) {
+      if (!signal || typeof signal !== 'object') return false;
+      if (typeof signal.id !== 'string') return false;
+      if (typeof signal.domainId !== 'string') return false;
+      if (typeof signal.strength !== 'number') return false;
+      if (![1, 2, 3].includes(signal.strength)) return false;
+      if (typeof signal.status !== 'string') return false;
+      if (!['open', 'reinforced', 'resolved'].includes(signal.status)) return false;
+      if (typeof signal.firstSeenAt !== 'string') return false;
+      if (typeof signal.lastSeenAt !== 'string') return false;
+      if (typeof signal.occurrences !== 'number') return false;
+      if (!Array.isArray(signal.sourceAttemptIds)) return false;
+    }
+  }
+
+  if (s.profile !== undefined) {
+    if (typeof s.profile !== 'object') return false;
+    const p = s.profile as Partial<AssessmentProfile>;
+    if (p.baselineCompletedAt !== undefined && typeof p.baselineCompletedAt !== 'string') return false;
+    if (p.lastSundayAt !== undefined && typeof p.lastSundayAt !== 'string') return false;
+    if (typeof p.pendingSunday !== 'boolean') return false;
+    if (p.nextReassessmentSuggestedAt !== undefined && typeof p.nextReassessmentSuggestedAt !== 'string') return false;
+  }
+
+  return true;
+}
+
+/**
+ * Prunes assessment raw responses per retention policy:
+ * - Keeps full responses for the most recent 12 attempts
+ * - Older attempts collapse to DomainAssessmentResult + snapshot summary
+ * - Raw responses older than 90 days are dropped
+ * - Snapshots are never pruned
+ */
+export function pruneAssessmentResponses(state: AssessmentState): AssessmentState {
+  const now = new Date();
+  const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+
+  // Group responses by attemptId
+  const responsesByAttempt = new Map<string, AssessmentResponse[]>();
+  for (const response of state.responses) {
+    const list = responsesByAttempt.get(response.attemptId) || [];
+    list.push(response);
+    responsesByAttempt.set(response.attemptId, list);
+  }
+
+  // Sort attempts by start time (newest first)
+  const attemptsSorted = [...state.attempts].sort((a, b) =>
+    new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+  );
+
+  const keepFullAttemptIds = new Set(attemptsSorted.slice(0, 12).map((a) => a.id));
+  const prunedResponses: AssessmentResponse[] = [];
+
+  for (const [attemptId, responses] of responsesByAttempt) {
+    if (keepFullAttemptIds.has(attemptId)) {
+      // Keep full responses for recent 12 attempts
+      prunedResponses.push(...responses);
+    } else {
+      // Check if attempt is older than 90 days
+      const attempt = state.attempts.find((a) => a.id === attemptId);
+      const attemptDate = attempt ? new Date(attempt.startedAt) : new Date(0);
+      if (attemptDate < ninetyDaysAgo) {
+        // Drop raw responses beyond 90 days - they're already represented in domainResults/snapshots
+        continue;
+      }
+      // Keep responses for attempts within 90 days but beyond 12 most recent
+      prunedResponses.push(...responses);
+    }
+  }
+
+  return {
+    ...state,
+    responses: prunedResponses,
+  };
+}
+
+export function applyAssessmentPruning(state: AppStorageState): AppStorageState {
+  if (!state.assessmentState) return state;
+  return {
+    ...state,
+    assessmentState: pruneAssessmentResponses(state.assessmentState),
+  };
+}
+
 /**
  * LocalStorage Adapter offering safe serialization, hydration, export, and reset capabilities.
  */
@@ -543,6 +732,7 @@ export const StorageAdapter = {
           dsaAttempts: validatedParsed.dsaAttempts || [],
           evidenceLogs: validatedParsed.evidenceLogs || [],
           customTaskDefinitions: validatedParsed.customTaskDefinitions || [],
+          assessmentState: validatedParsed.assessmentState,
         };
         this.saveState(migratedState);
         return migratedState;
@@ -634,6 +824,7 @@ export const StorageAdapter = {
           },
           practiceAttempts: parsed.practiceAttempts || [],
           preparationTopicProgress: parsed.preparationTopicProgress || {},
+          assessmentState: parsed.assessmentState,
         };
         this.saveState(migratedState);
         return { success: true, state: migratedState };
@@ -663,4 +854,19 @@ export const StorageAdapter = {
    * Validates import state strictly (exported for testing).
    */
   validateImportState,
+
+  /**
+   * Validates assessment state structure (exported for testing).
+   */
+  validateAssessmentState,
+
+  /**
+   * Prunes assessment raw responses per retention policy (exported for testing).
+   */
+  pruneAssessmentResponses,
+
+  /**
+   * Applies assessment pruning to full app state (exported for testing).
+   */
+  applyAssessmentPruning,
 };
