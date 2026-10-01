@@ -1,6 +1,10 @@
 import type { DomainId } from '../../types';
 import type { AssessmentItem } from '../../types';
-import { BASELINE_ASSESSMENT_DEFINITION, ASSESSMENT_DEFINITIONS } from './definitions';
+import {
+  BASELINE_ASSESSMENT_DEFINITION,
+  SUNDAY_MINI_TEST_DEFINITION,
+  ASSESSMENT_DEFINITIONS,
+} from './definitions';
 import {
   BASELINE_ASSESSMENT_ITEMS,
   M1_APTITUDE_ITEMS,
@@ -17,6 +21,7 @@ import {
 
 export {
   BASELINE_ASSESSMENT_DEFINITION,
+  SUNDAY_MINI_TEST_DEFINITION,
   ASSESSMENT_DEFINITIONS,
   BASELINE_ASSESSMENT_ITEMS,
   M1_APTITUDE_ITEMS,

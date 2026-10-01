@@ -42,7 +42,7 @@ export const DashboardView: React.FC = () => {
     restoreTaskTransaction, setRoute, companyOverlays, skillStates, dailyCheckIns,
     dailyTaskAssignments, commitDailyPlan, sealDayExecution,
     decomposeTask, practiceSessions, practiceAttempts,
-    recordPracticeAttempt, evidenceLogs,
+    recordPracticeAttempt, evidenceLogs, pendingSundayObligation,
   } = usePlacement();
 
   const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
@@ -296,6 +296,35 @@ export const DashboardView: React.FC = () => {
           evidenceScore={completionEvidence?.score}
           evidenceTopicLabel={completionEvidenceLabel}
         />
+      )}
+
+      {/* Sunday Mini Test Pending Notification (§18) */}
+      {pendingSundayObligation && (
+        <div
+          data-testid="sunday-obligation-banner"
+          className="bg-[#14171D] border-2 border-[#E5A93C] rounded-lg p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg shadow-[#E5A93C]/10"
+        >
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-[#E5A93C] text-xs font-semibold uppercase tracking-wider">
+              <Clock className="size-4" />
+              <span>Sunday Adaptive Mini Test Pending</span>
+            </div>
+            <h2 className="text-base font-bold text-[#F1F5F9]">
+              Weekly Calibration Assessment Scheduled
+            </h2>
+            <p className="text-xs text-[#8E98A8] max-w-2xl leading-relaxed">
+              Your deterministic 90-minute weekly calibration is ready. It targets your diagnosed weaknesses (60%), recent curriculum topics (20%), and retention checks (20%).
+            </p>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => setRoute('assessment')}
+            className="bg-[#E5A93C] hover:bg-[#D4982B] text-[#0D0F12] font-semibold flex items-center gap-2 shrink-0 self-start sm:self-center"
+          >
+            <span>Start Mini Test (90m)</span>
+            <ArrowRight className="size-4" />
+          </Button>
+        </div>
       )}
 
       {/* 1. CALM RITUAL HEADER */}

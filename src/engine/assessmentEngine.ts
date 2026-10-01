@@ -23,7 +23,10 @@ import type {
   WeaknessSignal,
   AssessmentState,
 } from '../types';
-import { BASELINE_ASSESSMENT_DEFINITION } from '../data/assessment/definitions';
+import {
+  BASELINE_ASSESSMENT_DEFINITION,
+  SUNDAY_MINI_TEST_DEFINITION,
+} from '../data/assessment/definitions';
 import { BASELINE_ASSESSMENT_ITEMS } from '../data/assessment/items';
 
 // ============================================================================
@@ -541,7 +544,9 @@ export function scoreAssessmentAttempt(
   attempt: AssessmentAttempt,
   responses: AssessmentResponse[],
   allItems: AssessmentItem[] = BASELINE_ASSESSMENT_ITEMS,
-  definition: AssessmentDefinition = BASELINE_ASSESSMENT_DEFINITION
+  definition: AssessmentDefinition = BASELINE_ASSESSMENT_DEFINITION,
+  existingExposures?: Record<string, AssessmentItemExposure>,
+  existingWeaknessSignals?: WeaknessSignal[]
 ): AssessmentScoringResult {
   const terminalAttempt = attempt.status === 'in_progress'
     ? transitionAttempt(attempt, isAttemptExpired(attempt) ? 'auto_submitted' : 'submitted')
@@ -578,10 +583,27 @@ export function scoreAssessmentAttempt(
     projects: 'topic-proj-rest',
   };
 
-  // Process all 10 assessable modules from definition
-  for (const moduleDef of definition.modules) {
+  const isWeekly = terminalAttempt.kind === 'weekly_assessment';
+
+  // Determine modules to evaluate: for weekly assessment, target domains present in selectedItemIds
+  const targetModules: Array<{ domainId: DomainId; itemCount: number }> = isWeekly
+    ? Array.from(
+        new Set(
+          terminalAttempt.selectedItemIds
+            .map((id) => itemMap.get(id)?.domainId)
+            .filter((d): d is DomainId => Boolean(d) && d !== 'projects')
+        )
+      ).map((domainId) => ({
+        domainId,
+        itemCount: terminalAttempt.selectedItemIds.filter((id) => itemMap.get(id)?.domainId === domainId).length,
+      }))
+    : definition.modules;
+
+  for (const moduleDef of targetModules) {
     const domainId = moduleDef.domainId;
-    const domainItems = allItems.filter((i) => i.domainId === domainId);
+    const domainItems = isWeekly
+      ? allItems.filter((i) => terminalAttempt.selectedItemIds.includes(i.id) && i.domainId === domainId)
+      : allItems.filter((i) => i.domainId === domainId);
 
     const scoredItems: Array<{ weight: number; credit: number; guessFloor: number }> = [];
     const difficultyBandsSet = new Set<number>();
@@ -624,31 +646,64 @@ export function scoreAssessmentAttempt(
       // Weakness identification (§12, §31)
       if (resp.result === 'incorrect' && item.errorCategories.length > 0) {
         const isConfidentError = resp.responseConfidence === 'confident';
-        weaknessSignals.push({
-          id: `ws-${domainId}-${item.competency}-${terminalAttempt.id}`,
-          domainId,
-          topicId: item.topicId,
-          competency: item.competency,
-          errorCategory: item.errorCategories[0],
-          strength: isConfidentError ? 3 : 2,
-          status: 'open',
-          firstSeenAt: assessmentDate,
-          lastSeenAt: assessmentDate,
-          occurrences: 1,
-          sourceAttemptIds: [terminalAttempt.id],
-        });
+        const existingSignal = (existingWeaknessSignals || []).find(
+          (ws) => ws.domainId === domainId && (ws.competency === item.competency || ws.topicId === item.topicId) && ws.status !== 'resolved'
+        );
+
+        if (existingSignal) {
+          weaknessSignals.push({
+            ...existingSignal,
+            status: 'reinforced',
+            strength: Math.min(3, isConfidentError ? existingSignal.strength + 1 : existingSignal.strength) as 1 | 2 | 3,
+            lastSeenAt: assessmentDate,
+            occurrences: existingSignal.occurrences + 1,
+            sourceAttemptIds: Array.from(new Set([...existingSignal.sourceAttemptIds, terminalAttempt.id])),
+          });
+        } else {
+          weaknessSignals.push({
+            id: `ws-${domainId}-${item.competency}-${terminalAttempt.id}`,
+            domainId,
+            topicId: item.topicId,
+            competency: item.competency,
+            errorCategory: item.errorCategories[0],
+            strength: isConfidentError ? 3 : 2,
+            status: 'open',
+            firstSeenAt: assessmentDate,
+            lastSeenAt: assessmentDate,
+            occurrences: 1,
+            sourceAttemptIds: [terminalAttempt.id],
+          });
+        }
+      } else if (resp.result === 'correct' && resp.responseConfidence === 'confident') {
+        const existingSignal = (existingWeaknessSignals || []).find(
+          (ws) => ws.domainId === domainId && ws.competency === item.competency && ws.status !== 'resolved'
+        );
+        if (existingSignal) {
+          weaknessSignals.push({
+            ...existingSignal,
+            status: 'resolved',
+            resolvedAt: assessmentDate,
+            lastSeenAt: assessmentDate,
+            sourceAttemptIds: Array.from(new Set([...existingSignal.sourceAttemptIds, terminalAttempt.id])),
+          });
+        }
       }
 
       // Exposure recording (§13)
+      const prevExposure = existingExposures?.[item.id];
+      const prevCount = prevExposure?.exposureCount ?? 0;
+      const prevUses = prevExposure?.estimationUses ?? 0;
+      const prevUsages = prevExposure?.previousAssessmentUsage ?? [];
+
       exposures[item.id] = {
         itemId: item.id,
-        exposureCount: 1,
+        exposureCount: prevCount + 1,
         lastSeenAt: assessmentDate,
         lastAttemptId: terminalAttempt.id,
         lastResult: resp.result,
-        previousAssessmentUsage: [terminalAttempt.kind],
-        estimationUses: 1,
-        eligibleForFutureEstimation: false,
+        previousAssessmentUsage: [...prevUsages, terminalAttempt.kind],
+        estimationUses: prevUses + 1,
+        eligibleForFutureEstimation: (prevUses + 1) < 2,
         releasedToPractice: item.exposurePolicy.releaseToPractice,
       };
     }
@@ -675,13 +730,11 @@ export function scoreAssessmentAttempt(
     const abilityScore = Math.min(100, Math.max(0, Math.round(chanceCorrectedCredit * 100)));
 
     // Minimum Evidence Threshold Check (§4.3)
-    // >= 5 scored responses (>= 4 for interviews), >= 2 difficulty bands, >= 2 competencies
     const minRequiredResponses = domainId === 'interviews' ? 4 : 5;
     const scoredResponsesCount = domainItems.length - unansweredCount;
-    const hasMinEvidence =
-      scoredResponsesCount >= minRequiredResponses &&
-      difficultyBandsSet.size >= 2 &&
-      competenciesSet.size >= 2;
+    const hasMinEvidence = isWeekly
+      ? scoredResponsesCount >= 1
+      : (scoredResponsesCount >= minRequiredResponses && difficultyBandsSet.size >= 2 && competenciesSet.size >= 2);
 
     // Status Assignment per §4.3
     let status: 'assessed' | 'partially_assessed' | 'unassessed';
@@ -690,7 +743,9 @@ export function scoreAssessmentAttempt(
     if (!hasMinEvidence) {
       status = 'partially_assessed';
     } else if (isClassB) {
-      status = 'partially_assessed'; // Class B is always partial construct by definition
+      status = 'partially_assessed';
+    } else if (isWeekly) {
+      status = 'partially_assessed';
     } else {
       status = 'assessed';
     }
@@ -702,11 +757,11 @@ export function scoreAssessmentAttempt(
     }
 
     // Confidence Derivation per §11.2 (0 to 1 normalized)
-    const obsFactor = Math.min(1, scoredResponsesCount / moduleDef.itemCount);
+    const obsFactor = Math.min(1, scoredResponsesCount / Math.max(1, moduleDef.itemCount));
     const covFactor = Math.min(1, competenciesSet.size / Math.max(1, domainItems.length / 2));
     const diffFactor = Math.min(1, difficultyBandsSet.size / 2);
     const consistencyFactor = scoredResponsesCount > 0 ? (correctCount === 0 || correctCount === scoredResponsesCount ? 1.0 : 0.8) : 0;
-    const qualityFactor = Math.max(0, 1 - (dkCount + unansweredCount) / domainItems.length);
+    const qualityFactor = Math.max(0, 1 - (dkCount + unansweredCount) / Math.max(1, domainItems.length));
     const formatRelFactor = domainItems.some((i) => i.scoring.kind === 'rubric' || i.scoring.kind === 'normalized_match') ? 0.95 : 0.85;
 
     const rawConfidenceScore =
@@ -743,7 +798,7 @@ export function scoreAssessmentAttempt(
         difficultyBands: Array.from(difficultyBandsSet),
       },
       assessmentDate,
-      provisional: true, // Baseline results are provisional until confirmed (§10.4)
+      provisional: true, // Baseline and weekly results are provisional until confirmed (§10.4)
       constructScope,
       attemptId: terminalAttempt.id,
       kind: terminalAttempt.kind,
@@ -765,37 +820,39 @@ export function scoreAssessmentAttempt(
         domainId,
         score: abilityScore,
         confidence: confRating,
-        details: `Assessment: diagnostic_assessment · ability ${abilityScore} · level ${level} · confidence ${confidence}`,
+        details: `Assessment: ${terminalAttempt.kind} · ability ${abilityScore} · level ${level} · confidence ${confidence}`,
       });
     }
   }
 
   // Projects Domain (Class C - Excluded from baseline per §20)
-  domainResults.push({
-    domainId: 'projects',
-    abilityScore: 0,
-    level: 0,
-    confidence: 'none',
-    status: 'unassessed',
-    coverage: {
-      topicsCovered: 0,
-      topicsTotal: 1,
-      competenciesCovered: [],
-      difficultyBands: [],
-    },
-    assessmentDate,
-    provisional: true,
-    constructScope: 'project_evidence_only',
-    attemptId: terminalAttempt.id,
-    kind: terminalAttempt.kind,
-  });
+  if (!isWeekly) {
+    domainResults.push({
+      domainId: 'projects',
+      abilityScore: 0,
+      level: 0,
+      confidence: 'none',
+      status: 'unassessed',
+      coverage: {
+        topicsCovered: 0,
+        topicsTotal: 1,
+        competenciesCovered: [],
+        difficultyBands: [],
+      },
+      assessmentDate,
+      provisional: true,
+      constructScope: 'project_evidence_only',
+      attemptId: terminalAttempt.id,
+      kind: terminalAttempt.kind,
+    });
+  }
 
   // Create Snapshot (§19, §31)
   const snapshot: AssessmentSnapshot = {
-    id: `snap-baseline-${terminalAttempt.id}`,
+    id: `snap-${terminalAttempt.kind}-${terminalAttempt.id}`,
     takenAt: assessmentDate,
     kind: terminalAttempt.kind,
-    trigger: 'post_baseline',
+    trigger: terminalAttempt.kind === 'weekly_assessment' ? 'scheduled' : 'post_baseline',
     domainResults,
   };
 
@@ -1349,23 +1406,799 @@ export function deriveAssessmentProfileReadout(
   };
 }
 
+// ============================================================================
+// Phase E: Sunday Adaptive Mini Test Engine (§15, §16, §18)
+// ============================================================================
+
+export const SUNDAY_TEST_CONSTANTS = {
+  MAX_DURATION_MINUTES: 90,
+  HARD_LIMIT_SECONDS: 5400,
+  ESTIMATED_TIME_BUDGET_MINUTES: 78, // 90 - 12 min buffer
+  SELECTION_BUDGET_MINUTES: 78,
+  BUFFER_MINUTES: 12,
+  TARGET_RATIOS: {
+    weakness: 0.60,
+    recent: 0.20,
+    retention: 0.20,
+  },
+  CONCENTRATION_CAPS: {
+    maxDomainShare: 0.40,
+    maxTopicShare: 0.35,
+    maxCompetencyShare: 0.50,
+  },
+  MIN_DISTINCT_DOMAINS: 6,
+  EXPOSURE_SUPPRESSION_DAYS: 14,
+  REPEAT_WEIGHT_WINDOW_DAYS: 60,
+  MAX_ESTIMATION_USES: 3,
+  SWING_CAP_RATIO: 0.50,
+  PRIORITY_WEIGHTS: {
+    P1: 0.30, // unresolved remediation
+    P2: 0.22, // high-confidence weakness
+    P3: 0.16, // repeated weakness
+    P4: 0.12, // recent learning retrieval
+    P5: 0.08, // retention coverage
+    P6: 0.06, // stale evidence
+    P7: 0.06, // assessment balance
+  },
+} as const;
+
 /**
- * Placeholder for future adaptive selection - will be implemented in Phase E
+ * Checks whether the learner is eligible to take Sunday mini-tests.
+ * Prerequisite: Baseline diagnostic assessment must be completed (§18, DECIDED 5).
+ * If baseline has not been completed, Sunday tests are suppressed and obligation stays none.
  */
-export function selectSundayTestItems(): never {
-  throw new Error('Not implemented in Phase C - see Phase E');
+export function isSundayTestEligible(assessmentState?: AssessmentState): boolean {
+  if (!assessmentState) return false;
+  return (assessmentState.attempts || []).some(
+    (a) => a.kind === 'diagnostic_assessment' && (a.status === 'submitted' || a.status === 'auto_submitted')
+  );
+}
+
+/**
+ * Checks pending obligation for Sunday mini test (§18).
+ * Missed Sundays roll forward as a single obligation; count NEVER exceeds 1.
+ */
+export function checkSundayObligation(
+  assessmentState?: AssessmentState,
+  currentDate: string = new Date().toISOString()
+): { pendingSunday: boolean; reason: string } {
+  if (!isSundayTestEligible(assessmentState)) {
+    return { pendingSunday: false, reason: 'Baseline diagnostic assessment has not been completed.' };
+  }
+
+  // Already pending in profile -> rolls forward as single obligation (§18)
+  if (assessmentState?.profile?.pendingSunday) {
+    return { pendingSunday: true, reason: 'Sunday mini-test obligation is pending.' };
+  }
+
+  const dateObj = new Date(currentDate);
+  const isSunday = dateObj.getDay() === 0;
+
+  if (isSunday) {
+    const todayISO = currentDate.split('T')[0];
+    const completedToday = (assessmentState?.attempts || []).some(
+      (a) => a.kind === 'weekly_assessment' &&
+             (a.status === 'submitted' || a.status === 'auto_submitted') &&
+             a.endedAt?.startsWith(todayISO)
+    );
+    if (!completedToday) {
+      return { pendingSunday: true, reason: 'Sunday mini-test is scheduled for today.' };
+    }
+  }
+
+  return { pendingSunday: false, reason: 'No pending Sunday obligation.' };
+}
+
+/**
+ * Validates whether an individual assessment item is eligible for inclusion in a Sunday mini test.
+ * Enforces §13 exposure rules and §15.2 constraints:
+ * - Must belong to assessment pool (origin === 'assessment')
+ * - Projects domain excluded per §20
+ * - Retired items excluded
+ * - Pool eligibility matches 'weekly' (or fallback to 'baseline' if no weekly items authored)
+ * - Excludes items seen in the last 14 days (§15.2 recent exposure rule)
+ * - Excludes estimation-exhausted items (exposureCount >= 3 or estimationUses >= 3)
+ */
+export function isItemEligibleForSundayTest(
+  item: AssessmentItem,
+  exposure?: AssessmentItemExposure,
+  currentDate?: string,
+  candidatePool?: AssessmentItem[]
+): boolean {
+  if (item.origin !== 'assessment') return false;
+  if (item.domainId === 'projects') return false;
+  if ((item as { retired?: boolean }).retired) return false;
+
+  // Bank eligibility: if any item in candidatePool is tagged 'weekly', enforce 'weekly'
+  const poolHasWeekly = candidatePool?.some((i) => i.eligibleFor.includes('weekly')) ?? false;
+  if (poolHasWeekly) {
+    if (!item.eligibleFor.includes('weekly')) return false;
+  } else {
+    if (!item.eligibleFor.includes('weekly') && !item.eligibleFor.includes('baseline')) {
+      return false;
+    }
+  }
+
+  // Exposure restrictions (§13.3 & §15.2)
+  if (exposure) {
+    if (exposure.eligibleForFutureEstimation === false) return false;
+    if (exposure.exposureCount >= 3 || exposure.estimationUses >= 2) return false;
+
+    // Recent exposure rule: Any item seen in the last 14 days is ineligible
+    if (exposure.lastSeenAt && currentDate) {
+      const currentMs = new Date(currentDate).getTime();
+      const lastSeenMs = new Date(exposure.lastSeenAt).getTime();
+      const daysSinceSeen = (currentMs - lastSeenMs) / (1000 * 3600 * 24);
+      if (daysSinceSeen < 14) return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Calculates item estimation weight applying the §13.3 repeat discount rules:
+ * - 1st use: Full weight (1.0)
+ * - 2nd use within 60 days: Weight ×0.5
+ * - ≥3rd use: 0.0 (excluded from estimation)
+ */
+export function calculateItemEstimationWeight(
+  item: AssessmentItem,
+  exposure?: AssessmentItemExposure,
+  currentDate?: string
+): number {
+  let multiplier = 1.0;
+
+  if (exposure) {
+    if (exposure.exposureCount >= 2 || exposure.estimationUses >= 2) {
+      multiplier = 0.0;
+    } else if (exposure.exposureCount === 1) {
+      if (exposure.lastSeenAt && currentDate) {
+        const days = (new Date(currentDate).getTime() - new Date(exposure.lastSeenAt).getTime()) / (1000 * 3600 * 24);
+        multiplier = days <= 60 ? 0.5 : 0.5;
+      } else {
+        multiplier = 0.5;
+      }
+    }
+  }
+
+  const baseWeight = getProvisionalDifficultyWeight(item.difficulty) * (item.scoring.weight ?? 1);
+  return baseWeight * multiplier;
+}
+
+export interface SundayScoringContext {
+  domainResults: Map<DomainId, DomainAssessmentResult>;
+  openWeaknesses: WeaknessSignal[];
+  historicalWeaknesses: WeaknessSignal[];
+  recentCompetencies: Set<string>;
+  previousSundayCompetencies: Set<string>;
+  lastTwoSundaysCompetencies: Set<string>;
+  domainCandidateCounts: Map<DomainId, number>;
+  totalCandidates: number;
+  currentDate: string;
+}
+
+/**
+ * Calculates deterministic priority score P1–P7 per §16.2.
+ * priorityScore = 0.30·P1 + 0.22·P2 + 0.16·P3 + 0.12·P4 + 0.08·P5 + 0.06·P6 + 0.06·P7
+ */
+export function calculateSundayPriorityScore(
+  item: AssessmentItem,
+  context: SundayScoringContext
+): {
+  priorityScore: number;
+  components: { P1: number; P2: number; P3: number; P4: number; P5: number; P6: number; P7: number };
+  primaryCategory: 'weakness' | 'recent' | 'retention';
+  reason: string;
+} {
+  // P1: Unresolved remediation (0.30)
+  const matchingOpenWeakness = context.openWeaknesses.find(
+    (ws) => ws.domainId === item.domainId && (ws.competency === item.competency || ws.topicId === item.topicId)
+  );
+  let P1 = matchingOpenWeakness ? 1.0 : 0.0;
+
+  // Hysteresis (§16.3): If targeted in last two Sunday tests, demote P1 by 0.5 unless new error category appeared
+  if (P1 > 0 && context.lastTwoSundaysCompetencies.has(item.competency)) {
+    P1 = 0.5;
+  }
+
+
+  // P2: High-confidence weakness (0.22)
+  const domainRes = context.domainResults.get(item.domainId);
+  const isWeakDomain = (domainRes && domainRes.level <= 2) || matchingOpenWeakness !== undefined;
+  const isHighConfidence = domainRes ? (domainRes.confidence === 'medium' || domainRes.confidence === 'high') : false;
+  const P2 = isWeakDomain && isHighConfidence ? 1.0 : 0.0;
+
+  // P3: Repeated weakness (0.16) - requires >= 2 supporting occurrences in history (§16.3)
+  const historicalMatch = context.historicalWeaknesses.find(
+    (ws) => ws.domainId === item.domainId && (ws.competency === item.competency || ws.topicId === item.topicId)
+  );
+  const P3 = historicalMatch && historicalMatch.occurrences >= 2 ? 1.0 : 0.0;
+
+  // P4: Recent learning needing retrieval (0.12)
+  const P4 = context.recentCompetencies.has(item.competency) ? 1.0 : 0.0;
+
+  // P5: Retention coverage (0.08) - strong/medium domain (level >= 3)
+  const isProficientDomain = domainRes && domainRes.level >= 3;
+  let P5 = 0.0;
+  if (isProficientDomain) {
+    if (domainRes.assessmentDate) {
+      const daysSinceAssessed = (new Date(context.currentDate).getTime() - new Date(domainRes.assessmentDate).getTime()) / (1000 * 3600 * 24);
+      if (daysSinceAssessed > 14) P5 = 1.0;
+    } else {
+      P5 = 1.0;
+    }
+  }
+
+  // P6: Stale / decaying evidence (0.06) - age > 30 days
+  let P6 = 0.0;
+  if (domainRes?.assessmentDate) {
+    const daysSince = (new Date(context.currentDate).getTime() - new Date(domainRes.assessmentDate).getTime()) / (1000 * 3600 * 24);
+    if (daysSince > 30) P6 = 1.0;
+  }
+
+  // P7: Assessment balance (0.06) - normalized candidate balance
+  const countInDomain = context.domainCandidateCounts.get(item.domainId) || 1;
+  const balanceRaw = context.totalCandidates > 0 ? 1.0 - (countInDomain / context.totalCandidates) : 0.5;
+  const P7 = Math.max(0, Math.min(1, balanceRaw));
+
+  const rawScore =
+    SUNDAY_TEST_CONSTANTS.PRIORITY_WEIGHTS.P1 * P1 +
+    SUNDAY_TEST_CONSTANTS.PRIORITY_WEIGHTS.P2 * P2 +
+    SUNDAY_TEST_CONSTANTS.PRIORITY_WEIGHTS.P3 * P3 +
+    SUNDAY_TEST_CONSTANTS.PRIORITY_WEIGHTS.P4 * P4 +
+    SUNDAY_TEST_CONSTANTS.PRIORITY_WEIGHTS.P5 * P5 +
+    SUNDAY_TEST_CONSTANTS.PRIORITY_WEIGHTS.P6 * P6 +
+    SUNDAY_TEST_CONSTANTS.PRIORITY_WEIGHTS.P7 * P7;
+
+  const priorityScore = Math.round(rawScore * 10000) / 10000;
+
+  let primaryCategory: 'weakness' | 'recent' | 'retention' = 'retention';
+  let reason = `Balanced domain sampling across syllabus for ${DOMAIN_METADATA[item.domainId]?.name ?? item.domainId}`;
+
+  if (P1 > 0 || P2 > 0 || P3 > 0) {
+    primaryCategory = 'weakness';
+    if (P1 > 0) {
+      reason = `Targeted unresolved weakness remediation in ${item.competency}`;
+    } else if (P2 > 0) {
+      reason = `High-confidence diagnosed weakness check in ${DOMAIN_METADATA[item.domainId]?.name ?? item.domainId}`;
+    } else {
+      reason = `Repeated error pattern review in ${item.competency}`;
+    }
+  } else if (P4 > 0) {
+    primaryCategory = 'recent';
+    reason = `Active retrieval check for recently practiced material in ${item.competency}`;
+  } else if (P5 > 0 || P6 > 0) {
+    primaryCategory = 'retention';
+    reason = `Retention decay check for demonstrated proficiency in ${DOMAIN_METADATA[item.domainId]?.name ?? item.domainId}`;
+  }
+
+  return {
+    priorityScore,
+    components: { P1, P2, P3, P4, P5, P6, P7 },
+    primaryCategory,
+    reason,
+  };
+}
+
+export interface SundaySelectionOptions {
+  assessmentState: AssessmentState;
+  allItems?: AssessmentItem[];
+  currentDate?: string;
+  seed?: string;
+  recentEvidenceCompetencies?: string[];
+  previousSundayCompetencies?: Set<string>;
+  targetMaxMinutes?: number;
+}
+
+
+export interface SundaySelectionResult {
+  selectedItemIds: string[];
+  selectedItems: AssessmentItem[];
+  totalEstimatedMinutes: number;
+  domainBreakdown: Record<DomainId, number>;
+  targetBreakdown: {
+    weaknessCount: number;
+    recentCount: number;
+    retentionCount: number;
+  };
+  selectionExceptions: string[];
+  itemReasons: Record<string, string>;
+}
+
+/**
+ * Deterministic seeded random number generator (Linear Congruential Generator).
+ */
+function createSeededPRNG(seedStr: string): () => number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < seedStr.length; i++) {
+    h ^= seedStr.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return () => {
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    return ((h ^= h >>> 16) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Adaptive Selection Algorithm for Sunday Mini Tests (§15 & §16).
+ * Selects items dynamically under 78-minute estimated budget, enforcing:
+ * - 60% weakness / 20% recent / 20% retention mix
+ * - Domain coverage floor (>= 1 item per eligible non-unassessed domain)
+ * - Weakness domain floor (>= 2 items per weakness domain)
+ * - Concentration caps (<= 40% domain, <= 35% topic, <= 50% competency)
+ * - Swing cap (<= 50% from competencies targeted in previous Sunday)
+ * - Minimum 6 distinct domains where candidate supply allows
+ * - Deterministic tie-breaking and seeded item sequencing
+ */
+export function selectSundayTestItems(options: SundaySelectionOptions): SundaySelectionResult {
+  const {
+    assessmentState,
+    allItems = BASELINE_ASSESSMENT_ITEMS,
+    currentDate = new Date().toISOString(),
+    seed = `sunday-${Date.now()}`,
+    recentEvidenceCompetencies = [],
+    targetMaxMinutes = SUNDAY_TEST_CONSTANTS.ESTIMATED_TIME_BUDGET_MINUTES,
+  } = options;
+
+  if (!isSundayTestEligible(assessmentState)) {
+    throw new Error('Baseline diagnostic assessment must be completed before selecting Sunday mini test items.');
+  }
+
+  const selectionExceptions: string[] = [];
+  const domainResultMap = new Map<DomainId, DomainAssessmentResult>();
+  for (const dr of assessmentState.domainResults || []) {
+    domainResultMap.set(dr.domainId, dr);
+  }
+
+  const openWeaknesses = (assessmentState.weaknessSignals || []).filter((ws) => ws.status === 'open' || ws.status === 'reinforced');
+  const historicalWeaknesses = assessmentState.weaknessSignals || [];
+
+  // Identify competencies targeted in previous Sunday attempts
+  const weeklyAttempts = (assessmentState.attempts || []).filter(
+    (a) => a.kind === 'weekly_assessment' && (a.status === 'submitted' || a.status === 'auto_submitted')
+  );
+  const previousSunday = weeklyAttempts[weeklyAttempts.length - 1];
+  const secondPreviousSunday = weeklyAttempts[weeklyAttempts.length - 2];
+
+  const itemMap = new Map(allItems.map((i) => [i.id, i]));
+  const previousSundayCompetencies = new Set<string>(options.previousSundayCompetencies || []);
+  if (previousSunday) {
+    for (const id of previousSunday.selectedItemIds) {
+      const item = itemMap.get(id);
+      if (item) previousSundayCompetencies.add(item.competency);
+    }
+  }
+
+
+  const lastTwoSundaysCompetencies = new Set<string>(previousSundayCompetencies);
+  if (secondPreviousSunday) {
+    for (const id of secondPreviousSunday.selectedItemIds) {
+      const item = itemMap.get(id);
+      if (item) lastTwoSundaysCompetencies.add(item.competency);
+    }
+  }
+
+  // Filter eligible candidates
+  const eligibleCandidates = allItems.filter((item) =>
+    isItemEligibleForSundayTest(item, assessmentState.exposures?.[item.id], currentDate, allItems)
+  );
+
+  if (eligibleCandidates.length === 0) {
+    selectionExceptions.push('candidate_pool_empty');
+    return {
+      selectedItemIds: [],
+      selectedItems: [],
+      totalEstimatedMinutes: 0,
+      domainBreakdown: {} as Record<DomainId, number>,
+      targetBreakdown: { weaknessCount: 0, recentCount: 0, retentionCount: 0 },
+      selectionExceptions,
+      itemReasons: {},
+    };
+  }
+
+  // Count candidates per domain
+  const domainCandidateCounts = new Map<DomainId, number>();
+  for (const item of eligibleCandidates) {
+    domainCandidateCounts.set(item.domainId, (domainCandidateCounts.get(item.domainId) || 0) + 1);
+  }
+
+  const scoringContext: SundayScoringContext = {
+    domainResults: domainResultMap,
+    openWeaknesses,
+    historicalWeaknesses,
+    recentCompetencies: new Set(recentEvidenceCompetencies),
+    previousSundayCompetencies,
+    lastTwoSundaysCompetencies,
+    domainCandidateCounts,
+    totalCandidates: eligibleCandidates.length,
+    currentDate,
+  };
+
+  // Score all eligible candidates
+  interface ScoredCandidate {
+    item: AssessmentItem;
+    priorityScore: number;
+    primaryCategory: 'weakness' | 'recent' | 'retention';
+    reason: string;
+    exposureCount: number;
+  }
+
+  const scoredCandidates: ScoredCandidate[] = eligibleCandidates.map((item) => {
+    const scored = calculateSundayPriorityScore(item, scoringContext);
+    const exposure = assessmentState.exposures?.[item.id];
+    return {
+      item,
+      priorityScore: scored.priorityScore,
+      primaryCategory: scored.primaryCategory,
+      reason: scored.reason,
+      exposureCount: exposure?.exposureCount ?? 0,
+    };
+  });
+
+  // Sort descending by priorityScore -> ascending by exposureCount -> ascending by item.id
+
+  scoredCandidates.sort((a, b) => {
+    if (b.priorityScore !== a.priorityScore) {
+      return b.priorityScore - a.priorityScore;
+    }
+    if (a.exposureCount !== b.exposureCount) {
+      return a.exposureCount - b.exposureCount; // novel item preference
+    }
+    return a.item.id.localeCompare(b.item.id);
+  });
+
+  const selectedItems: AssessmentItem[] = [];
+  const selectedItemIds = new Set<string>();
+  const itemReasons: Record<string, string> = {};
+  let totalEstimatedMinutes = 0;
+
+  const domainCounts: Record<string, number> = {};
+  const topicCounts: Record<string, number> = {};
+  const competencyCounts: Record<string, number> = {};
+  let prevSundayTargetedCount = 0;
+
+  const canAddItem = (cand: ScoredCandidate, isFloorPass: boolean = false): boolean => {
+    if (selectedItemIds.has(cand.item.id)) return false;
+    if (totalEstimatedMinutes + cand.item.estimatedMinutes > targetMaxMinutes) return false;
+
+    if (isFloorPass) return true; // Floors bypass concentration caps up to 2 items
+
+    const nextTotal = selectedItems.length + 1;
+    if (nextTotal > 2) {
+      const nextDomainCount = (domainCounts[cand.item.domainId] || 0) + 1;
+      if (nextDomainCount / nextTotal > SUNDAY_TEST_CONSTANTS.CONCENTRATION_CAPS.maxDomainShare) {
+        return false;
+      }
+
+      const nextTopicCount = (topicCounts[cand.item.topicId] || 0) + 1;
+      if (nextTopicCount / nextTotal > SUNDAY_TEST_CONSTANTS.CONCENTRATION_CAPS.maxTopicShare) {
+        return false;
+      }
+
+      const nextCompCount = (competencyCounts[cand.item.competency] || 0) + 1;
+      if (nextCompCount / nextTotal > SUNDAY_TEST_CONSTANTS.CONCENTRATION_CAPS.maxCompetencyShare) {
+        return false;
+      }
+
+      // Swing cap (§16.3): no more than 50% from competencies targeted in previous Sunday
+      if (previousSundayCompetencies.has(cand.item.competency)) {
+        if ((prevSundayTargetedCount + 1) / nextTotal > SUNDAY_TEST_CONSTANTS.SWING_CAP_RATIO) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  };
+
+  const categoryCounts: Record<'weakness' | 'recent' | 'retention', number> = {
+    weakness: 0,
+    recent: 0,
+    retention: 0,
+  };
+
+  const addItem = (cand: ScoredCandidate) => {
+    selectedItems.push(cand.item);
+    selectedItemIds.add(cand.item.id);
+    totalEstimatedMinutes += cand.item.estimatedMinutes;
+    itemReasons[cand.item.id] = cand.reason;
+
+    domainCounts[cand.item.domainId] = (domainCounts[cand.item.domainId] || 0) + 1;
+    topicCounts[cand.item.topicId] = (topicCounts[cand.item.topicId] || 0) + 1;
+    competencyCounts[cand.item.competency] = (competencyCounts[cand.item.competency] || 0) + 1;
+    categoryCounts[cand.primaryCategory] = (categoryCounts[cand.primaryCategory] || 0) + 1;
+
+    if (previousSundayCompetencies.has(cand.item.competency)) {
+      prevSundayTargetedCount++;
+    }
+  };
+
+  // Phase 1: Guaranteed Coverage Floors (§15.2)
+  // Floor A: Domains with open weakness signals get >= 2 items where supply allows
+  const weaknessDomains = Array.from(new Set(openWeaknesses.map((ws) => ws.domainId))).filter((d) => d !== 'projects');
+  for (const domainId of weaknessDomains) {
+    const domainCandidates = scoredCandidates.filter((c) => c.item.domainId === domainId);
+    let added = 0;
+    for (const cand of domainCandidates) {
+      if (added >= 2) break;
+      if (canAddItem(cand, true)) {
+        addItem(cand);
+        added++;
+      }
+    }
+    if (added < 2 && domainCandidates.length < 2) {
+      selectionExceptions.push(`weakness_floor_exhausted:${domainId}`);
+    }
+  }
+
+  // Floor B: Every eligible non-unassessed domain gets >= 1 item where supply allows
+  const nonUnassessedDomains: DomainId[] = [
+    'aptitude', 'dsa', 'python', 'sql', 'dbms',
+    'oop', 'os', 'cn', 'communication', 'interviews'
+  ];
+  for (const domainId of nonUnassessedDomains) {
+    if ((domainCounts[domainId] || 0) >= 1) continue;
+    const cand = scoredCandidates.find((c) => c.item.domainId === domainId && canAddItem(c, true));
+    if (cand) {
+      addItem(cand);
+    } else {
+      selectionExceptions.push(`domain_floor_exhausted:${domainId}`);
+    }
+  }
+
+  // Phase 2: Target 60/20/20 Composition Allocation (§15.1, §16.2)
+  // Candidate pools partitioned by category, sorted by priorityScore desc -> exposureCount asc -> id asc
+  const candidatePools: Record<'weakness' | 'recent' | 'retention', ScoredCandidate[]> = {
+    weakness: scoredCandidates.filter((c) => c.primaryCategory === 'weakness'),
+    recent: scoredCandidates.filter((c) => c.primaryCategory === 'recent'),
+    retention: scoredCandidates.filter((c) => c.primaryCategory === 'retention'),
+  };
+
+  const categories: Array<'weakness' | 'recent' | 'retention'> = ['weakness', 'recent', 'retention'];
+
+  while (totalEstimatedMinutes < targetMaxMinutes) {
+    const nextTotal = selectedItems.length + 1;
+
+    // Calculate deficits for each category relative to 60/20/20 target mix
+    const deficits = categories.map((cat) => {
+      const targetCount = nextTotal * SUNDAY_TEST_CONSTANTS.TARGET_RATIOS[cat];
+      const currentCount = categoryCounts[cat] || 0;
+      return {
+        category: cat,
+        deficit: targetCount - currentCount,
+      };
+    });
+
+    // Sort categories: highest deficit first.
+    // Tie-break: top available candidate priorityScore -> target ratio
+    deficits.sort((a, b) => {
+      if (Math.abs(b.deficit - a.deficit) > 0.0001) {
+        return b.deficit - a.deficit;
+      }
+      const topA = candidatePools[a.category].find((c) => !selectedItemIds.has(c.item.id) && canAddItem(c, false));
+      const topB = candidatePools[b.category].find((c) => !selectedItemIds.has(c.item.id) && canAddItem(c, false));
+      const scoreA = topA ? topA.priorityScore : -1;
+      const scoreB = topB ? topB.priorityScore : -1;
+      if (scoreA !== scoreB) {
+        return scoreB - scoreA;
+      }
+      return SUNDAY_TEST_CONSTANTS.TARGET_RATIOS[b.category] - SUNDAY_TEST_CONSTANTS.TARGET_RATIOS[a.category];
+    });
+
+    let addedInThisStep = false;
+    for (const { category } of deficits) {
+      // Find the next eligible candidate in this category that satisfies all constraints
+      // (Deterministic replacement from the same category if an earlier candidate is blocked by constraints)
+      const cand = candidatePools[category].find((c) => !selectedItemIds.has(c.item.id) && canAddItem(c, false));
+      if (cand) {
+        addItem(cand);
+        addedInThisStep = true;
+        break;
+      } else {
+        const hasUnselectedSupply = candidatePools[category].some((c) => !selectedItemIds.has(c.item.id));
+        const exceptionKey = hasUnselectedSupply
+          ? `category_constrained:${category}`
+          : `category_exhausted:${category}`;
+        if (!selectionExceptions.includes(exceptionKey)) {
+          selectionExceptions.push(exceptionKey);
+        }
+      }
+    }
+
+    if (!addedInThisStep) {
+      break;
+    }
+  }
+
+  // Phase 3: Domain Breadth Check (>= 6 distinct domains §15.2)
+  const distinctDomains = Object.keys(domainCounts);
+  if (distinctDomains.length < SUNDAY_TEST_CONSTANTS.MIN_DISTINCT_DOMAINS) {
+    const unrepresented = nonUnassessedDomains.filter((d) => !domainCounts[d]);
+    for (const domainId of unrepresented) {
+      if (totalEstimatedMinutes >= targetMaxMinutes) break;
+      const cand = scoredCandidates.find(
+        (c) => c.item.domainId === domainId && !selectedItemIds.has(c.item.id) && canAddItem(c, true)
+      );
+      if (cand) {
+        addItem(cand);
+      }
+    }
+    const finalDistinct = Object.keys(domainCounts).length;
+    if (finalDistinct < SUNDAY_TEST_CONSTANTS.MIN_DISTINCT_DOMAINS) {
+      selectionExceptions.push(`domain_breadth_constrained:${finalDistinct}`);
+    }
+  }
+
+  // Deterministic item sequence using seeded PRNG (§16.3)
+  const prng = createSeededPRNG(seed);
+  // Fisher-Yates deterministic shuffle with seeded PRNG
+  const orderedItems = [...selectedItems];
+  for (let i = orderedItems.length - 1; i > 0; i--) {
+    const j = Math.floor(prng() * (i + 1));
+    [orderedItems[i], orderedItems[j]] = [orderedItems[j], orderedItems[i]];
+  }
+
+  let weaknessCount = 0;
+  let recentCount = 0;
+  let retentionCount = 0;
+
+  for (const item of selectedItems) {
+    const cand = scoredCandidates.find((c) => c.item.id === item.id);
+    if (cand?.primaryCategory === 'weakness') weaknessCount++;
+    else if (cand?.primaryCategory === 'recent') recentCount++;
+    else retentionCount++;
+  }
+
+  const domainBreakdown: Record<DomainId, number> = {} as Record<DomainId, number>;
+  for (const [d, count] of Object.entries(domainCounts)) {
+    domainBreakdown[d as DomainId] = count;
+  }
+
+  return {
+    selectedItemIds: orderedItems.map((i) => i.id),
+    selectedItems: orderedItems,
+    totalEstimatedMinutes: totalEstimatedMinutes === undefined || totalEstimatedMinutes === null ? 0 : totalEstimatedMinutes,
+    domainBreakdown,
+    targetBreakdown: { weaknessCount, recentCount, retentionCount },
+    selectionExceptions,
+    itemReasons,
+  };
+}
+
+/**
+ * Builds a deterministic Sunday Adaptive Mini Test attempt (§15).
+ * Validates baseline prerequisite, selects items under 78m budget, sets 90m hard time limit.
+ */
+export function buildSundayMiniTestAttempt(
+  assessmentState: AssessmentState,
+  options?: Partial<SundaySelectionOptions>
+): { attempt: AssessmentAttempt; selection: SundaySelectionResult } {
+  if (!isSundayTestEligible(assessmentState)) {
+    throw new Error('Baseline diagnostic assessment must be completed before starting Sunday mini test.');
+  }
+
+  const seed = options?.seed || `sunday-${Date.now()}`;
+  const selection = selectSundayTestItems({
+    assessmentState,
+    ...options,
+    seed,
+  });
+
+  const attempt: AssessmentAttempt = {
+    id: `attempt-weekly-${Date.now()}`,
+    definitionId: SUNDAY_MINI_TEST_DEFINITION.id,
+    definitionVersion: 1,
+    kind: 'weekly_assessment',
+    status: 'in_progress',
+    startedAt: options?.currentDate || new Date().toISOString(),
+    timeLimitSeconds: SUNDAY_TEST_CONSTANTS.HARD_LIMIT_SECONDS,
+    seed,
+    selectedItemIds: selection.selectedItemIds,
+    selectionExceptions: selection.selectionExceptions.length > 0 ? selection.selectionExceptions : undefined,
+  };
+
+  return { attempt, selection };
+}
+
+export interface WeeklyAssessmentReadout {
+  isAssessed: boolean;
+  attemptId: string;
+  completedAt: string;
+  totalTimeMinutes: number;
+  totalItems: number;
+  correctCount: number;
+  accuracyPct: number;
+  domainResults: DomainAssessmentResult[];
+  weaknessesTargeted: {
+    domainId: DomainId;
+    competency: string;
+    status: 'resolved' | 'reinforced' | 'open';
+    remediationAction: string;
+  }[];
+  retentionChecks: {
+    domainId: DomainId;
+    level: number;
+    abilityScore: number;
+  }[];
+  itemReasons: Record<string, string>;
+}
+
+/**
+ * Derives a structured weekly assessment readout for completed Sunday tests.
+ */
+export function deriveWeeklyAssessmentReadout(
+  attempt: AssessmentAttempt,
+  responses: AssessmentResponse[],
+  assessmentState?: AssessmentState,
+  _allItems: AssessmentItem[] = BASELINE_ASSESSMENT_ITEMS
+): WeeklyAssessmentReadout {
+  const totalItems = attempt.selectedItemIds.length;
+
+
+  let correctCount = 0;
+  for (const resp of responses) {
+    if (resp.attemptId === attempt.id && resp.result === 'correct') {
+      correctCount++;
+    }
+  }
+
+  const accuracyPct = totalItems > 0 ? Math.round((correctCount / totalItems) * 100) : 0;
+  const startedMs = new Date(attempt.startedAt).getTime();
+  const endedMs = attempt.endedAt ? new Date(attempt.endedAt).getTime() : Date.now();
+  const totalTimeMinutes = Math.max(1, Math.round((endedMs - startedMs) / 60000));
+
+  const domainResults = (assessmentState?.domainResults || []).filter((dr) => dr.attemptId === attempt.id);
+
+  const weaknessesTargeted: WeeklyAssessmentReadout['weaknessesTargeted'] = [];
+  const openSignals = (assessmentState?.weaknessSignals || []).filter(
+    (ws) => ws.sourceAttemptIds.includes(attempt.id) || ws.status === 'open'
+  );
+
+  for (const ws of openSignals) {
+    weaknessesTargeted.push({
+      domainId: ws.domainId,
+      competency: ws.competency || 'general',
+      status: ws.status,
+      remediationAction: getRemediationAction(ws.errorCategory, ws.competency || 'general'),
+    });
+  }
+
+  const retentionChecks = domainResults
+    .filter((dr) => dr.level >= 3)
+    .map((dr) => ({
+      domainId: dr.domainId,
+      level: dr.level,
+      abilityScore: dr.abilityScore,
+    }));
+
+  return {
+    isAssessed: true,
+    attemptId: attempt.id,
+    completedAt: attempt.endedAt || new Date().toISOString(),
+    totalTimeMinutes,
+    totalItems,
+    correctCount,
+    accuracyPct,
+    domainResults,
+    weaknessesTargeted,
+    retentionChecks,
+    itemReasons: {},
+  };
 }
 
 /**
  * Placeholder for future level regression logic - will be implemented in Phase F
  */
 export function checkLevelRegression(): never {
-  throw new Error('Not implemented in Phase C - see Phase F');
+  throw new Error('Not implemented in Phase E - see Phase F');
 }
 
 /**
  * Placeholder for future full reassessment - will be implemented in Phase F
  */
 export function runFullReassessment(): never {
-  throw new Error('Not implemented in Phase C - see Phase F');
+  throw new Error('Not implemented in Phase E - see Phase F');
 }

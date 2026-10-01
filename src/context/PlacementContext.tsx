@@ -39,15 +39,22 @@ import { applyTaskStateUpdate, applyTaskStateRestore, type TaskStateAction, type
 import { applyPracticeAttempt } from '../engine/practiceEngine';
 import {
   buildBaselineAttempt,
+  buildSundayMiniTestAttempt,
+  isSundayTestEligible,
+  checkSundayObligation,
   evaluateItemResponse,
   scoreAssessmentAttempt,
   transitionAttempt,
   deriveAssessmentProfileReadout,
   type AssessmentScoringResult,
   type AssessmentProfileReadout,
+  type SundaySelectionOptions,
 } from '../engine/assessmentEngine';
 import { BASELINE_ASSESSMENT_ITEMS } from '../data/assessment/items';
-import { BASELINE_ASSESSMENT_DEFINITION } from '../data/assessment/definitions';
+import {
+  BASELINE_ASSESSMENT_DEFINITION,
+  SUNDAY_MINI_TEST_DEFINITION,
+} from '../data/assessment/definitions';
 
 export type RoutePath = 'dashboard' | 'roadmap' | 'dsa' | 'skills' | 'practice' | 'preparation' | 'project' | 'companies' | 'analytics' | 'settings' | 'assessment';
 
@@ -139,6 +146,9 @@ interface PlacementContextType {
   importBackupJSON: (jsonStr: string) => { success: boolean; error?: string };
   storageBytes: number;
   startBaselineAssessment: () => AssessmentAttempt;
+  startSundayAssessment: (options?: Partial<SundaySelectionOptions>) => AssessmentAttempt;
+  isSundayEligible: boolean;
+  pendingSundayObligation: boolean;
   recordAssessmentResponse: (
     attemptId: string,
     itemId: string,
@@ -637,6 +647,37 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return newAttempt;
   };
 
+  const startSundayAssessment = (options?: Partial<SundaySelectionOptions>): AssessmentAttempt => {
+    if (!isSundayTestEligible(appState.assessmentState)) {
+      throw new Error('Baseline diagnostic assessment must be completed before starting Sunday mini test.');
+    }
+    const { attempt } = buildSundayMiniTestAttempt(appState.assessmentState!, options);
+    setAppState((prev) => {
+      const existingState = prev.assessmentState ?? {
+        attempts: [],
+        responses: [],
+        exposures: {},
+        domainResults: [],
+        snapshots: [],
+        weaknessSignals: [],
+        profile: { pendingSunday: false },
+      };
+      const updatedAttempts = existingState.attempts.map((a) =>
+        a.status === 'in_progress'
+          ? { ...a, status: 'abandoned' as const, endedAt: new Date().toISOString() }
+          : a
+      );
+      return {
+        ...prev,
+        assessmentState: {
+          ...existingState,
+          attempts: [...updatedAttempts, attempt],
+        },
+      };
+    });
+    return attempt;
+  };
+
   const recordAssessmentResponse = (
     attemptId: string,
     itemId: string,
@@ -690,11 +731,18 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const terminalStatus = isAuto ? 'auto_submitted' : 'submitted';
     const attemptResponses = (existingState?.responses || []).filter((r) => r.attemptId === attemptId);
 
+    const isWeekly = attempt.kind === 'weekly_assessment';
+    const definition = isWeekly
+      ? SUNDAY_MINI_TEST_DEFINITION
+      : BASELINE_ASSESSMENT_DEFINITION;
+
     const scoringResult = scoreAssessmentAttempt(
       attempt.status === 'in_progress' ? transitionAttempt(attempt, terminalStatus) : attempt,
       attemptResponses,
       BASELINE_ASSESSMENT_ITEMS,
-      BASELINE_ASSESSMENT_DEFINITION
+      definition,
+      existingState?.exposures,
+      existingState?.weaknessSignals
     );
 
     setAppState((prev) => {
@@ -736,7 +784,9 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           weaknessSignals: [...otherWeaknesses, ...scoringResult.weaknessSignals],
           profile: {
             ...curr.profile,
-            baselineCompletedAt: scoringResult.attempt.endedAt,
+            baselineCompletedAt: scoringResult.attempt.kind === 'diagnostic_assessment' ? scoringResult.attempt.endedAt : curr.profile.baselineCompletedAt,
+            lastSundayAt: scoringResult.attempt.kind === 'weekly_assessment' ? scoringResult.attempt.endedAt : curr.profile.lastSundayAt,
+            pendingSunday: scoringResult.attempt.kind === 'weekly_assessment' ? false : curr.profile.pendingSunday,
           },
         },
       };
@@ -748,6 +798,44 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const activeAssessmentAttempt = appState.assessmentState?.attempts.find(
     (a) => a.status === 'in_progress'
   );
+
+  const isSundayEligible = useMemo(() => {
+    return isSundayTestEligible(appState.assessmentState);
+  }, [appState.assessmentState]);
+
+  const pendingSundayObligation = useMemo(() => {
+    return checkSundayObligation(appState.assessmentState, todayDate).pendingSunday;
+  }, [appState.assessmentState, todayDate]);
+
+  useEffect(() => {
+    if (
+      isSundayEligible &&
+      !appState.assessmentState?.profile?.pendingSunday &&
+      new Date(todayDate).getDay() === 0
+    ) {
+      const completedToday = (appState.assessmentState?.attempts || []).some(
+        (a) =>
+          a.kind === 'weekly_assessment' &&
+          (a.status === 'submitted' || a.status === 'auto_submitted') &&
+          a.endedAt?.startsWith(todayDate)
+      );
+      if (!completedToday) {
+        setAppState((prev) => {
+          if (!prev.assessmentState || prev.assessmentState.profile?.pendingSunday) return prev;
+          return {
+            ...prev,
+            assessmentState: {
+              ...prev.assessmentState,
+              profile: {
+                ...prev.assessmentState.profile,
+                pendingSunday: true,
+              },
+            },
+          };
+        });
+      }
+    }
+  }, [todayDate, isSundayEligible, appState.assessmentState]);
 
   const assessmentProfileReadout = useMemo(() => {
     return deriveAssessmentProfileReadout(appState.assessmentState);
@@ -801,6 +889,9 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         importBackupJSON,
         storageBytes: StorageAdapter.getStorageBytes(),
         startBaselineAssessment,
+        startSundayAssessment,
+        isSundayEligible,
+        pendingSundayObligation,
         recordAssessmentResponse,
         submitAssessmentAttempt,
         activeAssessmentAttempt,

@@ -477,6 +477,7 @@ export interface WeaknessSignal {
   lastSeenAt: string; // ISO timestamp
   occurrences: number;
   sourceAttemptIds: string[];
+  resolvedAt?: string; // ISO timestamp — set when weakness is resolved via correct assessment response
 }
 
 export interface AssessmentProfile {

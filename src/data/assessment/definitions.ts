@@ -87,6 +87,23 @@ export const BASELINE_ASSESSMENT_DEFINITION: AssessmentDefinition = {
   version: 1,
 };
 
+/**
+ * Sunday Adaptive Mini Test Definition (§15)
+ *
+ * 90-minute hard limit.
+ * Dynamic composition: 60% prior weaknesses, 20% recent material, 20% retention.
+ * Estimated time budget <= 78 min (+ 12 min buffer).
+ */
+export const SUNDAY_MINI_TEST_DEFINITION: AssessmentDefinition = {
+  id: 'sunday-mini-test-v1',
+  kind: 'weekly_assessment',
+  name: 'PlacementOS Sunday Adaptive Mini Test',
+  timeLimitMinutes: 90,
+  modules: [],
+  version: 1,
+};
+
 export const ASSESSMENT_DEFINITIONS: AssessmentDefinition[] = [
   BASELINE_ASSESSMENT_DEFINITION,
+  SUNDAY_MINI_TEST_DEFINITION,
 ];

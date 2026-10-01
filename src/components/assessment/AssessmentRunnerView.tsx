@@ -2,7 +2,10 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { usePlacement } from '../../context/PlacementContext';
 import { BASELINE_ASSESSMENT_DEFINITION } from '../../data/assessment/definitions';
 import { BASELINE_ASSESSMENT_ITEMS } from '../../data/assessment/items';
-import { isAttemptExpired } from '../../engine/assessmentEngine';
+import {
+  isAttemptExpired,
+  deriveWeeklyAssessmentReadout,
+} from '../../engine/assessmentEngine';
 import type {
   AssessmentConfidence,
   AssessmentItem,
@@ -24,12 +27,16 @@ import {
   Activity,
   Layers,
   TrendingUp,
+  Calendar,
 } from 'lucide-react';
 
 export const AssessmentRunnerView: React.FC = () => {
   const {
     assessmentState,
     startBaselineAssessment,
+    startSundayAssessment,
+    pendingSundayObligation,
+
     recordAssessmentResponse,
     submitAssessmentAttempt,
     activeAssessmentAttempt,
@@ -37,7 +44,7 @@ export const AssessmentRunnerView: React.FC = () => {
     setRoute,
   } = usePlacement();
 
-  // Active question index (0 to 83)
+  // Active question index
   const [currentIdx, setCurrentIdx] = useState<number>(0);
   // Show submission confirmation modal
   const [showSubmitModal, setShowSubmitModal] = useState<boolean>(false);
@@ -45,6 +52,9 @@ export const AssessmentRunnerView: React.FC = () => {
   const [textInput, setTextInput] = useState<string>('');
   // Wall-clock remaining seconds
   const [timeRemainingSeconds, setTimeRemainingSeconds] = useState<number>(180 * 60);
+  // Readout sub-tab
+  const [readoutTab, setReadoutTab] = useState<'baseline' | 'weekly'>('baseline');
+  const [selectedWeeklyAttemptId, setSelectedWeeklyAttemptId] = useState<string | null>(null);
 
   // Selected item sequence based on active attempt or default definition
   const orderedItems: AssessmentItem[] = useMemo(() => {
@@ -141,14 +151,40 @@ export const AssessmentRunnerView: React.FC = () => {
     }
   };
 
-  // Find latest completed attempt for metadata
-  const latestCompletedAttempt = useMemo(() => {
-    if (!assessmentState?.attempts) return undefined;
-    const completed = assessmentState.attempts.filter(
+  // Find completed baseline and weekly attempts for metadata
+  const completedBaselineAttempts = useMemo(() => {
+    if (!assessmentState?.attempts) return [];
+    return assessmentState.attempts.filter(
       (a) => a.kind === 'diagnostic_assessment' && (a.status === 'submitted' || a.status === 'auto_submitted')
     );
-    return completed[completed.length - 1];
   }, [assessmentState]);
+
+  const completedWeeklyAttempts = useMemo(() => {
+    if (!assessmentState?.attempts) return [];
+    return assessmentState.attempts.filter(
+      (a) => a.kind === 'weekly_assessment' && (a.status === 'submitted' || a.status === 'auto_submitted')
+    );
+  }, [assessmentState]);
+
+  const latestCompletedAttempt = completedBaselineAttempts[completedBaselineAttempts.length - 1];
+  const latestWeeklyAttempt = completedWeeklyAttempts[completedWeeklyAttempts.length - 1];
+
+  const activeWeeklyAttempt = useMemo(() => {
+    if (selectedWeeklyAttemptId) {
+      return completedWeeklyAttempts.find((a) => a.id === selectedWeeklyAttemptId) || latestWeeklyAttempt;
+    }
+    return latestWeeklyAttempt;
+  }, [completedWeeklyAttempts, selectedWeeklyAttemptId, latestWeeklyAttempt]);
+
+  const weeklyReadout = useMemo(() => {
+    if (!activeWeeklyAttempt || !assessmentState) return null;
+    return deriveWeeklyAssessmentReadout(
+      activeWeeklyAttempt,
+      assessmentState.responses || [],
+      assessmentState,
+      BASELINE_ASSESSMENT_ITEMS
+    );
+  }, [activeWeeklyAttempt, assessmentState]);
 
   // ---------------------------------------------------------------------------
   // View 1: Active Assessment Runner
@@ -174,7 +210,7 @@ export const AssessmentRunnerView: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <span className="text-xs font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-[#1B2028] text-[#E5A93C] border border-[#3B4556]">
-                Baseline Diagnostic
+                {activeAssessmentAttempt.kind === 'weekly_assessment' ? 'Sunday Adaptive Mini Test' : 'Baseline Diagnostic'}
               </span>
               <span className="text-sm font-semibold text-[#F1F5F9]">
                 Question {currentIdx + 1} of {totalCount}
@@ -509,7 +545,9 @@ export const AssessmentRunnerView: React.FC = () => {
                   </p>
                 )}
                 <p className="text-[#8E98A8]">
-                  Once submitted, your baseline capability profile will be computed and saved permanently to storage.
+                  {activeAssessmentAttempt?.kind === 'weekly_assessment'
+                    ? 'Once submitted, your Sunday calibration results and weakness signal updates will be saved permanently to storage.'
+                    : 'Once submitted, your baseline capability profile will be computed and saved permanently to storage.'}
                 </p>
               </div>
 
@@ -552,65 +590,134 @@ export const AssessmentRunnerView: React.FC = () => {
 
     return (
       <div className="max-w-[1280px] mx-auto space-y-8 pb-16">
-        {/* Readout Header Banner */}
-        <div className="bg-[#14171D] border border-[#262D38] rounded-lg p-6 sm:p-8 space-y-4 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <span className="text-xs font-mono px-2 py-0.5 rounded bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/40">
-                  {latestCompletedAttempt?.status === 'auto_submitted' ? 'Auto-Submitted (180m Limit)' : 'Completed & Sealed'}
-                </span>
-                <span className="text-xs text-[#8E98A8] font-mono">Attempt: {latestCompletedAttempt?.id || 'baseline'}</span>
+        {/* Navigation Tabs between Baseline Profile and Sunday Tests */}
+        <div className="flex items-center gap-2 border-b border-[#262D38] pb-2">
+          <button
+            onClick={() => setReadoutTab('baseline')}
+            className={`px-4 py-2 rounded text-xs font-semibold flex items-center gap-2 transition-colors ${
+              readoutTab === 'baseline'
+                ? 'bg-[#E5A93C] text-[#0D0F12]'
+                : 'bg-[#14171D] text-[#8E98A8] hover:text-[#F1F5F9] border border-[#262D38]'
+            }`}
+          >
+            <Target className="size-3.5" />
+            <span>Baseline Diagnostic Profile</span>
+          </button>
+
+          <button
+            onClick={() => setReadoutTab('weekly')}
+            className={`px-4 py-2 rounded text-xs font-semibold flex items-center gap-2 transition-colors ${
+              readoutTab === 'weekly'
+                ? 'bg-[#E5A93C] text-[#0D0F12]'
+                : 'bg-[#14171D] text-[#8E98A8] hover:text-[#F1F5F9] border border-[#262D38]'
+            }`}
+          >
+            <Clock className="size-3.5" />
+            <span>Sunday Adaptive Mini-Tests ({completedWeeklyAttempts.length})</span>
+            {pendingSundayObligation && (
+              <span className="size-2 rounded-full bg-amber-400 animate-pulse" />
+            )}
+          </button>
+        </div>
+
+        {readoutTab === 'baseline' ? (
+          <>
+            {/* Readout Header Banner */}
+            <div className="bg-[#14171D] border border-[#262D38] rounded-lg p-6 sm:p-8 space-y-4 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-xs font-mono px-2 py-0.5 rounded bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/40">
+                      {latestCompletedAttempt?.status === 'auto_submitted' ? 'Auto-Submitted (180m Limit)' : 'Completed & Sealed'}
+                    </span>
+                    <span className="text-xs text-[#8E98A8] font-mono">Attempt: {latestCompletedAttempt?.id || 'baseline'}</span>
+                  </div>
+                  <h1 className="text-xl sm:text-2xl font-bold text-[#F1F5F9] tracking-tight">
+                    Baseline Diagnostic Capability Readout
+                  </h1>
+                  <p className="text-xs sm:text-sm text-[#8E98A8] mt-1">
+                    Completed on {dateFormatted} · {assessedDomainsCount} Assessed Domains · Authoritative Placement Baseline (Phase D)
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setRoute('dashboard')}
+                    className="px-4 py-2 rounded text-xs font-medium bg-[#E5A93C] text-[#0D0F12] font-semibold hover:bg-[#D4982B] flex items-center gap-1.5 transition-colors"
+                  >
+                    <span>View Today Plan</span>
+                    <ArrowRight className="size-3.5" />
+                  </button>
+                </div>
               </div>
-              <h1 className="text-xl sm:text-2xl font-bold text-[#F1F5F9] tracking-tight">
-                Baseline Diagnostic Capability Readout
-              </h1>
-              <p className="text-xs sm:text-sm text-[#8E98A8] mt-1">
-                Completed on {dateFormatted} · {assessedDomainsCount} Assessed Domains · Authoritative Placement Baseline (Phase D)
-              </p>
+
+              {/* Quick Metrics Bar */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-[#262D38]/80 text-xs">
+                <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
+                  <div className="text-[#8E98A8] text-[11px]">Domains Assessed</div>
+                  <div className="text-base font-bold text-[#F1F5F9] mt-0.5">{assessedDomainsCount} / 11</div>
+                  <div className="text-[10px] text-[#5C6675]">Projects excluded</div>
+                </div>
+
+                <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
+                  <div className="text-[#8E98A8] text-[11px]">Average Ability Score</div>
+                  <div className="text-base font-bold text-[#E5A93C] mt-0.5">
+                    {overallAbility}
+                    <span className="text-xs text-[#8E98A8]">/100</span>
+                  </div>
+                  <div className="text-[10px] text-[#5C6675]">Chance-corrected</div>
+                </div>
+
+                <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
+                  <div className="text-[#8E98A8] text-[11px]">Identified Weaknesses</div>
+                  <div className="text-base font-bold text-amber-400 mt-0.5">{weaknesses.length}</div>
+                  <div className="text-[10px] text-[#5C6675]">Signals for planner</div>
+                </div>
+
+                <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
+                  <div className="text-[#8E98A8] text-[11px]">Evidence Source</div>
+                  <div className="text-base font-bold text-[#38BDF8] mt-0.5 font-mono">sourceType: &apos;test&apos;</div>
+                  <div className="text-[10px] text-[#5C6675]">Deterministic rungs</div>
+                </div>
+              </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            {/* Sunday Mini Test Integration Card (§15, §18) */}
+            <div className="bg-[#14171D] border border-[#262D38] rounded-lg p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-[#E5A93C] flex items-center gap-1.5">
+                    <Clock className="size-4" />
+                    <span>Weekly Calibration</span>
+                  </span>
+                  {pendingSundayObligation ? (
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                      Obligation Pending
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/40">
+                      Eligible (Baseline Completed)
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-sm font-bold text-[#F1F5F9]">
+                  Sunday Adaptive Mini Test (90 Minutes)
+                </h3>
+                <p className="text-xs text-[#8E98A8] max-w-2xl leading-relaxed">
+                  Targeted weekly calibration under a 90-minute hard wall-clock limit (&le; 78 min item budget + 12 min buffer). Composed of 60% diagnosed weaknesses, 20% recent curriculum topics, and 20% retention checks across &ge; 6 domains.
+                </p>
+              </div>
+
               <button
-                onClick={() => setRoute('dashboard')}
-                className="px-4 py-2 rounded text-xs font-medium bg-[#E5A93C] text-[#0D0F12] font-semibold hover:bg-[#D4982B] flex items-center gap-1.5 transition-colors"
+                onClick={() => {
+                  startSundayAssessment();
+                  setCurrentIdx(0);
+                }}
+                className="px-5 py-2.5 rounded text-xs font-semibold bg-[#E5A93C] text-[#0D0F12] hover:bg-[#D4982B] transition-colors whitespace-nowrap shadow-sm shrink-0"
               >
-                <span>View Today Plan</span>
-                <ArrowRight className="size-3.5" />
+                Start Sunday Mini Test
               </button>
             </div>
-          </div>
-
-          {/* Quick Metrics Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-[#262D38]/80 text-xs">
-            <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
-              <div className="text-[#8E98A8] text-[11px]">Domains Assessed</div>
-              <div className="text-base font-bold text-[#F1F5F9] mt-0.5">{assessedDomainsCount} / 11</div>
-              <div className="text-[10px] text-[#5C6675]">Projects excluded</div>
-            </div>
-
-            <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
-              <div className="text-[#8E98A8] text-[11px]">Average Ability Score</div>
-              <div className="text-base font-bold text-[#E5A93C] mt-0.5">
-                {overallAbility}
-                <span className="text-xs text-[#8E98A8]">/100</span>
-              </div>
-              <div className="text-[10px] text-[#5C6675]">Chance-corrected</div>
-            </div>
-
-            <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
-              <div className="text-[#8E98A8] text-[11px]">Identified Weaknesses</div>
-              <div className="text-base font-bold text-amber-400 mt-0.5">{weaknesses.length}</div>
-              <div className="text-[10px] text-[#5C6675]">Signals for planner</div>
-            </div>
-
-            <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
-              <div className="text-[#8E98A8] text-[11px]">Evidence Source</div>
-              <div className="text-base font-bold text-[#38BDF8] mt-0.5 font-mono">sourceType: &apos;test&apos;</div>
-              <div className="text-[10px] text-[#5C6675]">Deterministic rungs</div>
-            </div>
-          </div>
-        </div>
 
         {/* 11-Domain Capability Matrix */}
         <div className="space-y-6">
@@ -929,8 +1036,215 @@ export const AssessmentRunnerView: React.FC = () => {
             </button>
           </div>
         </div>
+      </>
+    ) : (
+      /* Sunday Mini-Tests View */
+      <div className="space-y-6">
+        {/* Sunday Launcher Card */}
+        <div className="bg-[#14171D] border border-[#262D38] rounded-lg p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xs font-mono uppercase tracking-wider text-[#E5A93C] flex items-center gap-1.5">
+                  <Clock className="size-4" />
+                  <span>Sunday Adaptive Mini Test</span>
+                </span>
+                {pendingSundayObligation ? (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                    Pending Calibration
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/40">
+                    Eligible
+                  </span>
+                )}
+              </div>
+              <h2 className="text-lg font-bold text-[#F1F5F9]">
+                90-Minute Weekly Calibration System (&sect;15)
+              </h2>
+              <p className="text-xs text-[#8E98A8] mt-1 max-w-2xl leading-relaxed">
+                Deterministic mini-test calibrated to your diagnosed weaknesses (60%), recent curriculum topics (20%), and retention checks (20%). Hard 90-minute limit (5400s) with &le; 78 minutes item budget (+12m buffer).
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                startSundayAssessment();
+                setCurrentIdx(0);
+              }}
+              className="px-5 py-2.5 rounded text-xs font-semibold bg-[#E5A93C] text-[#0D0F12] hover:bg-[#D4982B] transition-colors whitespace-nowrap shadow-sm shrink-0"
+            >
+              Start Sunday Mini Test
+            </button>
+          </div>
+
+          {/* Sunday Test Composition Spec */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-[#262D38]/80 text-xs">
+            <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
+              <div className="text-amber-400 font-semibold">60% Prior Weaknesses</div>
+              <div className="text-[11px] text-[#8E98A8] mt-0.5">
+                Reinforces unresolved errors (&ge; 2 items/weak domain)
+              </div>
+            </div>
+            <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
+              <div className="text-[#38BDF8] font-semibold">20% Recent Material</div>
+              <div className="text-[11px] text-[#8E98A8] mt-0.5">
+                Validates recent 14-day study &amp; task topics
+              </div>
+            </div>
+            <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
+              <div className="text-[#10B981] font-semibold">20% Retention Checks</div>
+              <div className="text-[11px] text-[#8E98A8] mt-0.5">
+                Checks mastered domains to guard against drift
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Weekly Readout Section */}
+        {completedWeeklyAttempts.length > 0 && weeklyReadout ? (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold text-[#F1F5F9] flex items-center gap-2">
+                <Calendar className="size-4 text-[#E5A93C]" />
+                <span>Weekly Calibration Report</span>
+              </h3>
+
+              {completedWeeklyAttempts.length > 1 && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-[#8E98A8]">Test Date:</span>
+                  <select
+                    value={activeWeeklyAttempt?.id}
+                    onChange={(e) => setSelectedWeeklyAttemptId(e.target.value)}
+                    className="bg-[#1B2028] border border-[#262D38] text-[#F1F5F9] rounded px-2.5 py-1 text-xs"
+                  >
+                    {completedWeeklyAttempts.map((a, idx) => (
+                      <option key={a.id} value={a.id}>
+                        Sunday Test #{idx + 1} — {new Date(a.endedAt || a.startedAt).toLocaleDateString()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Report Summary Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
+                <div className="text-[#8E98A8] text-[11px]">Accuracy</div>
+                <div className="text-base font-bold text-[#10B981] mt-0.5">
+                  {weeklyReadout.accuracyPct}%
+                </div>
+                <div className="text-[10px] text-[#5C6675]">
+                  {weeklyReadout.correctCount} / {weeklyReadout.totalItems} items
+                </div>
+              </div>
+
+              <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
+                <div className="text-[#8E98A8] text-[11px]">Time Spent</div>
+                <div className="text-base font-bold text-[#F1F5F9] mt-0.5">
+                  {weeklyReadout.totalTimeMinutes}m
+                </div>
+                <div className="text-[10px] text-[#5C6675]">90 min hard limit</div>
+              </div>
+
+              <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
+                <div className="text-[#8E98A8] text-[11px]">Weaknesses Targeted</div>
+                <div className="text-base font-bold text-amber-400 mt-0.5">
+                  {weeklyReadout.weaknessesTargeted.length}
+                </div>
+                <div className="text-[10px] text-[#5C6675]">Signals evaluated</div>
+              </div>
+
+              <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
+                <div className="text-[#8E98A8] text-[11px]">Retention Checks</div>
+                <div className="text-base font-bold text-[#38BDF8] mt-0.5">
+                  {weeklyReadout.retentionChecks.length}
+                </div>
+                <div className="text-[10px] text-[#5C6675]">Level &ge; 3 domains</div>
+              </div>
+            </div>
+
+            {/* Weaknesses Targeted Detail */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-[#8E98A8]">
+                Weakness Signals Targeted in this Calibration
+              </h4>
+              {weeklyReadout.weaknessesTargeted.length > 0 ? (
+                <div className="space-y-2.5">
+                  {weeklyReadout.weaknessesTargeted.map((wt, idx) => (
+                    <div
+                      key={`${wt.domainId}-${wt.competency}-${idx}`}
+                      className="bg-[#14171D] border border-[#262D38] rounded-md p-3.5 text-xs space-y-1.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold uppercase tracking-wider text-[#F1F5F9]">
+                          {wt.domainId} &middot; {wt.competency}
+                        </span>
+                        <span
+                          className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
+                            wt.status === 'resolved'
+                              ? 'bg-[#10B981]/20 text-[#10B981] border-[#10B981]/40'
+                              : wt.status === 'reinforced'
+                              ? 'bg-[#E55353]/20 text-[#E55353] border-[#E55353]/40'
+                              : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                          }`}
+                        >
+                          {wt.status === 'resolved'
+                            ? 'Resolved (Level Advanced)'
+                            : wt.status === 'reinforced'
+                            ? 'Reinforced (Persists)'
+                            : 'Open'}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-[#8E98A8]">
+                        Remediation: {wt.remediationAction}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-[#14171D] border border-[#262D38] rounded-md p-4 text-xs text-[#8E98A8]">
+                  No active weakness signals were targeted in this test.
+                </div>
+              )}
+            </div>
+
+            {/* Domain Results Snapshot */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-[#8E98A8]">
+                Domain Results Snapshot
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {weeklyReadout.domainResults.map((dr) => (
+                  <div key={dr.domainId} className="bg-[#14171D] border border-[#262D38] rounded-md p-3.5 text-xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold uppercase text-[#F1F5F9]">{dr.domainId}</span>
+                      <span className="font-mono text-[#E5A93C]">Level {dr.level} / 5</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-[#8E98A8]">
+                      <span>Ability: {dr.abilityScore}/100</span>
+                      <span>{dr.coverage.topicsCovered}/{dr.coverage.topicsTotal} topics</span>
+                    </div>
+
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-[#14171D] border border-[#262D38] rounded-lg p-8 text-center space-y-2">
+            <Clock className="size-8 text-[#5C6675] mx-auto" />
+            <h3 className="text-sm font-semibold text-[#F1F5F9]">No Sunday mini-tests completed yet</h3>
+            <p className="text-xs text-[#8E98A8] max-w-md mx-auto">
+              Click &quot;Start Sunday Mini Test&quot; above when you are ready to begin your weekly 90-minute adaptive calibration.
+            </p>
+          </div>
+        )}
       </div>
-    );
+    )}
+  </div>
+);
   }
 
   // ---------------------------------------------------------------------------
