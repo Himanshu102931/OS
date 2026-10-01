@@ -22,6 +22,12 @@ import type {
   AssessmentSnapshot,
   WeaknessSignal,
   AssessmentState,
+  CompanyAssessmentOverlay,
+  DomainRoleAssessmentReadiness,
+  CompanyAssessmentOverlayResult,
+  ItemCalibrationObservation,
+  ItemCalibrationSummary,
+  CompanyOverlay,
 } from '../types';
 import {
   BASELINE_ASSESSMENT_DEFINITION,
@@ -563,6 +569,7 @@ export interface AssessmentScoringResult {
   snapshot: AssessmentSnapshot;
   exposures: Record<string, AssessmentItemExposure>;
   evidenceLogs: EvidenceLog[];
+  calibrationObservations?: ItemCalibrationObservation[];
 }
 
 /**
@@ -588,6 +595,7 @@ export function scoreAssessmentAttempt(
   const weaknessSignals: WeaknessSignal[] = [];
   const exposures: Record<string, AssessmentItemExposure> = {};
   const evidenceLogs: EvidenceLog[] = [];
+  const calibrationObservations: ItemCalibrationObservation[] = [];
 
   const responseMap = new Map<string, AssessmentResponse>();
   for (const resp of responses) {
@@ -740,6 +748,11 @@ export function scoreAssessmentAttempt(
         eligibleForFutureEstimation: (prevUses + 1) < 2,
         releasedToPractice: item.exposurePolicy.releaseToPractice,
       };
+
+      // Calibration Observation Recording (§9.4, §13)
+      calibrationObservations.push(
+        recordItemCalibrationObservation(resp, terminalAttempt, item)
+      );
     }
 
     // Apply item influence cap per §6.2 / §9.2 Step 3 (max 25% standard, 30% for DSA)
@@ -968,6 +981,7 @@ export function scoreAssessmentAttempt(
     snapshot,
     exposures,
     evidenceLogs,
+    calibrationObservations,
   };
 }
 
@@ -2826,3 +2840,373 @@ export function runFullReassessment(
   const attempt = buildFullReassessmentAttempt(assessmentState, seed);
   return { attempt };
 }
+
+// ============================================================================
+// Phase G: Company / Role Assessment Overlays & Calibration Path Pure Functions
+// ============================================================================
+
+export const ALL_11_DOMAINS: readonly DomainId[] = [
+  'aptitude',
+  'dsa',
+  'python',
+  'sql',
+  'dbms',
+  'oop',
+  'os',
+  'cn',
+  'communication',
+  'interviews',
+  'projects',
+] as const;
+
+/**
+ * Creates an ItemCalibrationObservation record capturing empirical response metadata.
+ * Does NOT run empirical calibration math or replace authored difficulties (§9.4, §35).
+ */
+export function recordItemCalibrationObservation(
+  response: AssessmentResponse,
+  attempt: AssessmentAttempt,
+  item: AssessmentItem,
+  overlayProvenance?: string
+): ItemCalibrationObservation {
+  return {
+    id: `cal-${attempt.id}-${item.id}`,
+    itemId: item.id,
+    attemptId: attempt.id,
+    assessmentKind: attempt.kind,
+    assessmentVersion: attempt.definitionVersion,
+    domainId: item.domainId,
+    topicId: item.topicId,
+    authoredDifficulty: item.difficulty,
+    observedScore: response.scoredCredit,
+    isCorrect: response.result === 'correct',
+    timeSpentSeconds: response.timeSpentSeconds,
+    estimatedMinutes: item.estimatedMinutes,
+    responseConfidence: response.responseConfidence,
+    errorCategories: [...response.errorCategories],
+    timestamp: new Date().toISOString(),
+    overlayProvenance,
+  };
+}
+
+/**
+ * Non-binding conservative empirical calibration threshold (DECIDED 6).
+ * Requires >= 200 responses per item across >= 50 distinct attempts before calibration.
+ */
+export const CALIBRATION_V2_THRESHOLD = {
+  minResponses: 200,
+  minAttempts: 50,
+} as const;
+
+/**
+ * Aggregates recorded calibration observations for an assessment item.
+ * Evaluates whether the conservative DECIDED 6 threshold has been reached.
+ * Authored difficulty remains strictly authoritative in V1.
+ */
+export function computeItemCalibrationSummary(
+  itemId: string,
+  observations: ItemCalibrationObservation[] = [],
+  exposures: Record<string, AssessmentItemExposure> = {},
+  authoredDifficulty: number,
+  domainId: DomainId,
+  topicId: string
+): ItemCalibrationSummary {
+  const itemObs = observations.filter((o) => o.itemId === itemId);
+  const responseCount = itemObs.length;
+  const exposureCount = exposures[itemId]?.exposureCount ?? responseCount;
+  const correctCount = itemObs.filter((o) => o.isCorrect).length;
+  const observedAccuracy = responseCount > 0 ? correctCount / responseCount : 0;
+  const totalTime = itemObs.reduce((sum, o) => sum + o.timeSpentSeconds, 0);
+  const averageTimeSpentSeconds = responseCount > 0 ? Math.round(totalTime / responseCount) : 0;
+
+  const errorTaxonomyCounts: Record<string, number> = {};
+  for (const obs of itemObs) {
+    for (const err of obs.errorCategories) {
+      errorTaxonomyCounts[err] = (errorTaxonomyCounts[err] || 0) + 1;
+    }
+  }
+
+  const uniqueAttempts = new Set(itemObs.map((o) => o.attemptId));
+  const isReady =
+    responseCount >= CALIBRATION_V2_THRESHOLD.minResponses &&
+    uniqueAttempts.size >= CALIBRATION_V2_THRESHOLD.minAttempts;
+
+  return {
+    itemId,
+    authoredDifficulty,
+    domainId,
+    topicId,
+    responseCount,
+    exposureCount,
+    correctCount,
+    observedAccuracy,
+    averageTimeSpentSeconds,
+    errorTaxonomyCounts,
+    calibrationStatus: isReady ? 'calibration_ready' : 'insufficient_data',
+    calibrationThreshold: {
+      minResponses: CALIBRATION_V2_THRESHOLD.minResponses,
+      minAttempts: CALIBRATION_V2_THRESHOLD.minAttempts,
+    },
+  };
+}
+
+/**
+ * Returns true if an item has accumulated enough responses/attempts to qualify for calibration.
+ */
+export function isCalibrationReady(summary: ItemCalibrationSummary): boolean {
+  return summary.calibrationStatus === 'calibration_ready';
+}
+
+/**
+ * Creates a validated CompanyAssessmentOverlay based on structured company requirement data.
+ * Adheres strictly to §28:
+ * - Only modifies permitted parameters: composition, weighting, target difficulty, role emphasis.
+ * - Does NOT alter the 11-domain taxonomy or introduce new domains.
+ * - Leaves general profile and curriculum untouched.
+ */
+export function createCompanyAssessmentOverlay(
+  company: CompanyOverlay,
+  customAdjustments?: {
+    targetDifficultyLevels?: Partial<Record<DomainId, number>>;
+    domainWeightMultipliers?: Partial<Record<DomainId, number>>;
+    customModuleComposition?: DomainId[];
+  }
+): CompanyAssessmentOverlay {
+  if (!company || typeof company !== 'object' || !company.id || !company.companyName || !company.targetRole) {
+    throw new Error('Invalid company overlay: missing required company identification fields');
+  }
+
+  // Filter required domains to ONLY the authoritative 11 domains (no 12th domain allowed per P6)
+  const validatedRequiredDomains = (company.requiredDomains || []).filter((d): d is DomainId =>
+    ALL_11_DOMAINS.includes(d)
+  );
+
+  const defaultTargetDifficulty: Partial<Record<DomainId, number>> = {};
+  for (const d of validatedRequiredDomains) {
+    defaultTargetDifficulty[d] = 3;
+  }
+
+  const defaultMultipliers: Partial<Record<DomainId, number>> = {};
+  for (const d of validatedRequiredDomains) {
+    defaultMultipliers[d] = 1.0;
+  }
+
+  return {
+    companyId: company.id,
+    companyName: company.companyName,
+    targetRole: company.targetRole,
+    overlayVersion: 1,
+    requiredDomains: validatedRequiredDomains,
+    requiredTopics: company.requiredTopics ? [...company.requiredTopics] : [],
+    requiredLanguages: company.requiredLanguages ? [...company.requiredLanguages] : [],
+    targetDifficultyLevels: {
+      ...defaultTargetDifficulty,
+      ...(customAdjustments?.targetDifficultyLevels || {}),
+    },
+    domainWeightMultipliers: {
+      ...defaultMultipliers,
+      ...(customAdjustments?.domainWeightMultipliers || {}),
+    },
+    customModuleComposition: customAdjustments?.customModuleComposition
+      ? customAdjustments.customModuleComposition.filter((d): d is DomainId => ALL_11_DOMAINS.includes(d))
+      : [...validatedRequiredDomains],
+    provenance: 'company_requirement_overlay',
+  };
+}
+
+/**
+ * Validates a CompanyAssessmentOverlay object.
+ * Rejects unknown domains, non-positive weights, out-of-range difficulty levels, or missing identifiers.
+ */
+export function validateCompanyAssessmentOverlay(overlay: unknown): overlay is CompanyAssessmentOverlay {
+  if (!overlay || typeof overlay !== 'object') return false;
+  const o = overlay as Partial<CompanyAssessmentOverlay>;
+
+  if (typeof o.companyId !== 'string' || o.companyId.trim() === '') return false;
+  if (typeof o.companyName !== 'string' || o.companyName.trim() === '') return false;
+  if (typeof o.targetRole !== 'string' || o.targetRole.trim() === '') return false;
+  if (typeof o.overlayVersion !== 'number' || o.overlayVersion <= 0) return false;
+  if (typeof o.provenance !== 'string' || o.provenance.trim() === '') return false;
+
+  if (!Array.isArray(o.requiredDomains)) return false;
+  for (const d of o.requiredDomains) {
+    if (!ALL_11_DOMAINS.includes(d)) return false;
+  }
+
+  if (o.targetDifficultyLevels !== undefined) {
+    if (typeof o.targetDifficultyLevels !== 'object' || o.targetDifficultyLevels === null) return false;
+    for (const [k, v] of Object.entries(o.targetDifficultyLevels)) {
+      if (!ALL_11_DOMAINS.includes(k as DomainId)) return false;
+      if (typeof v !== 'number' || v < 0 || v > 5) return false;
+    }
+  }
+
+  if (o.domainWeightMultipliers !== undefined) {
+    if (typeof o.domainWeightMultipliers !== 'object' || o.domainWeightMultipliers === null) return false;
+    for (const [k, v] of Object.entries(o.domainWeightMultipliers)) {
+      if (!ALL_11_DOMAINS.includes(k as DomainId)) return false;
+      if (typeof v !== 'number' || v <= 0) return false;
+    }
+  }
+
+  if (o.customModuleComposition !== undefined) {
+    if (!Array.isArray(o.customModuleComposition)) return false;
+    for (const d of o.customModuleComposition) {
+      if (!ALL_11_DOMAINS.includes(d)) return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Applies a CompanyAssessmentOverlay to the general AssessmentProfileReadout.
+ * Pure deterministic projection:
+ * - Authoritative general profile is NEVER mutated or replaced (§28.2).
+ * - Distinguishes general capability from role-specific emphasis and gaps.
+ * - Computes composite role preparation score (0 - 100%) and identifies top role gaps.
+ * - Fails closed on malformed overlay.
+ */
+export function applyCompanyAssessmentOverlay(
+  baseProfile: AssessmentProfileReadout,
+  overlay: CompanyAssessmentOverlay
+): CompanyAssessmentOverlayResult {
+  if (!validateCompanyAssessmentOverlay(overlay)) {
+    throw new Error('Cannot apply malformed company assessment overlay: failed validation');
+  }
+
+  const authoritativeProfile = baseProfile || deriveAssessmentProfileReadout(undefined);
+  const requiredDomainSet = new Set(overlay.requiredDomains);
+
+  const domainReadiness: DomainRoleAssessmentReadiness[] = ALL_11_DOMAINS.map((domainId) => {
+    const dp = authoritativeProfile.domainProfiles.find((p) => p.domainId === domainId);
+    const generalLevel = dp?.level ?? 0;
+    const generalAbilityScore = dp?.abilityScore ?? 0;
+    const generalConfidence = dp?.confidence ?? 'none';
+    const domainName = DOMAIN_METADATA[domainId]?.name || domainId;
+
+    const isRoleRequired = requiredDomainSet.has(domainId);
+    const roleTargetLevel = isRoleRequired
+      ? (overlay.targetDifficultyLevels?.[domainId] ?? 3)
+      : 0;
+
+    const gap = isRoleRequired ? Math.max(0, roleTargetLevel - generalLevel) : 0;
+    const weightMultiplier = overlay.domainWeightMultipliers?.[domainId] ?? 1.0;
+
+    let status: 'met' | 'gap' | 'unassessed' | 'optional';
+    if (!isRoleRequired) {
+      status = 'optional';
+    } else if (generalLevel === 0 && generalConfidence === 'none') {
+      status = 'unassessed';
+    } else if (generalLevel >= roleTargetLevel) {
+      status = 'met';
+    } else {
+      status = 'gap';
+    }
+
+    return {
+      domainId,
+      domainName,
+      generalLevel,
+      generalAbilityScore,
+      generalConfidence,
+      isRoleRequired,
+      roleTargetLevel,
+      gap,
+      status,
+      weightMultiplier,
+    };
+  });
+
+  const requiredReadiness = domainReadiness.filter((dr) => dr.isRoleRequired);
+  const requiredDomainsCount = requiredReadiness.length;
+  const metDomainsCount = requiredReadiness.filter((dr) => dr.status === 'met').length;
+  const gapDomainsCount = requiredReadiness.filter((dr) => dr.status === 'gap' || dr.status === 'unassessed').length;
+
+  let rolePreparationScore = 0;
+  if (requiredDomainsCount === 0) {
+    rolePreparationScore = authoritativeProfile.overallAbility;
+  } else {
+    let totalWeightedScore = 0;
+    let totalWeight = 0;
+    for (const dr of requiredReadiness) {
+      const weight = dr.weightMultiplier;
+      const achievementRatio = dr.roleTargetLevel > 0
+        ? Math.min(1.0, dr.generalLevel / dr.roleTargetLevel)
+        : 1.0;
+      const domainAchievement = achievementRatio * 70 + (dr.generalAbilityScore / 100) * 30;
+      totalWeightedScore += domainAchievement * weight;
+      totalWeight += weight;
+    }
+    rolePreparationScore = totalWeight > 0 ? Math.round(totalWeightedScore / totalWeight) : 0;
+  }
+
+  const topRoleGaps = requiredReadiness
+    .filter((dr) => dr.gap > 0)
+    .sort((a, b) => b.gap - a.gap || a.generalLevel - b.generalLevel)
+    .map((dr) => ({
+      domainId: dr.domainId,
+      domainName: dr.domainName,
+      currentLevel: dr.generalLevel,
+      targetLevel: dr.roleTargetLevel,
+      gap: dr.gap,
+    }));
+
+  return {
+    companyId: overlay.companyId,
+    companyName: overlay.companyName,
+    targetRole: overlay.targetRole,
+    overlayVersion: overlay.overlayVersion,
+    provenance: overlay.provenance,
+    generalOverallAbility: authoritativeProfile.overallAbility,
+    rolePreparationScore,
+    requiredDomainsCount,
+    metDomainsCount,
+    gapDomainsCount,
+    domainReadiness,
+    topRoleGaps,
+  };
+}
+
+/**
+ * Adjusts planning inputs for role/company emphasis without modifying the general curriculum
+ * or creating a second roadmap (§26.1, §28.2).
+ */
+export function generateOverlayPlanInputs(
+  basePlanInputs: AssessmentPlanInputs,
+  overlayResult: CompanyAssessmentOverlayResult
+): AssessmentPlanInputs {
+  const updatedEmphases: Record<DomainId, DomainPlanEmphasis> = { ...basePlanInputs.domainEmphases };
+
+  for (const gap of overlayResult.topRoleGaps) {
+    const existing = updatedEmphases[gap.domainId];
+    if (existing) {
+      const boost = 1.0 + Math.min(0.5, gap.gap * 0.15);
+      updatedEmphases[gap.domainId] = {
+        ...existing,
+        priorityMultiplier: Math.round(existing.priorityMultiplier * boost * 100) / 100,
+        reviewFrequencyMultiplier: Math.round(existing.reviewFrequencyMultiplier * boost * 100) / 100,
+      };
+    }
+  }
+
+  const primaryFocusDomain =
+    overlayResult.topRoleGaps[0]?.domainId ?? basePlanInputs.overallReadinessSummary.primaryFocusDomain;
+
+  return {
+    ...basePlanInputs,
+    domainEmphases: updatedEmphases,
+    overallReadinessSummary: {
+      ...basePlanInputs.overallReadinessSummary,
+      primaryFocusDomain,
+    },
+  };
+}
+
+export type {
+  CompanyAssessmentOverlay,
+  DomainRoleAssessmentReadiness,
+  CompanyAssessmentOverlayResult,
+  ItemCalibrationObservation,
+  ItemCalibrationSummary,
+};

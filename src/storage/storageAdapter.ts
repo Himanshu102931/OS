@@ -16,6 +16,7 @@ import type {
   AssessmentResponse,
   AssessmentItemExposure,
   AssessmentProfile,
+  ItemCalibrationObservation,
 } from '../types';
 import {
   TASK_PROGRESS,
@@ -590,6 +591,30 @@ function validateAssessmentState(state: unknown): state is AssessmentState {
     if (p.nextReassessmentSuggestedAt !== undefined && typeof p.nextReassessmentSuggestedAt !== 'string') return false;
   }
 
+  if (s.calibrationObservations !== undefined) {
+    if (!Array.isArray(s.calibrationObservations)) return false;
+    for (const obs of s.calibrationObservations) {
+      if (!obs || typeof obs !== 'object') return false;
+      const o = obs as Partial<ItemCalibrationObservation>;
+      if (typeof o.id !== 'string') return false;
+      if (typeof o.itemId !== 'string') return false;
+      if (typeof o.attemptId !== 'string') return false;
+      if (typeof o.assessmentKind !== 'string') return false;
+      if (!['diagnostic_assessment', 'weekly_assessment', 'full_reassessment'].includes(o.assessmentKind)) return false;
+      if (typeof o.assessmentVersion !== 'number') return false;
+      if (typeof o.domainId !== 'string') return false;
+      if (typeof o.topicId !== 'string') return false;
+      if (typeof o.authoredDifficulty !== 'number') return false;
+      if (typeof o.observedScore !== 'number') return false;
+      if (typeof o.isCorrect !== 'boolean') return false;
+      if (typeof o.timeSpentSeconds !== 'number') return false;
+      if (typeof o.estimatedMinutes !== 'number') return false;
+      if (!Array.isArray(o.errorCategories)) return false;
+      if (typeof o.timestamp !== 'string') return false;
+      if (o.overlayProvenance !== undefined && typeof o.overlayProvenance !== 'string') return false;
+    }
+  }
+
   return true;
 }
 
@@ -637,9 +662,19 @@ export function pruneAssessmentResponses(state: AssessmentState): AssessmentStat
     }
   }
 
+  let prunedObservations = state.calibrationObservations;
+  if (state.calibrationObservations) {
+    prunedObservations = state.calibrationObservations.filter((obs) => {
+      if (keepFullAttemptIds.has(obs.attemptId)) return true;
+      const obsDate = new Date(obs.timestamp);
+      return obsDate >= ninetyDaysAgo;
+    });
+  }
+
   return {
     ...state,
     responses: prunedResponses,
+    ...(prunedObservations ? { calibrationObservations: prunedObservations } : {}),
   };
 }
 

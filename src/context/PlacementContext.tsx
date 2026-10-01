@@ -47,9 +47,12 @@ import {
   scoreAssessmentAttempt,
   transitionAttempt,
   deriveAssessmentProfileReadout,
+  createCompanyAssessmentOverlay,
+  applyCompanyAssessmentOverlay,
   type AssessmentScoringResult,
   type AssessmentProfileReadout,
   type SundaySelectionOptions,
+  type CompanyAssessmentOverlayResult,
 } from '../engine/assessmentEngine';
 import { BASELINE_ASSESSMENT_ITEMS } from '../data/assessment/items';
 import {
@@ -162,6 +165,9 @@ interface PlacementContextType {
   submitAssessmentAttempt: (attemptId: string, isAuto?: boolean) => AssessmentScoringResult;
   activeAssessmentAttempt?: AssessmentAttempt;
   assessmentProfileReadout: AssessmentProfileReadout;
+  selectedCompanyOverlayId: string | null;
+  setSelectedCompanyOverlayId: (id: string | null) => void;
+  companyAssessmentOverlayResult?: CompanyAssessmentOverlayResult;
 }
 
 function getTodayISO(): string {
@@ -818,6 +824,10 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           domainResults: [...otherDomainResults, ...scoringResult.domainResults],
           snapshots: [...otherSnapshots, scoringResult.snapshot],
           weaknessSignals: [...otherWeaknesses, ...scoringResult.weaknessSignals],
+          calibrationObservations: [
+            ...(curr.calibrationObservations || []),
+            ...(scoringResult.calibrationObservations || []),
+          ],
           profile: {
             ...curr.profile,
             baselineCompletedAt: scoringResult.attempt.kind === 'diagnostic_assessment' ? scoringResult.attempt.endedAt : curr.profile.baselineCompletedAt,
@@ -881,6 +891,20 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return deriveAssessmentProfileReadout(appState.assessmentState);
   }, [appState.assessmentState]);
 
+  const [selectedCompanyOverlayId, setSelectedCompanyOverlayId] = useState<string | null>(null);
+
+  const companyAssessmentOverlayResult = useMemo(() => {
+    if (!selectedCompanyOverlayId) return undefined;
+    const comp = (appState.companyOverlays || []).find((c) => c.id === selectedCompanyOverlayId);
+    if (!comp) return undefined;
+    try {
+      const overlay = createCompanyAssessmentOverlay(comp);
+      return applyCompanyAssessmentOverlay(assessmentProfileReadout, overlay);
+    } catch {
+      return undefined;
+    }
+  }, [selectedCompanyOverlayId, appState.companyOverlays, assessmentProfileReadout]);
+
   return (
     <PlacementContext.Provider
       value={{
@@ -937,6 +961,9 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         submitAssessmentAttempt,
         activeAssessmentAttempt,
         assessmentProfileReadout,
+        selectedCompanyOverlayId,
+        setSelectedCompanyOverlayId,
+        companyAssessmentOverlayResult,
       }}
     >
       {children}

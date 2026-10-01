@@ -28,6 +28,7 @@ import {
   Layers,
   TrendingUp,
   Calendar,
+  Briefcase,
 } from 'lucide-react';
 
 export const AssessmentRunnerView: React.FC = () => {
@@ -43,6 +44,10 @@ export const AssessmentRunnerView: React.FC = () => {
     activeAssessmentAttempt,
     assessmentProfileReadout,
     setRoute,
+    companyOverlays,
+    selectedCompanyOverlayId,
+    setSelectedCompanyOverlayId,
+    companyAssessmentOverlayResult,
   } = usePlacement();
 
   // Active question index
@@ -756,6 +761,122 @@ export const AssessmentRunnerView: React.FC = () => {
               </button>
             </div>
 
+            {/* Phase G: Target Company / Role Overlay (§28) */}
+            <div className="bg-[#14171D] border border-[#262D38] rounded-md p-5 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono uppercase tracking-wider text-[#38BDF8] font-bold flex items-center gap-1.5">
+                      <Briefcase className="size-4" />
+                      <span>Company / Role Overlay (§28)</span>
+                    </span>
+                    {companyAssessmentOverlayResult ? (
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#38BDF8]/20 text-[#38BDF8] border border-[#38BDF8]/40">
+                        Overlay Active
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#1B2028] text-[#8E98A8] border border-[#262D38]">
+                        General Profile (Authoritative)
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-[#8E98A8] max-w-2xl leading-relaxed">
+                    Evaluate readiness against target role requirements without forking or replacing your authoritative capability profile.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <label htmlFor="company-overlay-select" className="text-xs text-[#8E98A8] whitespace-nowrap">Target Role:</label>
+                  <select
+                    id="company-overlay-select"
+                    value={selectedCompanyOverlayId ?? ''}
+                    onChange={(e) => setSelectedCompanyOverlayId(e.target.value ? e.target.value : null)}
+                    className="bg-[#1B2028] border border-[#262D38] text-[#F1F5F9] text-xs rounded px-3 py-1.5 focus:outline-none focus:border-[#38BDF8]"
+                  >
+                    <option value="">None (General Capability Profile)</option>
+                    {(companyOverlays || []).map((comp) => (
+                      <option key={comp.id} value={comp.id}>
+                        {comp.companyName} — {comp.targetRole}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {companyAssessmentOverlayResult && (
+                <div className="pt-2 border-t border-[#262D38]/60 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-[#F1F5F9]">
+                        {companyAssessmentOverlayResult.companyName}
+                      </span>
+                      <span className="text-[#8E98A8]">·</span>
+                      <span className="text-[#CBD5E1]">{companyAssessmentOverlayResult.targetRole}</span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#1B2028] text-[#8E98A8] border border-[#262D38]">
+                        v{companyAssessmentOverlayResult.overlayVersion}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-mono text-[#5C6675]">
+                      Provenance: {companyAssessmentOverlayResult.provenance}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
+                    <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
+                      <div className="text-[#8E98A8] text-[10px]">Role Readiness</div>
+                      <div className="text-base font-bold text-[#38BDF8] mt-0.5">
+                        {companyAssessmentOverlayResult.rolePreparationScore}%
+                      </div>
+                      <div className="text-[10px] text-[#5C6675]">Weighted required domains</div>
+                    </div>
+                    <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
+                      <div className="text-[#8E98A8] text-[10px]">Required Domains</div>
+                      <div className="text-base font-bold text-[#F1F5F9] mt-0.5">
+                        {companyAssessmentOverlayResult.metDomainsCount} / {companyAssessmentOverlayResult.requiredDomainsCount} Met
+                      </div>
+                      <div className="text-[10px] text-[#5C6675]">Target levels reached</div>
+                    </div>
+                    <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
+                      <div className="text-[#8E98A8] text-[10px]">Open Gaps</div>
+                      <div className="text-base font-bold text-amber-400 mt-0.5">
+                        {companyAssessmentOverlayResult.gapDomainsCount} Domains
+                      </div>
+                      <div className="text-[10px] text-[#5C6675]">Below role threshold</div>
+                    </div>
+                    <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
+                      <div className="text-[#8E98A8] text-[10px]">General Ability</div>
+                      <div className="text-base font-bold text-[#10B981] mt-0.5">
+                        {companyAssessmentOverlayResult.generalOverallAbility} / 100
+                      </div>
+                      <div className="text-[10px] text-[#5C6675]">Authoritative base</div>
+                    </div>
+                  </div>
+
+                  {companyAssessmentOverlayResult.topRoleGaps.length > 0 && (
+                    <div className="bg-[#1B2028] p-3 rounded border border-amber-900/30 p-3 space-y-1.5">
+                      <div className="text-[11px] font-semibold text-amber-300">
+                        Top Role Priority Gaps for {companyAssessmentOverlayResult.companyName}:
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {companyAssessmentOverlayResult.topRoleGaps.map((gap: { domainId: string; domainName: string; currentLevel: number; targetLevel: number; gap: number }) => (
+                          <span
+                            key={gap.domainId}
+                            className="text-[11px] font-mono px-2 py-0.5 rounded bg-amber-950/40 text-amber-300 border border-amber-800/40"
+                          >
+                            {gap.domainName}: Level {gap.currentLevel} &rarr; Target L{gap.targetLevel} (Gap: {gap.gap})
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="text-[11px] text-[#5C6675] italic">
+                    Note: General capability profile remains authoritative. Role overlays never overwrite stored levels or evidence logs.
+                  </div>
+                </div>
+              )}
+            </div>
+
         {/* 11-Domain Capability Matrix */}
         <div className="space-y-6">
           <div className="flex items-center justify-between">
@@ -832,6 +953,21 @@ export const AssessmentRunnerView: React.FC = () => {
                     </div>
                   </div>
 
+                  {companyAssessmentOverlayResult && (
+                    (() => {
+                      const dr = companyAssessmentOverlayResult.domainReadiness.find((d: { domainId: string }) => d.domainId === dp.domainId);
+                      if (!dr || !dr.isRoleRequired) return null;
+                      return (
+                        <div className="flex items-center justify-between text-[11px] font-mono px-2 py-1 rounded bg-[#1B2028] border border-[#262D38]">
+                          <span className="text-[#8E98A8]">Role Target:</span>
+                          <span className={dr.status === 'met' ? 'text-emerald-400 font-semibold' : 'text-amber-400 font-semibold'}>
+                            {dr.status === 'met' ? `Met (L${dr.roleTargetLevel})` : `Target L${dr.roleTargetLevel} (Gap: -${dr.gap})`}
+                          </span>
+                        </div>
+                      );
+                    })()
+                  )}
+
                   <div className="text-[11px] text-[#5C6675] flex items-center justify-between pt-1 border-t border-[#262D38]/60">
                     <span>
                       {dp.latestAssessmentKind
@@ -907,6 +1043,21 @@ export const AssessmentRunnerView: React.FC = () => {
                     <span className="font-semibold">Construct Limitation: </span>
                     {dp.constructScopeNote || dp.constructScope}
                   </div>
+
+                  {companyAssessmentOverlayResult && (
+                    (() => {
+                      const dr = companyAssessmentOverlayResult.domainReadiness.find((d: { domainId: string }) => d.domainId === dp.domainId);
+                      if (!dr || !dr.isRoleRequired) return null;
+                      return (
+                        <div className="flex items-center justify-between text-[11px] font-mono px-2 py-1 rounded bg-[#1B2028] border border-[#262D38]">
+                          <span className="text-[#8E98A8]">Role Target:</span>
+                          <span className={dr.status === 'met' ? 'text-emerald-400 font-semibold' : 'text-amber-400 font-semibold'}>
+                            {dr.status === 'met' ? `Met (L${dr.roleTargetLevel})` : `Target L${dr.roleTargetLevel} (Gap: -${dr.gap})`}
+                          </span>
+                        </div>
+                      );
+                    })()
+                  )}
 
                   <div className="text-[11px] text-[#5C6675] flex items-center justify-between pt-1 border-t border-[#262D38]/60">
                     <span>
@@ -1128,6 +1279,45 @@ export const AssessmentRunnerView: React.FC = () => {
             >
               Go to Preparation Hub
             </button>
+          </div>
+        </div>
+
+        {/* Phase G: Calibration Instrumentation Informational Card (§9.4 / DECIDED 6) */}
+        <div className="bg-[#14171D] border border-[#262D38] rounded-md p-5 space-y-3 text-xs text-[#8E98A8]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-[#E5A93C] font-semibold">
+              <Compass className="size-4" />
+              <span>Calibration Instrumentation (§9.4 / DECIDED 6 Groundwork)</span>
+            </div>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#1B2028] text-[#8E98A8] border border-[#262D38]">
+              Empirical Calibration: Inactive (V1 Deterministic)
+            </span>
+          </div>
+          <p className="leading-relaxed text-[#CBD5E1]">
+            PlacementOS records granular item response latency, accuracy, and error categories for prospective psychometric calibration. In accordance with DECIDED 6, empirical calibration remains inactive until single-item sample volumes reach &ge; 200 responses across &ge; 50 distinct attempts. <strong>Authored difficulty weights remain strictly authoritative.</strong>
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono pt-1">
+            <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
+              <div className="text-[10px] text-[#8E98A8]">Recorded Observations</div>
+              <div className="text-sm font-bold text-[#38BDF8] mt-0.5">
+                {assessmentState?.calibrationObservations?.length ?? 0}
+              </div>
+              <div className="text-[10px] text-[#5C6675]">Item response records</div>
+            </div>
+            <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
+              <div className="text-[10px] text-[#8E98A8]">Scoring Engine</div>
+              <div className="text-sm font-bold text-[#10B981] mt-0.5">
+                Authored Difficulty (100%)
+              </div>
+              <div className="text-[10px] text-[#5C6675]">Deterministic rungs</div>
+            </div>
+            <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
+              <div className="text-[10px] text-[#8E98A8]">Calibration Status</div>
+              <div className="text-sm font-bold text-amber-400 mt-0.5">
+                Insufficient Data
+              </div>
+              <div className="text-[10px] text-[#5C6675]">Threshold: &ge;200 responses / 50 attempts</div>
+            </div>
           </div>
         </div>
       </>

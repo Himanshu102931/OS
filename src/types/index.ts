@@ -487,6 +487,93 @@ export interface AssessmentProfile {
   nextReassessmentSuggestedAt?: string; // ISO timestamp
 }
 
+// --- Phase G: Company / Role Assessment Overlays & Calibration Path ---
+
+export interface CompanyAssessmentOverlay {
+  companyId: string;
+  companyName: string;
+  targetRole: string;
+  overlayVersion: number;
+  requiredDomains: DomainId[];
+  requiredTopics?: string[];
+  requiredLanguages?: string[];
+  targetDifficultyLevels?: Partial<Record<DomainId, number>>;
+  domainWeightMultipliers?: Partial<Record<DomainId, number>>;
+  customModuleComposition?: DomainId[];
+  provenance: string;
+}
+
+export interface DomainRoleAssessmentReadiness {
+  domainId: DomainId;
+  domainName: string;
+  generalLevel: 0 | 1 | 2 | 3 | 4 | 5;
+  generalAbilityScore: number;
+  generalConfidence: 'none' | 'low' | 'medium' | 'high';
+  isRoleRequired: boolean;
+  roleTargetLevel: number;
+  gap: number;
+  status: 'met' | 'gap' | 'unassessed' | 'optional';
+  weightMultiplier: number;
+}
+
+export interface CompanyAssessmentOverlayResult {
+  companyId: string;
+  companyName: string;
+  targetRole: string;
+  overlayVersion: number;
+  provenance: string;
+  generalOverallAbility: number;
+  rolePreparationScore: number; // 0 - 100%
+  requiredDomainsCount: number;
+  metDomainsCount: number;
+  gapDomainsCount: number;
+  domainReadiness: DomainRoleAssessmentReadiness[];
+  topRoleGaps: {
+    domainId: DomainId;
+    domainName: string;
+    currentLevel: number;
+    targetLevel: number;
+    gap: number;
+  }[];
+}
+
+export interface ItemCalibrationObservation {
+  id: string;
+  itemId: string;
+  attemptId: string;
+  assessmentKind: AssessmentKind;
+  assessmentVersion: number;
+  domainId: DomainId;
+  topicId: string;
+  authoredDifficulty: number;
+  observedScore: number; // 0 to 1
+  isCorrect: boolean;
+  timeSpentSeconds: number;
+  estimatedMinutes: number;
+  responseConfidence?: AssessmentConfidence;
+  errorCategories: string[];
+  timestamp: string; // ISO timestamp
+  overlayProvenance?: string;
+}
+
+export interface ItemCalibrationSummary {
+  itemId: string;
+  authoredDifficulty: number;
+  domainId: DomainId;
+  topicId: string;
+  responseCount: number;
+  exposureCount: number;
+  correctCount: number;
+  observedAccuracy: number; // 0 to 1
+  averageTimeSpentSeconds: number;
+  errorTaxonomyCounts: Record<string, number>;
+  calibrationStatus: 'insufficient_data' | 'calibration_ready';
+  calibrationThreshold: {
+    minResponses: number; // 200 (DECIDED 6)
+    minAttempts: number; // 50 (DECIDED 6)
+  };
+}
+
 export interface AssessmentState {
   attempts: AssessmentAttempt[];
   responses: AssessmentResponse[];
@@ -495,6 +582,7 @@ export interface AssessmentState {
   snapshots: AssessmentSnapshot[];
   weaknessSignals: WeaknessSignal[];
   profile: AssessmentProfile;
+  calibrationObservations?: ItemCalibrationObservation[];
 }
 
 // --- Practice & Assessment Subsystem Types ---
