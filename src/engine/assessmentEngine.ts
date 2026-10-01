@@ -21,6 +21,7 @@ import type {
   DomainAssessmentResult,
   AssessmentSnapshot,
   WeaknessSignal,
+  AssessmentState,
 } from '../types';
 import { BASELINE_ASSESSMENT_DEFINITION } from '../data/assessment/definitions';
 import { BASELINE_ASSESSMENT_ITEMS } from '../data/assessment/items';
@@ -805,6 +806,546 @@ export function scoreAssessmentAttempt(
     snapshot,
     exposures,
     evidenceLogs,
+  };
+}
+
+// ============================================================================
+// Phase D: Profile & Plan Readout Pure Engine Functions
+// ============================================================================
+
+export interface InitialPlanStartingPoint {
+  domainId: DomainId;
+  topicId: string;
+  topicName: string;
+  reason: string;
+  recommendedDifficulty: 'easy' | 'medium' | 'hard';
+  priorityRank: number;
+}
+
+export interface DomainPlanEmphasis {
+  domainId: DomainId;
+  initialDifficulty: 'easy' | 'medium' | 'hard';
+  reviewFrequencyMultiplier: number;
+  priorityMultiplier: number;
+  recommendedStartingTopicId: string;
+  openWeaknessesCount: number;
+}
+
+export interface AssessmentPlanInputs {
+  startingPoints: InitialPlanStartingPoint[];
+  domainEmphases: Record<DomainId, DomainPlanEmphasis>;
+  weaknessFocusAreas: Array<{
+    id: string;
+    domainId: DomainId;
+    topicId?: string;
+    competency?: string;
+    errorCategory: string;
+    strength: number;
+    recommendedAction: string;
+  }>;
+  strengths: Array<{
+    domainId: DomainId;
+    level: number;
+    abilityScore: number;
+    summary: string;
+  }>;
+  overallReadinessSummary: {
+    assessedDomainsCount: number;
+    averageAbility: number;
+    primaryFocusDomain: DomainId | null;
+  };
+}
+
+export interface DomainAssessmentProfile {
+  domainId: DomainId;
+  name: string;
+  category: 'Class A' | 'Class B' | 'Class C';
+  level: 0 | 1 | 2 | 3 | 4 | 5;
+  levelLabel: string;
+  abilityScore: number;
+  confidence: 'none' | 'low' | 'medium' | 'high';
+  status: 'assessed' | 'partially_assessed' | 'unassessed';
+  provisional: boolean;
+  constructScope?: string;
+  constructScopeNote?: string;
+  topicsCovered: number;
+  topicsTotal: number;
+  competenciesCovered: string[];
+  openWeaknessesCount: number;
+}
+
+export interface DomainStrength {
+  domainId: DomainId;
+  name: string;
+  level: number;
+  abilityScore: number;
+  confidence: 'medium' | 'high';
+  summary: string;
+}
+
+export interface DomainWeakness {
+  id: string;
+  domainId: DomainId;
+  topicId?: string;
+  competency?: string;
+  errorCategory: string;
+  strength: 1 | 2 | 3;
+  status: 'open' | 'reinforced' | 'resolved';
+  recommendedAction: string;
+}
+
+export interface AssessmentProfileReadout {
+  isAssessed: boolean;
+  baselineCompletedAt?: string;
+  attemptId?: string;
+  domainProfiles: DomainAssessmentProfile[];
+  strengths: DomainStrength[];
+  weaknesses: DomainWeakness[];
+  overallAbility: number;
+  assessedDomainsCount: number;
+  hasIncompleteEvidence: boolean;
+  planInputs: AssessmentPlanInputs;
+}
+
+export const DOMAIN_METADATA: Record<DomainId, {
+  name: string;
+  category: 'Class A' | 'Class B' | 'Class C';
+  fallbackTopicId: string;
+  fallbackTopicName: string;
+  constructScope?: string;
+  constructScopeNote?: string;
+}> = {
+  aptitude: {
+    name: 'Aptitude & Mental Ability',
+    category: 'Class A',
+    fallbackTopicId: 'prep-apt-quant',
+    fallbackTopicName: 'Quantitative & Speed Drills',
+  },
+  dsa: {
+    name: 'Data Structures & Algorithms',
+    category: 'Class A',
+    fallbackTopicId: 'topic-dsa-arrays',
+    fallbackTopicName: 'Arrays & Two Pointers',
+  },
+  python: {
+    name: 'Python Programming Core',
+    category: 'Class B',
+    fallbackTopicId: 'prep-lang',
+    fallbackTopicName: 'Python Syntax & Data Structures',
+    constructScope: 'reasoning_only',
+    constructScopeNote: 'Language syntax, control flow, and data structure reasoning only (no dynamic execution)',
+  },
+  sql: {
+    name: 'SQL & Database Queries',
+    category: 'Class A',
+    fallbackTopicId: 'prep-sql',
+    fallbackTopicName: 'SQL Queries & Relational Joins',
+  },
+  dbms: {
+    name: 'Database Management Systems',
+    category: 'Class A',
+    fallbackTopicId: 'prep-dbms',
+    fallbackTopicName: 'DBMS Architecture, Indexing & ACID',
+  },
+  oop: {
+    name: 'Object-Oriented Programming',
+    category: 'Class A',
+    fallbackTopicId: 'prep-oop',
+    fallbackTopicName: 'OOP Principles, Polymorphism & Design',
+  },
+  os: {
+    name: 'Operating Systems & Concurrency',
+    category: 'Class A',
+    fallbackTopicId: 'prep-os',
+    fallbackTopicName: 'OS Processes, Threads & Memory Management',
+  },
+  cn: {
+    name: 'Computer Networks',
+    category: 'Class A',
+    fallbackTopicId: 'prep-cn',
+    fallbackTopicName: 'Network Layers, Protocols & TCP/IP',
+  },
+  communication: {
+    name: 'Professional Communication',
+    category: 'Class B',
+    fallbackTopicId: 'prep-comm',
+    fallbackTopicName: 'Written Clarity & Reading Comprehension',
+    constructScope: 'written_only',
+    constructScopeNote: 'Written grammar, vocabulary, and reading comprehension only (does not evaluate spoken presence)',
+  },
+  interviews: {
+    name: 'Technical & Behavioral Interviews',
+    category: 'Class B',
+    fallbackTopicId: 'prep-interview-tech',
+    fallbackTopicName: 'Technical Interview Problem-Solving & STAR',
+    constructScope: 'interview_knowledge_only',
+    constructScopeNote: 'Interview knowledge, framework comprehension, and response structuring only (does not evaluate live interactive presence)',
+  },
+  projects: {
+    name: 'Engineering Projects Portfolio',
+    category: 'Class C',
+    fallbackTopicId: 'topic-proj-rest',
+    fallbackTopicName: 'REST APIs & Full-Stack Engineering Defense',
+    constructScope: 'project_evidence_only',
+    constructScopeNote: 'Class C: Excluded from automated baseline. Capability levels are established only through real architectural defense and code in Project Lab.',
+  },
+};
+
+export const LEVEL_LABELS: Record<0 | 1 | 2 | 3 | 4 | 5, string> = {
+  0: 'Level 0 — No demonstrated capability / Unassessed',
+  1: 'Level 1 — Beginner',
+  2: 'Level 2 — Basic',
+  3: 'Level 3 — Intermediate',
+  4: 'Level 4 — Job Ready',
+  5: 'Level 5 — Strong',
+};
+
+/**
+ * Returns recommended difficulty for practice based on assessed Level (§16 ladder)
+ */
+export function getRecommendedDifficulty(level: number): 'easy' | 'medium' | 'hard' {
+  if (level <= 2) return 'easy';
+  if (level === 3) return 'medium';
+  return 'hard';
+}
+
+/**
+ * Generates an actionable remediation recommendation based on error category and competency
+ */
+export function getRemediationAction(errorCategory: string, competency: string = 'general'): string {
+  switch (errorCategory) {
+    case 'E-CONCEPT':
+      return `Revise fundamental concepts and rules for ${competency}.`;
+    case 'E-APPLY':
+      return `Practice multi-step scenario application problems in ${competency}.`;
+    case 'E-PATTERN':
+      return `Study recognition cues and pattern matching heuristics for ${competency}.`;
+    case 'E-EXEC':
+      return `Practice careful code execution and boundary checks in ${competency}.`;
+    case 'E-SPEED':
+      return `Work through timed practice sets to build fluency in ${competency}.`;
+    case 'E-CORNER':
+      return `Focus on edge cases, empty states, and boundary conditions for ${competency}.`;
+    case 'E-SYNTAX':
+      return `Drill language syntax rules and operator semantics in ${competency}.`;
+    default:
+      return `Targeted review and focused practice exercises in ${competency}.`;
+  }
+}
+
+/**
+ * Converts the baseline assessment results into deterministic initial planning inputs (§26.1).
+ * Shifts starting point, initial difficulty, review frequency, priority weights, and weekly emphasis
+ * without modifying or rewriting the master curriculum.
+ */
+export function generateAssessmentPlanInputs(
+  domainResults: DomainAssessmentResult[] = [],
+  weaknessSignals: WeaknessSignal[] = []
+): AssessmentPlanInputs {
+  const allDomainIds: DomainId[] = [
+    'aptitude', 'dsa', 'python', 'sql', 'dbms',
+    'oop', 'os', 'cn', 'communication', 'interviews', 'projects'
+  ];
+
+  const domainResultMap = new Map<DomainId, DomainAssessmentResult>();
+  for (const dr of domainResults) {
+    domainResultMap.set(dr.domainId, dr);
+  }
+
+  const domainWeaknessCount: Record<DomainId, number> = {
+    aptitude: 0, dsa: 0, python: 0, sql: 0, dbms: 0,
+    oop: 0, os: 0, cn: 0, communication: 0, interviews: 0, projects: 0,
+  };
+  for (const ws of weaknessSignals) {
+    if (ws.status === 'open') {
+      domainWeaknessCount[ws.domainId] = (domainWeaknessCount[ws.domainId] || 0) + 1;
+    }
+  }
+
+  const domainEmphases: Record<DomainId, DomainPlanEmphasis> = {} as Record<DomainId, DomainPlanEmphasis>;
+  const startingPoints: InitialPlanStartingPoint[] = [];
+  const strengths: Array<{ domainId: DomainId; level: number; abilityScore: number; summary: string }> = [];
+
+  let totalAssessedAbility = 0;
+  let assessedCount = 0;
+
+  for (const domainId of allDomainIds) {
+    const dr = domainResultMap.get(domainId);
+    const meta = DOMAIN_METADATA[domainId];
+    const level = dr ? dr.level : 0;
+    const ability = dr ? dr.abilityScore : 0;
+    const openWs = domainWeaknessCount[domainId] || 0;
+
+    if (domainId !== 'projects' && dr && dr.status !== 'unassessed') {
+      totalAssessedAbility += ability;
+      assessedCount++;
+    }
+
+    const initialDifficulty = getRecommendedDifficulty(level);
+
+    let reviewFrequencyMultiplier = 1.0;
+    let priorityMultiplier = 1.0;
+
+    if (domainId !== 'projects') {
+      if (openWs > 0 || ability < 40) {
+        reviewFrequencyMultiplier = 1.5;
+        priorityMultiplier = 1.3;
+      } else if (level === 3) {
+        reviewFrequencyMultiplier = 1.2;
+        priorityMultiplier = 1.1;
+      } else if (level >= 4) {
+        reviewFrequencyMultiplier = 1.0;
+        priorityMultiplier = 0.85;
+      }
+    }
+
+    const domainWeaknesses = weaknessSignals.filter((w) => w.domainId === domainId && w.status === 'open');
+    const startingTopicId = domainWeaknesses[0]?.topicId || meta.fallbackTopicId;
+
+    domainEmphases[domainId] = {
+      domainId,
+      initialDifficulty,
+      reviewFrequencyMultiplier,
+      priorityMultiplier,
+      recommendedStartingTopicId: startingTopicId,
+      openWeaknessesCount: openWs,
+    };
+
+    if (dr && level >= 4 && (dr.confidence === 'medium' || dr.confidence === 'high')) {
+      strengths.push({
+        domainId,
+        level,
+        abilityScore: ability,
+        summary: `Demonstrated ${LEVEL_LABELS[level]} with ${dr.confidence} confidence in ${meta.name}.`,
+      });
+    }
+
+    let reason = '';
+    if (domainId === 'projects') {
+      reason = 'Independent architectural defense and code implementation in Project Lab.';
+    } else if (openWs > 0) {
+      reason = `Diagnosed ${openWs} open weakness signal${openWs > 1 ? 's' : ''}; target fundamental remediation first.`;
+    } else if (level <= 1) {
+      reason = 'Foundational domain coverage needed to establish core capability.';
+    } else if (level === 2 || level === 3) {
+      reason = 'Standard progression and consistency drills.';
+    } else {
+      reason = 'Advanced practice and spaced retention maintenance.';
+    }
+
+    startingPoints.push({
+      domainId,
+      topicId: startingTopicId,
+      topicName: meta.fallbackTopicName,
+      reason,
+      recommendedDifficulty: initialDifficulty,
+      priorityRank: 0,
+    });
+  }
+
+  // Sort starting points: lowest ability / open weaknesses prioritized
+  startingPoints.sort((a, b) => {
+    if (a.domainId === 'projects') return 1;
+    if (b.domainId === 'projects') return -1;
+
+    const empA = domainEmphases[a.domainId];
+    const empB = domainEmphases[b.domainId];
+
+    if (empB.priorityMultiplier !== empA.priorityMultiplier) {
+      return empB.priorityMultiplier - empA.priorityMultiplier;
+    }
+    const drA = domainResultMap.get(a.domainId)?.abilityScore ?? 0;
+    const drB = domainResultMap.get(b.domainId)?.abilityScore ?? 0;
+    return drA - drB;
+  });
+
+  startingPoints.forEach((sp, idx) => {
+    sp.priorityRank = idx + 1;
+  });
+
+  const weaknessFocusAreas = weaknessSignals
+    .filter((ws) => ws.status === 'open')
+    .map((ws) => ({
+      id: ws.id,
+      domainId: ws.domainId,
+      topicId: ws.topicId,
+      competency: ws.competency,
+      errorCategory: ws.errorCategory,
+      strength: ws.strength,
+      recommendedAction: getRemediationAction(ws.errorCategory, ws.competency || 'general'),
+    }));
+
+  const averageAbility = assessedCount > 0 ? Math.round(totalAssessedAbility / assessedCount) : 0;
+  const primaryFocusDomain = startingPoints.length > 0 && startingPoints[0].domainId !== 'projects'
+    ? startingPoints[0].domainId
+    : null;
+
+  return {
+    startingPoints,
+    domainEmphases,
+    weaknessFocusAreas,
+    strengths,
+    overallReadinessSummary: {
+      assessedDomainsCount: assessedCount,
+      averageAbility,
+      primaryFocusDomain,
+    },
+  };
+}
+
+/**
+ * Derives a full authoritative AssessmentProfileReadout from current AssessmentState.
+ * Surfaces all 11 domains, distinguishes capability from confidence, marks construct scope,
+ * and maintains Level 0 semantics. Handles missing or empty assessment state safely.
+ */
+export function deriveAssessmentProfileReadout(
+  assessmentState?: AssessmentState
+): AssessmentProfileReadout {
+  const allDomainIds: DomainId[] = [
+    'aptitude', 'dsa', 'python', 'sql', 'dbms',
+    'oop', 'os', 'cn', 'communication', 'interviews', 'projects'
+  ];
+
+  const completedAttempts = (assessmentState?.attempts || []).filter(
+    (a: AssessmentAttempt) => a.kind === 'diagnostic_assessment' && (a.status === 'submitted' || a.status === 'auto_submitted')
+  );
+  const latestAttempt = completedAttempts[completedAttempts.length - 1];
+
+  const domainResultMap = new Map<DomainId, DomainAssessmentResult>();
+  if (latestAttempt && assessmentState?.domainResults) {
+    const attemptResults = assessmentState.domainResults.filter((dr: DomainAssessmentResult) => dr.attemptId === latestAttempt.id);
+    for (const dr of attemptResults) {
+      domainResultMap.set(dr.domainId, dr);
+    }
+  }
+
+  const weaknessSignals = assessmentState?.weaknessSignals || [];
+  const openWeaknessesPerDomain: Record<DomainId, number> = {
+    aptitude: 0, dsa: 0, python: 0, sql: 0, dbms: 0,
+    oop: 0, os: 0, cn: 0, communication: 0, interviews: 0, projects: 0,
+  };
+  for (const ws of weaknessSignals) {
+    if (ws.status === 'open' && ws.domainId in openWeaknessesPerDomain) {
+      openWeaknessesPerDomain[ws.domainId as DomainId] = (openWeaknessesPerDomain[ws.domainId as DomainId] || 0) + 1;
+    }
+  }
+
+  let totalAssessedAbility = 0;
+  let assessedCount = 0;
+  let hasIncomplete = false;
+
+  const domainProfiles: DomainAssessmentProfile[] = allDomainIds.map((domainId) => {
+    const dr = domainResultMap.get(domainId);
+    const meta = DOMAIN_METADATA[domainId];
+    const openCount = openWeaknessesPerDomain[domainId] || 0;
+
+    // Hard Rule: Projects is ALWAYS Level 0 / Unassessed / confidence none
+    if (domainId === 'projects') {
+      return {
+        domainId: 'projects',
+        name: meta.name,
+        category: 'Class C',
+        level: 0,
+        levelLabel: LEVEL_LABELS[0],
+        abilityScore: 0,
+        confidence: 'none',
+        status: 'unassessed',
+        provisional: true,
+        constructScope: meta.constructScope,
+        constructScopeNote: meta.constructScopeNote,
+        topicsCovered: 0,
+        topicsTotal: 1,
+        competenciesCovered: [],
+        openWeaknessesCount: 0,
+      };
+    }
+
+    if (!dr || dr.status === 'unassessed') {
+      hasIncomplete = true;
+      return {
+        domainId,
+        name: meta.name,
+        category: meta.category,
+        level: 0,
+        levelLabel: LEVEL_LABELS[0],
+        abilityScore: 0,
+        confidence: 'none',
+        status: 'unassessed',
+        provisional: true,
+        constructScope: meta.constructScope,
+        constructScopeNote: meta.constructScopeNote,
+        topicsCovered: 0,
+        topicsTotal: 1,
+        competenciesCovered: [],
+        openWeaknessesCount: openCount,
+      };
+    }
+
+    if (dr.status === 'partially_assessed') {
+      hasIncomplete = true;
+    }
+
+    totalAssessedAbility += dr.abilityScore;
+    assessedCount++;
+
+    return {
+      domainId,
+      name: meta.name,
+      category: meta.category,
+      level: dr.level,
+      levelLabel: LEVEL_LABELS[dr.level],
+      abilityScore: dr.abilityScore,
+      confidence: dr.confidence,
+      status: dr.status,
+      provisional: dr.provisional,
+      constructScope: dr.constructScope || meta.constructScope,
+      constructScopeNote: meta.constructScopeNote,
+      topicsCovered: dr.coverage?.topicsCovered ?? 0,
+      topicsTotal: dr.coverage?.topicsTotal ?? 1,
+      competenciesCovered: dr.coverage?.competenciesCovered ?? [],
+      openWeaknessesCount: openCount,
+    };
+  });
+
+  const domainResultsList = Array.from(domainResultMap.values());
+  const planInputs = generateAssessmentPlanInputs(domainResultsList, weaknessSignals);
+
+  const strengths: DomainStrength[] = domainProfiles
+    .filter((dp) => dp.domainId !== 'projects' && dp.level >= 4 && (dp.confidence === 'medium' || dp.confidence === 'high'))
+    .map((dp) => ({
+      domainId: dp.domainId,
+      name: dp.name,
+      level: dp.level,
+      abilityScore: dp.abilityScore,
+      confidence: dp.confidence as 'medium' | 'high',
+      summary: `Demonstrated ${dp.levelLabel} in ${dp.name} with ${dp.confidence} confidence.`,
+    }));
+
+  const weaknesses: DomainWeakness[] = weaknessSignals.map((ws: WeaknessSignal) => ({
+    id: ws.id,
+    domainId: ws.domainId,
+    topicId: ws.topicId,
+    competency: ws.competency,
+    errorCategory: ws.errorCategory,
+    strength: ws.strength,
+    status: ws.status,
+    recommendedAction: getRemediationAction(ws.errorCategory, ws.competency || 'general'),
+  }));
+
+  const isAssessed = Boolean(latestAttempt && assessedCount > 0);
+  const overallAbility = assessedCount > 0 ? Math.round(totalAssessedAbility / assessedCount) : 0;
+
+  return {
+    isAssessed,
+    baselineCompletedAt: latestAttempt?.endedAt,
+    attemptId: latestAttempt?.id,
+    domainProfiles,
+    strengths,
+    weaknesses,
+    overallAbility,
+    assessedDomainsCount: assessedCount,
+    hasIncompleteEvidence: hasIncomplete,
+    planInputs,
   };
 }
 

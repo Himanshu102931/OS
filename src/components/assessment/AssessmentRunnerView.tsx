@@ -6,9 +6,6 @@ import { isAttemptExpired } from '../../engine/assessmentEngine';
 import type {
   AssessmentConfidence,
   AssessmentItem,
-  DomainId,
-  DomainAssessmentResult,
-  WeaknessSignal,
 } from '../../types';
 import {
   Clock,
@@ -20,9 +17,13 @@ import {
   ShieldAlert,
   ArrowRight,
   Target,
-  Sparkles,
   Info,
   BookOpen,
+  Compass,
+  ListOrdered,
+  Activity,
+  Layers,
+  TrendingUp,
 } from 'lucide-react';
 
 export const AssessmentRunnerView: React.FC = () => {
@@ -32,6 +33,7 @@ export const AssessmentRunnerView: React.FC = () => {
     recordAssessmentResponse,
     submitAssessmentAttempt,
     activeAssessmentAttempt,
+    assessmentProfileReadout,
     setRoute,
   } = usePlacement();
 
@@ -139,7 +141,7 @@ export const AssessmentRunnerView: React.FC = () => {
     }
   };
 
-  // Find latest completed attempt & snapshot for readout
+  // Find latest completed attempt for metadata
   const latestCompletedAttempt = useMemo(() => {
     if (!assessmentState?.attempts) return undefined;
     const completed = assessmentState.attempts.filter(
@@ -147,12 +149,6 @@ export const AssessmentRunnerView: React.FC = () => {
     );
     return completed[completed.length - 1];
   }, [assessmentState]);
-
-  const latestSnapshot = useMemo(() => {
-    if (!assessmentState?.snapshots || !latestCompletedAttempt) return undefined;
-    return assessmentState.snapshots.find((s) => s.takenAt === latestCompletedAttempt.endedAt) ||
-      assessmentState.snapshots[assessmentState.snapshots.length - 1];
-  }, [assessmentState, latestCompletedAttempt]);
 
   // ---------------------------------------------------------------------------
   // View 1: Active Assessment Runner
@@ -542,29 +538,17 @@ export const AssessmentRunnerView: React.FC = () => {
   }
 
   // ---------------------------------------------------------------------------
-  // View 2: Completed Readout View
+  // View 2: Phase D Profile & Plan Readout View
   // ---------------------------------------------------------------------------
-  if (latestCompletedAttempt && latestSnapshot) {
-    const domainResults = latestSnapshot.domainResults;
-    const weaknessSignals = assessmentState?.weaknessSignals || [];
-    const dateFormatted = new Date(latestCompletedAttempt.endedAt || latestCompletedAttempt.startedAt).toLocaleString();
+  if (assessmentProfileReadout.isAssessed) {
+    const { domainProfiles, strengths, weaknesses, overallAbility, assessedDomainsCount, planInputs } = assessmentProfileReadout;
+    const dateFormatted = latestCompletedAttempt
+      ? new Date(latestCompletedAttempt.endedAt || latestCompletedAttempt.startedAt).toLocaleString()
+      : 'Authoritative Baseline';
 
-    // Group domains: Class A (core), Class B (partial construct), Class C (projects)
-    const classADomains: DomainId[] = ['aptitude', 'dsa', 'sql', 'dbms', 'oop', 'os', 'cn'];
-    const classBDomains: DomainId[] = ['python', 'communication', 'interviews'];
-
-    const getDomainResult = (domainId: DomainId): DomainAssessmentResult | undefined => {
-      return domainResults.find((d) => d.domainId === domainId);
-    };
-
-    const levelDescriptions: Record<number, string> = {
-      0: 'Level 0 — No demonstrated capability / Unassessed',
-      1: 'Level 1 — Beginner',
-      2: 'Level 2 — Basic',
-      3: 'Level 3 — Intermediate',
-      4: 'Level 4 — Job Ready',
-      5: 'Level 5 — Strong',
-    };
+    const classAProfiles = domainProfiles.filter((d) => d.category === 'Class A');
+    const classBProfiles = domainProfiles.filter((d) => d.category === 'Class B');
+    const classCProfile = domainProfiles.find((d) => d.category === 'Class C');
 
     return (
       <div className="max-w-[1280px] mx-auto space-y-8 pb-16">
@@ -574,15 +558,15 @@ export const AssessmentRunnerView: React.FC = () => {
             <div>
               <div className="flex items-center gap-2 mb-1.5">
                 <span className="text-xs font-mono px-2 py-0.5 rounded bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/40">
-                  {latestCompletedAttempt.status === 'auto_submitted' ? 'Auto-Submitted (180m Limit)' : 'Completed & Sealed'}
+                  {latestCompletedAttempt?.status === 'auto_submitted' ? 'Auto-Submitted (180m Limit)' : 'Completed & Sealed'}
                 </span>
-                <span className="text-xs text-[#8E98A8] font-mono">Attempt: {latestCompletedAttempt.id}</span>
+                <span className="text-xs text-[#8E98A8] font-mono">Attempt: {latestCompletedAttempt?.id || 'baseline'}</span>
               </div>
               <h1 className="text-xl sm:text-2xl font-bold text-[#F1F5F9] tracking-tight">
                 Baseline Diagnostic Capability Readout
               </h1>
               <p className="text-xs sm:text-sm text-[#8E98A8] mt-1">
-                Completed on {dateFormatted} · 10 Assessed Domains · Authoritative Placement Baseline
+                Completed on {dateFormatted} · {assessedDomainsCount} Assessed Domains · Authoritative Placement Baseline (Phase D)
               </p>
             </div>
 
@@ -601,18 +585,14 @@ export const AssessmentRunnerView: React.FC = () => {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-[#262D38]/80 text-xs">
             <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
               <div className="text-[#8E98A8] text-[11px]">Domains Assessed</div>
-              <div className="text-base font-bold text-[#F1F5F9] mt-0.5">10 / 11</div>
+              <div className="text-base font-bold text-[#F1F5F9] mt-0.5">{assessedDomainsCount} / 11</div>
               <div className="text-[10px] text-[#5C6675]">Projects excluded</div>
             </div>
 
             <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
               <div className="text-[#8E98A8] text-[11px]">Average Ability Score</div>
               <div className="text-base font-bold text-[#E5A93C] mt-0.5">
-                {Math.round(
-                  domainResults
-                    .filter((d) => d.domainId !== 'projects')
-                    .reduce((acc, curr) => acc + curr.abilityScore, 0) / 10
-                )}
+                {overallAbility}
                 <span className="text-xs text-[#8E98A8]">/100</span>
               </div>
               <div className="text-[10px] text-[#5C6675]">Chance-corrected</div>
@@ -620,7 +600,7 @@ export const AssessmentRunnerView: React.FC = () => {
 
             <div className="bg-[#1B2028] p-3 rounded border border-[#262D38]">
               <div className="text-[#8E98A8] text-[11px]">Identified Weaknesses</div>
-              <div className="text-base font-bold text-amber-400 mt-0.5">{weaknessSignals.length}</div>
+              <div className="text-base font-bold text-amber-400 mt-0.5">{weaknesses.length}</div>
               <div className="text-[10px] text-[#5C6675]">Signals for planner</div>
             </div>
 
@@ -637,9 +617,9 @@ export const AssessmentRunnerView: React.FC = () => {
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold text-[#F1F5F9] flex items-center gap-2">
               <Target className="size-4 text-[#E5A93C]" />
-              <span>Domain Capability Matrix (11 Domains)</span>
+              <span>Domain Capability Matrix (All 11 Domains)</span>
             </h2>
-            <span className="text-xs text-[#8E98A8]">Provisional Level Rungs (0 to 5)</span>
+            <span className="text-xs text-[#8E98A8]">Provisional Levels (0 to 5) · Ability (0–100)</span>
           </div>
 
           {/* Class A: Core Technical Domains */}
@@ -650,55 +630,48 @@ export const AssessmentRunnerView: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-              {classADomains.map((dId) => {
-                const res = getDomainResult(dId);
-                const ability = res?.abilityScore ?? 0;
-                const level = res?.level ?? 0;
-                const conf = res?.confidence ?? 'none';
-
-                return (
-                  <div key={dId} className="bg-[#14171D] border border-[#262D38] rounded-md p-4 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="text-xs font-semibold uppercase tracking-wider text-[#F1F5F9]">
-                          {dId.toUpperCase()}
-                        </div>
-                        <div className="text-[11px] text-[#8E98A8] mt-0.5">{levelDescriptions[level]}</div>
+              {classAProfiles.map((dp) => (
+                <div key={dp.domainId} className="bg-[#14171D] border border-[#262D38] rounded-md p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wider text-[#F1F5F9]">
+                        {dp.domainId.toUpperCase()}
                       </div>
-                      <span
-                        className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${
-                          conf === 'high'
-                            ? 'bg-[#10B981]/15 text-[#10B981] border-[#10B981]/40'
-                            : conf === 'medium'
-                            ? 'bg-[#38BDF8]/15 text-[#38BDF8] border-[#38BDF8]/40'
-                            : 'bg-amber-950/20 text-amber-400 border-amber-800/40'
-                        }`}
-                      >
-                        {conf} conf
-                      </span>
+                      <div className="text-[11px] text-[#8E98A8] mt-0.5">{dp.levelLabel}</div>
                     </div>
+                    <span
+                      className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${
+                        dp.confidence === 'high'
+                          ? 'bg-[#10B981]/15 text-[#10B981] border-[#10B981]/40'
+                          : dp.confidence === 'medium'
+                          ? 'bg-[#38BDF8]/15 text-[#38BDF8] border-[#38BDF8]/40'
+                          : 'bg-amber-950/20 text-amber-400 border-amber-800/40'
+                      }`}
+                    >
+                      {dp.confidence} conf
+                    </span>
+                  </div>
 
-                    {/* Ability Score Progress Bar */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs font-mono">
-                        <span className="text-[#8E98A8]">Ability</span>
-                        <span className="text-[#E5A93C] font-semibold">{ability}/100</span>
-                      </div>
-                      <div className="h-1.5 bg-[#1B2028] rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-[#E5A93C] rounded-full transition-all duration-500"
-                          style={{ width: `${ability}%` }}
-                        />
-                      </div>
+                  {/* Ability Score Progress Bar */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs font-mono">
+                      <span className="text-[#8E98A8]">Demonstrated Ability</span>
+                      <span className="text-[#E5A93C] font-semibold">{dp.abilityScore}/100</span>
                     </div>
-
-                    <div className="text-[11px] text-[#5C6675] flex justify-between pt-1 border-t border-[#262D38]/60">
-                      <span>Status: {res?.status}</span>
-                      <span>Level {level}</span>
+                    <div className="h-1.5 bg-[#1B2028] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-[#E5A93C] rounded-full transition-all duration-500"
+                        style={{ width: `${dp.abilityScore}%` }}
+                      />
                     </div>
                   </div>
-                );
-              })}
+
+                  <div className="text-[11px] text-[#5C6675] flex justify-between pt-1 border-t border-[#262D38]/60">
+                    <span>Status: {dp.status}</span>
+                    <span className="font-mono text-[#8E98A8]">Level {dp.level}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -710,132 +683,249 @@ export const AssessmentRunnerView: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-              {classBDomains.map((dId) => {
-                const res = getDomainResult(dId);
-                const ability = res?.abilityScore ?? 0;
-                const level = res?.level ?? 0;
-                const conf = res?.confidence ?? 'none';
-
-                return (
-                  <div key={dId} className="bg-[#14171D] border border-[#262D38] rounded-md p-4 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="text-xs font-semibold uppercase tracking-wider text-[#F1F5F9]">
-                          {dId.toUpperCase()}
-                        </div>
-                        <div className="text-[11px] text-[#8E98A8] mt-0.5">{levelDescriptions[level]}</div>
+              {classBProfiles.map((dp) => (
+                <div key={dp.domainId} className="bg-[#14171D] border border-[#262D38] rounded-md p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wider text-[#F1F5F9]">
+                        {dp.domainId.toUpperCase()}
                       </div>
-                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-[#38BDF8]/15 text-[#38BDF8] border border-[#38BDF8]/40">
-                        {conf} conf
-                      </span>
+                      <div className="text-[11px] text-[#8E98A8] mt-0.5">{dp.levelLabel}</div>
                     </div>
-
-                    {/* Ability Score Progress Bar */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs font-mono">
-                        <span className="text-[#8E98A8]">Ability</span>
-                        <span className="text-[#E5A93C] font-semibold">{ability}/100</span>
-                      </div>
-                      <div className="h-1.5 bg-[#1B2028] rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-[#E5A93C] rounded-full transition-all duration-500"
-                          style={{ width: `${ability}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="text-[11px] text-[#38BDF8] pt-1 border-t border-[#262D38]/60 italic">
-                      Scope: {res?.constructScope ?? 'partial_construct'}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Class C: Projects (Excluded from automated baseline) */}
-          <div className="space-y-3 pt-4">
-            <div className="text-xs font-semibold uppercase tracking-wider text-[#8E98A8]">
-              Class C: Project Portfolio
-            </div>
-
-            <div className="bg-[#14171D] border border-[#262D38] rounded-md p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-[#F1F5F9]">PROJECTS</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-[#1B2028] text-[#8E98A8] border border-[#262D38]">
-                    Level 0 · Unassessed
-                  </span>
-                </div>
-                <p className="text-xs text-[#8E98A8]">
-                  Projects are intentionally excluded from diagnostic multiple-choice and timed tests. Capability levels are established only through real architectural defense and milestones in Project Lab.
-                </p>
-              </div>
-
-              <button
-                onClick={() => setRoute('project')}
-                className="px-3.5 py-1.5 rounded text-xs font-medium bg-[#1B2028] text-[#CBD5E1] hover:text-[#F1F5F9] border border-[#3B4556] whitespace-nowrap transition-colors"
-              >
-                Go to Project Lab
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Identified Weakness Signals */}
-        {weaknessSignals.length > 0 && (
-          <div className="space-y-4 pt-4">
-            <h2 className="text-base font-semibold text-[#F1F5F9] flex items-center gap-2">
-              <ShieldAlert className="size-4 text-amber-400" />
-              <span>Diagnosed Weakness Signals ({weaknessSignals.length})</span>
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {weaknessSignals.map((ws: WeaknessSignal) => (
-                <div
-                  key={ws.id}
-                  className="bg-[#14171D] border border-amber-900/30 rounded-md p-3.5 space-y-2 text-xs"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold uppercase tracking-wider text-amber-300">
-                      {ws.domainId}
-                    </span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-950/40 text-amber-400 border border-amber-800/40">
-                      Strength {ws.strength}/3
+                    <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-[#38BDF8]/15 text-[#38BDF8] border border-[#38BDF8]/40">
+                      {dp.confidence} conf
                     </span>
                   </div>
-                  <div className="text-[#CBD5E1] font-medium">{ws.competency}</div>
-                  <div className="text-[11px] text-[#8E98A8] flex items-center justify-between">
-                    <span>Taxonomy: {ws.errorCategory}</span>
-                    <span className="text-[10px] text-[#5C6675]">Status: {ws.status}</span>
+
+                  {/* Ability Score Progress Bar */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs font-mono">
+                      <span className="text-[#8E98A8]">Demonstrated Ability</span>
+                      <span className="text-[#E5A93C] font-semibold">{dp.abilityScore}/100</span>
+                    </div>
+                    <div className="h-1.5 bg-[#1B2028] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-[#E5A93C] rounded-full transition-all duration-500"
+                        style={{ width: `${dp.abilityScore}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="text-[11px] text-[#38BDF8] pt-1 border-t border-[#262D38]/60 leading-tight">
+                    <span className="font-semibold">Construct Limitation: </span>
+                    {dp.constructScopeNote || dp.constructScope}
                   </div>
                 </div>
               ))}
             </div>
           </div>
-        )}
 
-        {/* Adaptive Action Plan Banner */}
-        <div className="bg-[#1B2028] border border-[#E5A93C]/30 rounded-lg p-6 space-y-3">
-          <div className="flex items-center gap-2 text-[#E5A93C]">
-            <Sparkles className="size-5" />
-            <h3 className="text-sm font-semibold text-[#F1F5F9]">Assessment Foundation Established</h3>
+          {/* Class C: Projects (Excluded from automated baseline) */}
+          {classCProfile && (
+            <div className="space-y-3 pt-4">
+              <div className="text-xs font-semibold uppercase tracking-wider text-[#8E98A8]">
+                Class C: Project Portfolio
+              </div>
+
+              <div className="bg-[#14171D] border border-[#262D38] rounded-md p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-[#F1F5F9]">PROJECTS</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-[#1B2028] text-[#8E98A8] border border-[#262D38]">
+                      Level 0 · Unassessed · Confidence: None
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#8E98A8] max-w-2xl">
+                    {classCProfile.constructScopeNote}
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setRoute('project')}
+                  className="px-3.5 py-1.5 rounded text-xs font-medium bg-[#1B2028] text-[#CBD5E1] hover:text-[#F1F5F9] border border-[#3B4556] whitespace-nowrap transition-colors"
+                >
+                  Open Project Lab
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ================================================================= */}
+        {/* Phase D: Initial Adaptive Plan Inputs (§26.1)                    */}
+        {/* ================================================================= */}
+        <div className="space-y-6 pt-4 border-t border-[#262D38]/80">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-[#F1F5F9] flex items-center gap-2">
+              <Compass className="size-4 text-[#E5A93C]" />
+              <span>Initial Adaptive Plan Inputs (§26.1)</span>
+            </h2>
+            <span className="text-xs text-[#8E98A8]">Personalized Starting Points &amp; Multipliers</span>
           </div>
-          <p className="text-xs text-[#CBD5E1] leading-relaxed">
-            Your baseline evidence has been written to the PlacementOS evidence log with source type <code className="font-mono text-[#38BDF8]">test</code>. This evidence now feeds the deterministic adaptive engine to prioritize your weakest competencies and structure your daily preparation schedule.
+
+          {/* Starting Points Table */}
+          <div className="bg-[#14171D] border border-[#262D38] rounded-md overflow-hidden">
+            <div className="px-4 py-3 bg-[#1B2028]/60 border-b border-[#262D38] flex items-center justify-between text-xs">
+              <span className="font-semibold uppercase tracking-wider text-[#CBD5E1] flex items-center gap-1.5">
+                <ListOrdered className="size-3.5 text-[#E5A93C]" />
+                Recommended Starting Sequence (Priority Ranked)
+              </span>
+              <span className="text-[#8E98A8] font-mono">11 Domains</span>
+            </div>
+
+            <div className="divide-y divide-[#262D38]/60 text-xs">
+              {planInputs.startingPoints.map((sp) => (
+                <div key={sp.domainId} className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[#1B2028]/30">
+                  <div className="flex items-start gap-3">
+                    <span className="size-5 rounded flex items-center justify-center font-mono text-[11px] bg-[#1B2028] text-[#E5A93C] border border-[#262D38] shrink-0 mt-0.5">
+                      #{sp.priorityRank}
+                    </span>
+                    <div>
+                      <div className="font-semibold uppercase tracking-wider text-[#F1F5F9]">
+                        {sp.domainId} · <span className="text-[#CBD5E1] font-normal">{sp.topicName}</span>
+                      </div>
+                      <div className="text-[11px] text-[#8E98A8] mt-0.5">{sp.reason}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0 text-[11px] font-mono">
+                    <span className="px-2 py-0.5 rounded bg-[#1B2028] border border-[#262D38] text-[#CBD5E1] capitalize">
+                      Ladder: {sp.recommendedDifficulty}
+                    </span>
+                    <span className="text-[#8E98A8]">
+                      {planInputs.domainEmphases[sp.domainId]?.reviewFrequencyMultiplier > 1.0 ? '1.5x review density' : '1.0x standard'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Strategic Frequency & Priority Adjustments Card */}
+          <div className="bg-[#14171D] border border-[#262D38] rounded-md p-5 space-y-3">
+            <div className="flex items-center gap-2 text-[#E5A93C]">
+              <Layers className="size-4" />
+              <h3 className="text-xs font-semibold uppercase tracking-wider">
+                Strategic Plan Emphasis Multipliers (§26.1)
+              </h3>
+            </div>
+            <p className="text-xs text-[#CBD5E1] leading-relaxed">
+              The diagnostic assessment adjusts topic priority and review frequency multipliers within the existing curriculum without rewriting master phases or tasks:
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-1 font-mono">
+              <div className="bg-[#1B2028] p-3 rounded border border-[#262D38] space-y-1">
+                <div className="text-[#E55353] font-semibold">Weak Domains (&lt;40 or errors)</div>
+                <div className="text-[#F1F5F9] font-bold">1.5× Review Frequency</div>
+                <div className="text-[11px] text-[#8E98A8]">1.3× Task Priority Multiplier</div>
+              </div>
+              <div className="bg-[#1B2028] p-3 rounded border border-[#262D38] space-y-1">
+                <div className="text-[#FFC665] font-semibold">Intermediate (Level 3)</div>
+                <div className="text-[#F1F5F9] font-bold">1.2× Review Frequency</div>
+                <div className="text-[11px] text-[#8E98A8]">1.1× Task Priority Multiplier</div>
+              </div>
+              <div className="bg-[#1B2028] p-3 rounded border border-[#262D38] space-y-1">
+                <div className="text-[#4EAE79] font-semibold">Mastered (Level 4–5)</div>
+                <div className="text-[#F1F5F9] font-bold">1.0× Routine Spaced Repetition</div>
+                <div className="text-[11px] text-[#8E98A8]">0.85× Normal Retention Priority</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Diagnosed Weaknesses & Strengths */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+          {/* Weakness Signals */}
+          <div className="space-y-4">
+            <h2 className="text-sm font-semibold text-[#F1F5F9] flex items-center gap-2">
+              <ShieldAlert className="size-4 text-amber-400" />
+              <span>Diagnosed Weakness Signals ({weaknesses.length})</span>
+            </h2>
+
+            {weaknesses.length > 0 ? (
+              <div className="space-y-2.5">
+                {weaknesses.map((ws) => (
+                  <div
+                    key={ws.id}
+                    className="bg-[#14171D] border border-amber-900/30 rounded-md p-3.5 space-y-1.5 text-xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold uppercase tracking-wider text-amber-300">
+                        {ws.domainId} · {ws.competency}
+                      </span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-950/40 text-amber-400 border border-amber-800/40">
+                        Taxonomy: {ws.errorCategory}
+                      </span>
+                    </div>
+                    <div className="text-[#CBD5E1] text-[11px]">
+                      {ws.recommendedAction}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-[#14171D] border border-[#262D38] rounded-md p-5 text-xs text-[#8E98A8]">
+                No critical weakness signals detected.
+              </div>
+            )}
+          </div>
+
+          {/* Confirmed Strengths */}
+          <div className="space-y-4">
+            <h2 className="text-sm font-semibold text-[#F1F5F9] flex items-center gap-2">
+              <TrendingUp className="size-4 text-[#10B981]" />
+              <span>Demonstrated Strengths ({strengths.length})</span>
+            </h2>
+
+            {strengths.length > 0 ? (
+              <div className="space-y-2.5">
+                {strengths.map((st) => (
+                  <div
+                    key={st.domainId}
+                    className="bg-[#14171D] border border-emerald-900/30 rounded-md p-3.5 space-y-1.5 text-xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold uppercase tracking-wider text-emerald-300">
+                        {st.name}
+                      </span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-950/40 text-emerald-400 border border-emerald-800/40">
+                        Level {st.level} · {st.abilityScore}/100
+                      </span>
+                    </div>
+                    <div className="text-[#CBD5E1] text-[11px]">
+                      {st.summary}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-[#14171D] border border-[#262D38] rounded-md p-5 text-xs text-[#8E98A8]">
+                No domains reached Job Ready (Level 4) or Strong (Level 5) in this baseline. Focus on the starting sequence to build core capabilities.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Skills Subsystem Integration & Dual Readiness Notice (§24) */}
+        <div className="bg-[#14171D] border border-[#262D38] rounded-md p-5 space-y-2.5 text-xs text-[#8E98A8]">
+          <div className="flex items-center gap-2 text-[#38BDF8] font-medium">
+            <Activity className="size-4" />
+            <span>Dual Readiness Integration (§24 Precedence &amp; Conflict Rules)</span>
+          </div>
+          <p className="leading-relaxed text-[#CBD5E1]">
+            PlacementOS maintains a strict separation between <strong>Standardized Diagnostic Capability</strong> (this baseline profile) and <strong>Longitudinal Working Readiness</strong> (from daily practice and task completions in the Skills Matrix). Downstream scheduling conservatively respects the more conservative of the two so that fundamental concepts are never skipped. Diagnostic evidence is logged with <code className="font-mono text-[#38BDF8]">sourceType: &apos;test&apos;</code> and never mutates DSA-150 mastery or Leitner intervals.
           </p>
           <div className="pt-2 flex items-center gap-3">
             <button
-              onClick={() => setRoute('dashboard')}
-              className="px-4 py-2 rounded text-xs font-semibold bg-[#E5A93C] text-[#0D0F12] hover:bg-[#D4982B] transition-colors"
-            >
-              Begin Personalized Preparation
-            </button>
-            <button
               onClick={() => setRoute('skills')}
-              className="px-4 py-2 rounded text-xs font-medium bg-[#14171D] text-[#CBD5E1] hover:text-[#F1F5F9] border border-[#262D38] transition-colors"
+              className="px-3.5 py-1.5 rounded text-xs font-medium bg-[#1B2028] text-[#F1F5F9] border border-[#262D38] hover:bg-[#262D38] transition-colors"
             >
               Inspect Skills Matrix
+            </button>
+            <button
+              onClick={() => setRoute('preparation')}
+              className="px-3.5 py-1.5 rounded text-xs font-medium bg-[#1B2028] text-[#F1F5F9] border border-[#262D38] hover:bg-[#262D38] transition-colors"
+            >
+              Go to Preparation Hub
             </button>
           </div>
         </div>
@@ -852,7 +942,7 @@ export const AssessmentRunnerView: React.FC = () => {
       <div className="space-y-3">
         <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded bg-[#1B2028] border border-[#262D38] text-xs font-mono text-[#E5A93C]">
           <BookOpen className="size-3.5" />
-          <span>Assessment Specification v1.0 · Phase C</span>
+          <span>Assessment Specification v1.0 · Phase D: Profile &amp; Plan Readout</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-[#F1F5F9] tracking-tight">
           Baseline Diagnostic Assessment
@@ -878,7 +968,7 @@ export const AssessmentRunnerView: React.FC = () => {
         <div className="bg-[#14171D] border border-[#262D38] rounded-md p-5 space-y-2">
           <div className="text-xs font-semibold uppercase tracking-wider text-[#38BDF8] flex items-center gap-1.5">
             <Target className="size-4" />
-            <span>Scope & Items</span>
+            <span>Scope &amp; Items</span>
           </div>
           <div className="text-xl font-bold text-[#F1F5F9] font-mono">84 Questions</div>
           <p className="text-xs text-[#8E98A8] leading-relaxed">
@@ -902,7 +992,7 @@ export const AssessmentRunnerView: React.FC = () => {
       <div className="bg-[#14171D] border border-[#262D38] rounded-md overflow-hidden">
         <div className="px-5 py-3.5 border-b border-[#262D38] bg-[#1B2028]/60 flex items-center justify-between">
           <h3 className="text-xs font-semibold text-[#CBD5E1] uppercase tracking-wider">
-            Assessment Modules & Blueprint
+            Assessment Modules &amp; Blueprint
           </h3>
           <span className="text-xs text-[#8E98A8] font-mono">10 Modules · 180 min</span>
         </div>

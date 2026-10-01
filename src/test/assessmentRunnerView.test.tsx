@@ -194,8 +194,8 @@ describe('AssessmentRunnerView UI Component', () => {
 
     expect(screen.getByText('Baseline Diagnostic Capability Readout')).toBeDefined();
     expect(screen.getByText('APTITUDE')).toBeDefined();
-    expect(screen.getByText(/Level 4 — Job Ready/i)).toBeDefined();
+    expect(screen.getAllByText(/Level 4 — Job Ready/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/PROJECTS/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Percentages/i)).toBeDefined();
+    expect(screen.getAllByText(/Percentages/i).length).toBeGreaterThan(0);
   });
 });

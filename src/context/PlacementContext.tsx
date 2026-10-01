@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import type {
   DomainDefinition,
   Phase,
@@ -42,7 +42,9 @@ import {
   evaluateItemResponse,
   scoreAssessmentAttempt,
   transitionAttempt,
+  deriveAssessmentProfileReadout,
   type AssessmentScoringResult,
+  type AssessmentProfileReadout,
 } from '../engine/assessmentEngine';
 import { BASELINE_ASSESSMENT_ITEMS } from '../data/assessment/items';
 import { BASELINE_ASSESSMENT_DEFINITION } from '../data/assessment/definitions';
@@ -146,6 +148,7 @@ interface PlacementContextType {
   ) => void;
   submitAssessmentAttempt: (attemptId: string, isAuto?: boolean) => AssessmentScoringResult;
   activeAssessmentAttempt?: AssessmentAttempt;
+  assessmentProfileReadout: AssessmentProfileReadout;
 }
 
 function getTodayISO(): string {
@@ -746,6 +749,10 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     (a) => a.status === 'in_progress'
   );
 
+  const assessmentProfileReadout = useMemo(() => {
+    return deriveAssessmentProfileReadout(appState.assessmentState);
+  }, [appState.assessmentState]);
+
   return (
     <PlacementContext.Provider
       value={{
@@ -797,6 +804,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         recordAssessmentResponse,
         submitAssessmentAttempt,
         activeAssessmentAttempt,
+        assessmentProfileReadout,
       }}
     >
       {children}
