@@ -35,6 +35,7 @@ export const AssessmentRunnerView: React.FC = () => {
     assessmentState,
     startBaselineAssessment,
     startSundayAssessment,
+    startFullReassessment,
     pendingSundayObligation,
 
     recordAssessmentResponse,
@@ -210,7 +211,11 @@ export const AssessmentRunnerView: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <span className="text-xs font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-[#1B2028] text-[#E5A93C] border border-[#3B4556]">
-                {activeAssessmentAttempt.kind === 'weekly_assessment' ? 'Sunday Adaptive Mini Test' : 'Baseline Diagnostic'}
+                {activeAssessmentAttempt.kind === 'weekly_assessment'
+                  ? 'Sunday Adaptive Mini Test'
+                  : activeAssessmentAttempt.kind === 'full_reassessment'
+                  ? 'Full Diagnostic Reassessment'
+                  : 'Baseline Diagnostic'}
               </span>
               <span className="text-sm font-semibold text-[#F1F5F9]">
                 Question {currentIdx + 1} of {totalCount}
@@ -719,6 +724,38 @@ export const AssessmentRunnerView: React.FC = () => {
               </button>
             </div>
 
+            {/* Phase F: Full Diagnostic Reassessment Card (§19) */}
+            <div className="bg-[#14171D] border border-[#262D38] rounded-md p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono uppercase tracking-wider text-[#38BDF8] font-bold">
+                    Authoritative Longitudinal Calibration
+                  </span>
+                  {assessmentProfileReadout.isReassessmentRecommended && (
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                      Recommended (&ge; 6 Weeks Elapsed)
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-sm font-bold text-[#F1F5F9]">
+                  Full Diagnostic Reassessment (180 Minutes)
+                </h3>
+                <p className="text-xs text-[#8E98A8] max-w-2xl leading-relaxed">
+                  Full 10-module comprehensive assessment across 84 items. Evaluates longitudinal capability, confirms provisional levels (&ge; 2 consistent observations), and applies conservative regression gates (§17). Always manually initiated.
+                </p>
+              </div>
+
+              <button
+                onClick={() => {
+                  startFullReassessment();
+                  setCurrentIdx(0);
+                }}
+                className="px-5 py-2.5 rounded text-xs font-semibold bg-[#1B2028] text-[#38BDF8] hover:bg-[#262D38] border border-[#38BDF8]/40 transition-colors whitespace-nowrap shadow-sm shrink-0"
+              >
+                Run Full Diagnostic Again
+              </button>
+            </div>
+
         {/* 11-Domain Capability Matrix */}
         <div className="space-y-6">
           <div className="flex items-center justify-between">
@@ -746,17 +783,39 @@ export const AssessmentRunnerView: React.FC = () => {
                       </div>
                       <div className="text-[11px] text-[#8E98A8] mt-0.5">{dp.levelLabel}</div>
                     </div>
-                    <span
-                      className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${
-                        dp.confidence === 'high'
-                          ? 'bg-[#10B981]/15 text-[#10B981] border-[#10B981]/40'
-                          : dp.confidence === 'medium'
-                          ? 'bg-[#38BDF8]/15 text-[#38BDF8] border-[#38BDF8]/40'
-                          : 'bg-amber-950/20 text-amber-400 border-amber-800/40'
-                      }`}
-                    >
-                      {dp.confidence} conf
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                      {dp.recentSignal === 'regression' && (
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-red-950/40 text-red-400 border border-red-800/40" title={dp.recentSignalReason}>
+                          Regressed
+                        </span>
+                      )}
+                      {dp.recentSignal === 'confirmation' && (
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-950/40 text-emerald-400 border border-emerald-800/40" title={dp.recentSignalReason}>
+                          Confirmed
+                        </span>
+                      )}
+                      <span
+                        className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
+                          dp.provisional
+                            ? 'bg-amber-950/20 text-amber-400 border-amber-800/40'
+                            : 'bg-emerald-950/30 text-emerald-400 border-emerald-800/40'
+                        }`}
+                        title={dp.provisional ? 'Provisional: requires >= 2 consistent subsequent assessments' : 'Confirmed level'}
+                      >
+                        {dp.provisional ? 'Provisional' : 'Confirmed'}
+                      </span>
+                      <span
+                        className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${
+                          dp.confidence === 'high'
+                            ? 'bg-[#10B981]/15 text-[#10B981] border-[#10B981]/40'
+                            : dp.confidence === 'medium'
+                            ? 'bg-[#38BDF8]/15 text-[#38BDF8] border-[#38BDF8]/40'
+                            : 'bg-amber-950/20 text-amber-400 border-amber-800/40'
+                        }`}
+                      >
+                        {dp.confidence} conf
+                      </span>
+                    </div>
                   </div>
 
                   {/* Ability Score Progress Bar */}
@@ -773,8 +832,12 @@ export const AssessmentRunnerView: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="text-[11px] text-[#5C6675] flex justify-between pt-1 border-t border-[#262D38]/60">
-                    <span>Status: {dp.status}</span>
+                  <div className="text-[11px] text-[#5C6675] flex items-center justify-between pt-1 border-t border-[#262D38]/60">
+                    <span>
+                      {dp.latestAssessmentKind
+                        ? `${dp.latestAssessmentKind === 'full_reassessment' ? 'Reassessment' : dp.latestAssessmentKind === 'weekly_assessment' ? 'Sunday Mini' : 'Baseline'} (${dp.latestAssessmentDate?.slice(0, 10)})`
+                        : `Status: ${dp.status}`}
+                    </span>
                     <span className="font-mono text-[#8E98A8]">Level {dp.level}</span>
                   </div>
                 </div>
@@ -799,9 +862,31 @@ export const AssessmentRunnerView: React.FC = () => {
                       </div>
                       <div className="text-[11px] text-[#8E98A8] mt-0.5">{dp.levelLabel}</div>
                     </div>
-                    <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-[#38BDF8]/15 text-[#38BDF8] border border-[#38BDF8]/40">
-                      {dp.confidence} conf
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                      {dp.recentSignal === 'regression' && (
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-red-950/40 text-red-400 border border-red-800/40" title={dp.recentSignalReason}>
+                          Regressed
+                        </span>
+                      )}
+                      {dp.recentSignal === 'confirmation' && (
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-950/40 text-emerald-400 border border-emerald-800/40" title={dp.recentSignalReason}>
+                          Confirmed
+                        </span>
+                      )}
+                      <span
+                        className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
+                          dp.provisional
+                            ? 'bg-amber-950/20 text-amber-400 border-amber-800/40'
+                            : 'bg-emerald-950/30 text-emerald-400 border-emerald-800/40'
+                        }`}
+                        title={dp.provisional ? 'Provisional: requires >= 2 consistent subsequent assessments' : 'Confirmed level'}
+                      >
+                        {dp.provisional ? 'Provisional' : 'Confirmed'}
+                      </span>
+                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-[#38BDF8]/15 text-[#38BDF8] border border-[#38BDF8]/40">
+                        {dp.confidence} conf
+                      </span>
+                    </div>
                   </div>
 
                   {/* Ability Score Progress Bar */}
@@ -821,6 +906,15 @@ export const AssessmentRunnerView: React.FC = () => {
                   <div className="text-[11px] text-[#38BDF8] pt-1 border-t border-[#262D38]/60 leading-tight">
                     <span className="font-semibold">Construct Limitation: </span>
                     {dp.constructScopeNote || dp.constructScope}
+                  </div>
+
+                  <div className="text-[11px] text-[#5C6675] flex items-center justify-between pt-1 border-t border-[#262D38]/60">
+                    <span>
+                      {dp.latestAssessmentKind
+                        ? `${dp.latestAssessmentKind === 'full_reassessment' ? 'Reassessment' : dp.latestAssessmentKind === 'weekly_assessment' ? 'Sunday Mini' : 'Baseline'} (${dp.latestAssessmentDate?.slice(0, 10)})`
+                        : `Status: ${dp.status}`}
+                    </span>
+                    <span className="font-mono text-[#8E98A8]">Level {dp.level}</span>
                   </div>
                 </div>
               ))}

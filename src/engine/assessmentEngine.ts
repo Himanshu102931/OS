@@ -26,6 +26,7 @@ import type {
 import {
   BASELINE_ASSESSMENT_DEFINITION,
   SUNDAY_MINI_TEST_DEFINITION,
+  FULL_REASSESSMENT_DEFINITION,
 } from '../data/assessment/definitions';
 import { BASELINE_ASSESSMENT_ITEMS } from '../data/assessment/items';
 
@@ -216,6 +217,8 @@ export const PROVISIONAL_REGRESSION = {
   abilityDropThreshold: 8,
   minPriorObservations: 2,
   maxLevelDrop: 1,
+  catastrophicDropThreshold: 25,
+  recentObservationWindowDays: 45,
 } as const;
 
 /** Provisional confidence decay windows (DECIDED 4) */
@@ -263,6 +266,32 @@ export function computeConfidenceBand(score: number): 'none' | 'low' | 'medium' 
   if (score <= 0) return 'none';
   if (score >= PROVISIONAL_CONFIDENCE_BANDS.high.min) return 'high';
   if (score >= PROVISIONAL_CONFIDENCE_BANDS.medium.min) return 'medium';
+  return 'low';
+}
+
+/**
+ * Applies freshness-aware time decay to confidence ratings per §11.3:
+ * - < 14 days: unchanged
+ * - 14–42 days: demote one step (high -> medium, medium -> low; low stays low)
+ * - > 42 days: demote to low (never to none)
+ * Decay affects confidence only, never level.
+ */
+export function applyConfidenceTimeDecay(
+  confidence: 'none' | 'low' | 'medium' | 'high',
+  assessmentDate: string,
+  currentDate: string = new Date().toISOString()
+): 'none' | 'low' | 'medium' | 'high' {
+  if (confidence === 'none') return 'none';
+  const ageMs = Math.abs(new Date(currentDate).getTime() - new Date(assessmentDate).getTime());
+  const ageDays = ageMs / (24 * 60 * 60 * 1000);
+
+  if (ageDays < PROVISIONAL_CONFIDENCE_DECAY.stableDays) {
+    return confidence;
+  }
+  if (ageDays <= PROVISIONAL_CONFIDENCE_DECAY.demoteOneStepDays) {
+    if (confidence === 'high') return 'medium';
+    return 'low';
+  }
   return 'low';
 }
 
@@ -546,7 +575,9 @@ export function scoreAssessmentAttempt(
   allItems: AssessmentItem[] = BASELINE_ASSESSMENT_ITEMS,
   definition: AssessmentDefinition = BASELINE_ASSESSMENT_DEFINITION,
   existingExposures?: Record<string, AssessmentItemExposure>,
-  existingWeaknessSignals?: WeaknessSignal[]
+  existingWeaknessSignals?: WeaknessSignal[],
+  existingDomainResults?: DomainAssessmentResult[],
+  existingEvidenceLogs?: EvidenceLog[]
 ): AssessmentScoringResult {
   const terminalAttempt = attempt.status === 'in_progress'
     ? transitionAttempt(attempt, isAttemptExpired(attempt) ? 'auto_submitted' : 'submitted')
@@ -584,6 +615,7 @@ export function scoreAssessmentAttempt(
   };
 
   const isWeekly = terminalAttempt.kind === 'weekly_assessment';
+  const isFullReassessment = terminalAttempt.kind === 'full_reassessment';
 
   // Determine modules to evaluate: for weekly assessment, target domains present in selectedItemIds
   const targetModules: Array<{ domainId: DomainId; itemCount: number }> = isWeekly
@@ -597,6 +629,8 @@ export function scoreAssessmentAttempt(
         domainId,
         itemCount: terminalAttempt.selectedItemIds.filter((id) => itemMap.get(id)?.domainId === domainId).length,
       }))
+    : isFullReassessment
+    ? FULL_REASSESSMENT_DEFINITION.modules
     : definition.modules;
 
   for (const moduleDef of targetModules) {
@@ -785,10 +819,76 @@ export function scoreAssessmentAttempt(
     else if (domainId === 'interviews') constructScope = 'interview_knowledge_only';
     else if (domainId === 'python') constructScope = 'reasoning_only';
 
+    // Collect domain responses for regression check
+    const domainResponses = domainItems
+      .map((item) => responseMap.get(item.id))
+      .filter((r): r is AssessmentResponse => Boolean(r));
+
+    let finalLevel = level;
+    let isProvisional = true;
+
+    // Check Level Regression & Confirmation if existing results are present (§17, §10.4)
+    if (existingDomainResults && existingDomainResults.length > 0) {
+      const priorDomainHistory = existingDomainResults
+        .filter((dr) => dr.domainId === domainId && dr.attemptId !== terminalAttempt.id)
+        .sort((a, b) => new Date(a.assessmentDate).getTime() - new Date(b.assessmentDate).getTime());
+
+      const latestPrior = priorDomainHistory[priorDomainHistory.length - 1];
+
+      if (latestPrior && latestPrior.level > 0) {
+        if (finalLevel < latestPrior.level) {
+          const regression = checkLevelRegression({
+            currentResult: latestPrior,
+            newAbilityScore: abilityScore,
+            newConfidence: confidence,
+            scoredResponses: domainResponses,
+            difficultyBands: Array.from(difficultyBandsSet),
+            domainItems,
+            priorDomainResults: existingDomainResults,
+            priorEvidenceLogs: existingEvidenceLogs,
+            attemptDate: assessmentDate,
+          });
+
+          if (regression.hasRegressed) {
+            finalLevel = regression.regressedLevel;
+            // Add weakness signal for regression if not already present
+            const existingSignal = (existingWeaknessSignals || []).find(
+              (ws) => ws.domainId === domainId && ws.status !== 'resolved'
+            );
+            if (!existingSignal) {
+              weaknessSignals.push({
+                id: `ws-${domainId}-regression-${terminalAttempt.id}`,
+                domainId,
+                errorCategory: 'E-REGRESS',
+                strength: 3,
+                status: 'open',
+                firstSeenAt: assessmentDate,
+                lastSeenAt: assessmentDate,
+                occurrences: 1,
+                sourceAttemptIds: [terminalAttempt.id],
+              });
+            }
+          } else {
+            // Regression blocked by specification rules: maintain established level
+            finalLevel = latestPrior.level;
+          }
+        }
+
+        // Evaluate confirmation for current level (§10.4)
+        const confirmation = checkLevelConfirmation({
+          currentLevel: finalLevel,
+          currentConfidence: confidence,
+          priorDomainResults: existingDomainResults,
+          domainId,
+        });
+        isProvisional = !confirmation.isConfirmed;
+      }
+    }
+
     const domainResult: DomainAssessmentResult = {
       domainId,
       abilityScore,
-      level,
+      level: finalLevel,
       confidence,
       status,
       coverage: {
@@ -798,7 +898,7 @@ export function scoreAssessmentAttempt(
         difficultyBands: Array.from(difficultyBandsSet),
       },
       assessmentDate,
-      provisional: true, // Baseline and weekly results are provisional until confirmed (§10.4)
+      provisional: isProvisional,
       constructScope,
       attemptId: terminalAttempt.id,
       kind: terminalAttempt.kind,
@@ -820,7 +920,7 @@ export function scoreAssessmentAttempt(
         domainId,
         score: abilityScore,
         confidence: confRating,
-        details: `Assessment: ${terminalAttempt.kind} · ability ${abilityScore} · level ${level} · confidence ${confidence}`,
+        details: `Assessment: ${terminalAttempt.kind} · ability ${abilityScore} · level ${finalLevel} · confidence ${confidence}`,
       });
     }
   }
@@ -852,7 +952,12 @@ export function scoreAssessmentAttempt(
     id: `snap-${terminalAttempt.kind}-${terminalAttempt.id}`,
     takenAt: assessmentDate,
     kind: terminalAttempt.kind,
-    trigger: terminalAttempt.kind === 'weekly_assessment' ? 'scheduled' : 'post_baseline',
+    trigger:
+      terminalAttempt.kind === 'weekly_assessment'
+        ? 'scheduled'
+        : terminalAttempt.kind === 'full_reassessment'
+        ? 'manual'
+        : 'post_baseline',
     domainResults,
   };
 
@@ -929,6 +1034,18 @@ export interface DomainAssessmentProfile {
   topicsTotal: number;
   competenciesCovered: string[];
   openWeaknessesCount: number;
+  history?: Array<{
+    attemptId: string;
+    kind: AssessmentKind;
+    date: string;
+    level: number;
+    abilityScore: number;
+    confidence: 'none' | 'low' | 'medium' | 'high';
+  }>;
+  recentSignal?: 'regression' | 'confirmation' | 'stable' | 'initial';
+  recentSignalReason?: string;
+  latestAssessmentKind?: AssessmentKind;
+  latestAssessmentDate?: string;
 }
 
 export interface DomainStrength {
@@ -955,6 +1072,8 @@ export interface AssessmentProfileReadout {
   isAssessed: boolean;
   baselineCompletedAt?: string;
   attemptId?: string;
+  latestAttemptKind?: AssessmentKind;
+  latestAttemptDate?: string;
   domainProfiles: DomainAssessmentProfile[];
   strengths: DomainStrength[];
   weaknesses: DomainWeakness[];
@@ -962,6 +1081,8 @@ export interface AssessmentProfileReadout {
   assessedDomainsCount: number;
   hasIncompleteEvidence: boolean;
   planInputs: AssessmentPlanInputs;
+  isReassessmentRecommended?: boolean;
+  nextReassessmentSuggestedAt?: string;
 }
 
 export const DOMAIN_METADATA: Record<DomainId, {
@@ -1263,16 +1384,25 @@ export function deriveAssessmentProfileReadout(
     'oop', 'os', 'cn', 'communication', 'interviews', 'projects'
   ];
 
-  const completedAttempts = (assessmentState?.attempts || []).filter(
-    (a: AssessmentAttempt) => a.kind === 'diagnostic_assessment' && (a.status === 'submitted' || a.status === 'auto_submitted')
+  const allCompletedAttempts = (assessmentState?.attempts || []).filter(
+    (a: AssessmentAttempt) => a.status === 'submitted' || a.status === 'auto_submitted'
   );
-  const latestAttempt = completedAttempts[completedAttempts.length - 1];
+  const baselineAttempt = allCompletedAttempts.find((a: AssessmentAttempt) => a.kind === 'diagnostic_assessment');
+  const latestAttempt = allCompletedAttempts[allCompletedAttempts.length - 1];
+
+  const completedAttemptIds = new Set(allCompletedAttempts.map((a) => a.id));
+  const candidateDomainResults = (assessmentState?.domainResults || []).filter(
+    (dr) => completedAttemptIds.size === 0 || completedAttemptIds.has(dr.attemptId)
+  );
 
   const domainResultMap = new Map<DomainId, DomainAssessmentResult>();
-  if (latestAttempt && assessmentState?.domainResults) {
-    const attemptResults = assessmentState.domainResults.filter((dr: DomainAssessmentResult) => dr.attemptId === latestAttempt.id);
-    for (const dr of attemptResults) {
-      domainResultMap.set(dr.domainId, dr);
+  for (const domainId of allDomainIds) {
+    const domainHistory = candidateDomainResults
+      .filter((dr) => dr.domainId === domainId)
+      .sort((a, b) => new Date(a.assessmentDate).getTime() - new Date(b.assessmentDate).getTime());
+    const dr = domainHistory[domainHistory.length - 1];
+    if (dr) {
+      domainResultMap.set(domainId, dr);
     }
   }
 
@@ -1292,7 +1422,6 @@ export function deriveAssessmentProfileReadout(
   let hasIncomplete = false;
 
   const domainProfiles: DomainAssessmentProfile[] = allDomainIds.map((domainId) => {
-    const dr = domainResultMap.get(domainId);
     const meta = DOMAIN_METADATA[domainId];
     const openCount = openWeaknessesPerDomain[domainId] || 0;
 
@@ -1314,8 +1443,15 @@ export function deriveAssessmentProfileReadout(
         topicsTotal: 1,
         competenciesCovered: [],
         openWeaknessesCount: 0,
+        recentSignal: 'initial',
       };
     }
+
+    const domainHistory = candidateDomainResults
+      .filter((dr) => dr.domainId === domainId)
+      .sort((a, b) => new Date(a.assessmentDate).getTime() - new Date(b.assessmentDate).getTime());
+
+    const dr = domainHistory[domainHistory.length - 1];
 
     if (!dr || dr.status === 'unassessed') {
       hasIncomplete = true;
@@ -1335,6 +1471,7 @@ export function deriveAssessmentProfileReadout(
         topicsTotal: 1,
         competenciesCovered: [],
         openWeaknessesCount: openCount,
+        recentSignal: 'initial',
       };
     }
 
@@ -1344,6 +1481,31 @@ export function deriveAssessmentProfileReadout(
 
     totalAssessedAbility += dr.abilityScore;
     assessedCount++;
+
+    let recentSignal: 'regression' | 'confirmation' | 'stable' | 'initial' = 'initial';
+    let recentSignalReason: string | undefined;
+
+    if (domainHistory.length >= 2) {
+      const priorDr = domainHistory[domainHistory.length - 2];
+      if (dr.level < priorDr.level) {
+        recentSignal = 'regression';
+        recentSignalReason = `Level regressed from Level ${priorDr.level} to Level ${dr.level} following assessment`;
+      } else if (!dr.provisional && priorDr.provisional) {
+        recentSignal = 'confirmation';
+        recentSignalReason = `Level ${dr.level} confirmed by consistent subsequent assessment observations`;
+      } else {
+        recentSignal = 'stable';
+      }
+    }
+
+    const history = domainHistory.map((h) => ({
+      attemptId: h.attemptId,
+      kind: h.kind,
+      date: h.assessmentDate,
+      level: h.level,
+      abilityScore: h.abilityScore,
+      confidence: h.confidence,
+    }));
 
     return {
       domainId,
@@ -1361,6 +1523,11 @@ export function deriveAssessmentProfileReadout(
       topicsTotal: dr.coverage?.topicsTotal ?? 1,
       competenciesCovered: dr.coverage?.competenciesCovered ?? [],
       openWeaknessesCount: openCount,
+      history,
+      recentSignal,
+      recentSignalReason,
+      latestAssessmentKind: dr.kind,
+      latestAssessmentDate: dr.assessmentDate,
     };
   });
 
@@ -1389,13 +1556,32 @@ export function deriveAssessmentProfileReadout(
     recommendedAction: getRemediationAction(ws.errorCategory, ws.competency || 'general'),
   }));
 
-  const isAssessed = Boolean(latestAttempt && assessedCount > 0);
+  const isAssessed = Boolean((baselineAttempt || latestAttempt) && assessedCount > 0);
   const overallAbility = assessedCount > 0 ? Math.round(totalAssessedAbility / assessedCount) : 0;
+
+  const comprehensiveAttempts = allCompletedAttempts.filter(
+    (a) => a.kind === 'diagnostic_assessment' || a.kind === 'full_reassessment'
+  );
+  const lastComprehensive = comprehensiveAttempts[comprehensiveAttempts.length - 1];
+  let isReassessmentRecommended = false;
+  let nextReassessmentSuggestedAt: string | undefined;
+
+  if (lastComprehensive?.endedAt) {
+    const lastDateMs = new Date(lastComprehensive.endedAt).getTime();
+    const elapsedDays = (Date.now() - lastDateMs) / (24 * 60 * 60 * 1000);
+    // Recommended cadence 6-8 weeks (42-56 days)
+    if (elapsedDays >= 42) {
+      isReassessmentRecommended = true;
+    }
+    nextReassessmentSuggestedAt = new Date(lastDateMs + 42 * 24 * 60 * 60 * 1000).toISOString();
+  }
 
   return {
     isAssessed,
-    baselineCompletedAt: latestAttempt?.endedAt,
+    baselineCompletedAt: baselineAttempt?.endedAt || latestAttempt?.endedAt,
     attemptId: latestAttempt?.id,
+    latestAttemptKind: latestAttempt?.kind,
+    latestAttemptDate: latestAttempt?.endedAt,
     domainProfiles,
     strengths,
     weaknesses,
@@ -1403,6 +1589,8 @@ export function deriveAssessmentProfileReadout(
     assessedDomainsCount: assessedCount,
     hasIncompleteEvidence: hasIncomplete,
     planInputs,
+    isReassessmentRecommended,
+    nextReassessmentSuggestedAt,
   };
 }
 
@@ -2189,16 +2377,452 @@ export function deriveWeeklyAssessmentReadout(
   };
 }
 
-/**
- * Placeholder for future level regression logic - will be implemented in Phase F
- */
-export function checkLevelRegression(): never {
-  throw new Error('Not implemented in Phase E - see Phase F');
+// ============================================================================
+// Phase F: Level Regression & Full Reassessment (§17, §19)
+// ============================================================================
+
+export interface ConfirmationCheckInput {
+  currentLevel: 0 | 1 | 2 | 3 | 4 | 5;
+  currentConfidence: 'none' | 'low' | 'medium' | 'high';
+  priorDomainResults: DomainAssessmentResult[];
+  domainId: DomainId;
+}
+
+export interface ConfirmationCheckResult {
+  isConfirmed: boolean;
+  consistentObservationsCount: number;
+  reason: string;
 }
 
 /**
- * Placeholder for future full reassessment - will be implemented in Phase F
+ * Checks whether a domain's level qualifies for long-term confirmation per §10.4:
+ * - Requires confidence >= 'medium' (a low-confidence level cannot be confirmed).
+ * - Requires >= 2 subsequent consistent assessment observations within ±1 level.
+ * - Does not prematurely confirm from one observation.
  */
-export function runFullReassessment(): never {
-  throw new Error('Not implemented in Phase E - see Phase F');
+export function checkLevelConfirmation(
+  inputOrLevel: ConfirmationCheckInput | (0 | 1 | 2 | 3 | 4 | 5),
+  currentConfidence?: 'none' | 'low' | 'medium' | 'high',
+  priorDomainResults: DomainAssessmentResult[] = [],
+  domainId?: DomainId
+): ConfirmationCheckResult {
+  let level: 0 | 1 | 2 | 3 | 4 | 5;
+  let conf: 'none' | 'low' | 'medium' | 'high';
+  let priors: DomainAssessmentResult[];
+  let dId: DomainId | undefined;
+
+  if (typeof inputOrLevel === 'object' && inputOrLevel !== null) {
+    level = inputOrLevel.currentLevel;
+    conf = inputOrLevel.currentConfidence;
+    priors = inputOrLevel.priorDomainResults || [];
+    dId = inputOrLevel.domainId;
+  } else {
+    level = inputOrLevel;
+    conf = currentConfidence ?? 'none';
+    priors = priorDomainResults;
+    dId = domainId;
+  }
+
+  // 1. Confidence precondition: must be >= medium
+  if (conf !== 'medium' && conf !== 'high') {
+    return {
+      isConfirmed: false,
+      consistentObservationsCount: 0,
+      reason: `Confirmation blocked: Confidence must be at least medium to confirm a level (actual: ${conf})`,
+    };
+  }
+
+  // Filter prior results for this domain
+  const domainPriors = priors.filter((dr) => !dId || dr.domainId === dId);
+
+  // Count consistent subsequent observations within ±1 level
+  let consistentCount = 0;
+  for (const prior of domainPriors) {
+    if (Math.abs(prior.level - level) <= 1 && prior.confidence !== 'none') {
+      consistentCount++;
+    }
+  }
+
+  const isConfirmed = consistentCount >= 2;
+  return {
+    isConfirmed,
+    consistentObservationsCount: consistentCount,
+    reason: isConfirmed
+      ? `Confirmed: Supported by ${consistentCount} consistent subsequent assessment observations within ±1 level with ${conf} confidence`
+      : `Provisional: Requires >= 2 consistent subsequent observations within ±1 level (current count: ${consistentCount})`,
+  };
+}
+
+export interface RegressionCheckInput {
+  currentResult: DomainAssessmentResult;
+  newAbilityScore: number;
+  newConfidence?: 'none' | 'low' | 'medium' | 'high';
+  scoredResponses: AssessmentResponse[];
+  difficultyBands?: number[];
+  domainItems: AssessmentItem[];
+  priorDomainResults?: DomainAssessmentResult[];
+  priorEvidenceLogs?: EvidenceLog[];
+  attemptDate?: string;
+}
+
+export interface RegressionCheckResult {
+  hasRegressed: boolean;
+  regressedLevel: 0 | 1 | 2 | 3 | 4 | 5;
+  previousLevel: 0 | 1 | 2 | 3 | 4 | 5;
+  levelChange: number;
+  reason: string;
+  gates: {
+    sufficientEvidence: boolean;
+    confidencePrecondition: boolean;
+    repeatedContradiction: boolean;
+    priorObservationThreshold: boolean;
+    noOffsettingEvidence: boolean;
+  };
+  isCatastrophicException: boolean;
+  isMultiStepException: boolean;
+}
+
+/**
+ * Evaluates whether a domain's level should regress per §17.
+ * All 6 specification gates must hold for a standard regression:
+ * 1. Sufficient evidence (>= 3 scored responses across >= 2 difficulty bands).
+ * 2. Confidence precondition (current confidence >= 'medium').
+ * 3. Repeated contradiction (new ability <= lower band - 8, and another below-band observation in last 45 days).
+ * 4. Prior observation threshold (>= 2 prior observations, unless catastrophic).
+ * 5. Magnitude cap (-1 level maximum, or -2 only under strict §17.2 high-confidence exception; never 4 -> 1).
+ * 6. No offsetting evidence (no correct response on level-appropriate item contradicting drop).
+ */
+export function checkLevelRegression(
+  inputOrCurrentResult: RegressionCheckInput | DomainAssessmentResult,
+  newAbilityScore?: number,
+  scoredResponses?: AssessmentResponse[],
+  difficultyBands?: number[],
+  domainItems?: AssessmentItem[],
+  priorDomainResults: DomainAssessmentResult[] = [],
+  priorEvidenceLogs: EvidenceLog[] = [],
+  attemptDate: string = new Date().toISOString()
+): RegressionCheckResult {
+  let currentResult: DomainAssessmentResult;
+  let newAbility: number;
+  let responses: AssessmentResponse[];
+  let bands: number[];
+  let items: AssessmentItem[];
+  let priors: DomainAssessmentResult[];
+  let evLogs: EvidenceLog[];
+  let dateStr: string;
+
+  if ('currentResult' in inputOrCurrentResult) {
+    currentResult = inputOrCurrentResult.currentResult;
+    newAbility = inputOrCurrentResult.newAbilityScore;
+    responses = inputOrCurrentResult.scoredResponses || [];
+    items = inputOrCurrentResult.domainItems || [];
+    bands = inputOrCurrentResult.difficultyBands ?? Array.from(new Set(items.map((i) => (i.difficulty <= 2 ? 1 : i.difficulty))));
+    priors = inputOrCurrentResult.priorDomainResults || [];
+    evLogs = inputOrCurrentResult.priorEvidenceLogs || [];
+    dateStr = inputOrCurrentResult.attemptDate || new Date().toISOString();
+  } else {
+    currentResult = inputOrCurrentResult;
+    newAbility = newAbilityScore ?? 0;
+    responses = scoredResponses || [];
+    items = domainItems || [];
+    bands = difficultyBands ?? Array.from(new Set(items.map((i) => (i.difficulty <= 2 ? 1 : i.difficulty))));
+    priors = priorDomainResults;
+    evLogs = priorEvidenceLogs;
+    dateStr = attemptDate;
+  }
+
+  const gates = {
+    sufficientEvidence: false,
+    confidencePrecondition: false,
+    repeatedContradiction: false,
+    priorObservationThreshold: false,
+    noOffsettingEvidence: false,
+  };
+
+  if (currentResult.level === 0 || currentResult.status === 'unassessed') {
+    return {
+      hasRegressed: false,
+      regressedLevel: 0,
+      previousLevel: 0,
+      levelChange: 0,
+      reason: 'Domain is already at Level 0 or unassessed; cannot regress further',
+      gates,
+      isCatastrophicException: false,
+      isMultiStepException: false,
+    };
+  }
+
+  const rawNewLevel = mapAbilityToProvisionalLevel(newAbility);
+  if (rawNewLevel >= currentResult.level) {
+    return {
+      hasRegressed: false,
+      regressedLevel: currentResult.level,
+      previousLevel: currentResult.level,
+      levelChange: 0,
+      reason: 'New ability corresponds to level >= current level; no regression',
+      gates,
+      isCatastrophicException: false,
+      isMultiStepException: false,
+    };
+  }
+
+  const currentBand = PROVISIONAL_LEVEL_BANDS.find((b) => b.level === currentResult.level);
+  const bandMin = currentBand ? currentBand.min : 0;
+
+  // Gate 1: Sufficient evidence (§17.1 #1)
+  // >= 3 scored responses in the new assessment for the domain, >= 2 difficulty bands
+  const scoredCount = responses.filter((r) => r.result !== 'unanswered').length;
+  const distinctBands = new Set(bands);
+  const hasSufficientEvidence =
+    scoredCount >= PROVISIONAL_REGRESSION.minScoredResponses &&
+    distinctBands.size >= PROVISIONAL_REGRESSION.minDifficultyBands;
+  gates.sufficientEvidence = hasSufficientEvidence;
+  if (!hasSufficientEvidence) {
+    return {
+      hasRegressed: false,
+      regressedLevel: currentResult.level,
+      previousLevel: currentResult.level,
+      levelChange: 0,
+      reason: `Insufficient evidence: requires >= ${PROVISIONAL_REGRESSION.minScoredResponses} scored responses across >= ${PROVISIONAL_REGRESSION.minDifficultyBands} difficulty bands (actual: ${scoredCount} responses, ${distinctBands.size} bands)`,
+      gates,
+      isCatastrophicException: false,
+      isMultiStepException: false,
+    };
+  }
+
+  // Gate 2: Confidence precondition (§17.1 #2)
+  // Current confidence >= medium for the existing level
+  const hasConfidencePrecondition = currentResult.confidence === 'medium' || currentResult.confidence === 'high';
+  gates.confidencePrecondition = hasConfidencePrecondition;
+  if (!hasConfidencePrecondition) {
+    return {
+      hasRegressed: false,
+      regressedLevel: currentResult.level,
+      previousLevel: currentResult.level,
+      levelChange: 0,
+      reason: `Confidence precondition not met: existing level confidence must be >= medium (actual: ${currentResult.confidence})`,
+      gates,
+      isCatastrophicException: false,
+      isMultiStepException: false,
+    };
+  }
+
+  // Gate 3: Repeated contradiction (§17.1 #3)
+  // New domainAbility falls below level's lower band by >= 8 points,
+  // AND at least one other observation in the last 45 days is also below-band
+  const dropFromBandMin = bandMin - newAbility;
+  const isDropSufficient = dropFromBandMin >= PROVISIONAL_REGRESSION.abilityDropThreshold;
+
+  const nowMs = new Date(dateStr).getTime();
+  const windowDays = (PROVISIONAL_REGRESSION as any).recentObservationWindowDays ?? 45;
+  const windowMs = windowDays * 24 * 60 * 60 * 1000;
+
+  const hasPriorAssessmentBelowBand = priors.some((pdr) => {
+    if (pdr.domainId !== currentResult.domainId) return false;
+    if (pdr.attemptId === currentResult.attemptId && pdr.abilityScore === currentResult.abilityScore) return false;
+    const ageMs = Math.abs(nowMs - new Date(pdr.assessmentDate).getTime());
+    if (ageMs > windowMs) return false;
+    return pdr.abilityScore < bandMin;
+  });
+
+  const hasPriorPracticeBelowBand = evLogs.some((el) => {
+    if (el.domainId !== currentResult.domainId) return false;
+    const ageMs = Math.abs(nowMs - new Date(el.timestamp).getTime());
+    if (ageMs > windowMs) return false;
+    return el.score < bandMin;
+  });
+
+  const hasRecentLowObservation = hasPriorAssessmentBelowBand || hasPriorPracticeBelowBand;
+  const repeatedContradiction = isDropSufficient && hasRecentLowObservation;
+  gates.repeatedContradiction = repeatedContradiction;
+
+  if (!isDropSufficient) {
+    return {
+      hasRegressed: false,
+      regressedLevel: currentResult.level,
+      previousLevel: currentResult.level,
+      levelChange: 0,
+      reason: `Ability drop below band minimum is insufficient: ${dropFromBandMin} < ${PROVISIONAL_REGRESSION.abilityDropThreshold} points`,
+      gates,
+      isCatastrophicException: false,
+      isMultiStepException: false,
+    };
+  }
+
+  if (!hasRecentLowObservation) {
+    return {
+      hasRegressed: false,
+      regressedLevel: currentResult.level,
+      previousLevel: currentResult.level,
+      levelChange: 0,
+      reason: `No recent below-band observation in last ${windowDays} days to substantiate regression`,
+      gates,
+      isCatastrophicException: false,
+      isMultiStepException: false,
+    };
+  }
+
+  // Gate 4: Minimum observation threshold (§17.1 #4)
+  // Domain has >= 2 prior assessment observations unless the drop is catastrophic
+  const priorObsCount = priors.filter((p) => p.domainId === currentResult.domainId).length;
+  const correctCount = responses.filter((r) => r.result === 'correct').length;
+  const isCatastrophic =
+    newAbility === 0 ||
+    dropFromBandMin >= ((PROVISIONAL_REGRESSION as any).catastrophicDropThreshold ?? 25) ||
+    (correctCount === 0 && scoredCount >= PROVISIONAL_REGRESSION.minScoredResponses);
+
+  const meetsObservationThreshold = priorObsCount >= PROVISIONAL_REGRESSION.minPriorObservations || isCatastrophic;
+  gates.priorObservationThreshold = meetsObservationThreshold;
+
+  if (!meetsObservationThreshold) {
+    return {
+      hasRegressed: false,
+      regressedLevel: currentResult.level,
+      previousLevel: currentResult.level,
+      levelChange: 0,
+      reason: `Prior observation threshold not met: domain has ${priorObsCount} prior observations (requires >= ${PROVISIONAL_REGRESSION.minPriorObservations}) and drop is not catastrophic`,
+      gates,
+      isCatastrophicException: false,
+      isMultiStepException: false,
+    };
+  }
+
+  // Gate 6: No offsetting evidence (§17.1 #6)
+  // No correct/strong result for the same domain in the new attempt that contradicts the drop
+  const itemMap = new Map(items.map((i) => [i.id, i]));
+  const hasOffsettingEvidence = responses.some((r) => {
+    if (r.result !== 'correct') return false;
+    const item = itemMap.get(r.itemId);
+    if (!item) return false;
+    const expectedDifficulty = Math.min(3, currentResult.level);
+    return item.difficulty >= expectedDifficulty;
+  });
+  gates.noOffsettingEvidence = !hasOffsettingEvidence;
+
+  if (hasOffsettingEvidence) {
+    return {
+      hasRegressed: false,
+      regressedLevel: currentResult.level,
+      previousLevel: currentResult.level,
+      levelChange: 0,
+      reason: 'Offsetting evidence present: demonstrated correct answer on level-appropriate item contradicts drop',
+      gates,
+      isCatastrophicException: isCatastrophic && priorObsCount < PROVISIONAL_REGRESSION.minPriorObservations,
+      isMultiStepException: false,
+    };
+  }
+
+  // Determine drop magnitude (§17.1 #5 and §17.2 exception)
+  // Standard drop: at most -1 level per assessment event
+  // Exception (§17.2): -2 step regression only when:
+  // - confidence = high
+  // - two consecutive assessment events are below-band by >= 8
+  // - both cross competency-level contradictions (>= 3 wrong competencies)
+  // 4 -> 1 is NEVER permitted under any evidence combination!
+  let dropMagnitude = 1;
+  let isMultiStepException = false;
+
+  if (currentResult.confidence === 'high') {
+    const wrongCompetenciesInNew = new Set<string>();
+    for (const r of responses) {
+      if (r.result === 'incorrect' || r.result === 'dont_know') {
+        const item = itemMap.get(r.itemId);
+        if (item?.competency) wrongCompetenciesInNew.add(item.competency);
+      }
+    }
+
+    const domainPriorsSorted = [...priors]
+      .filter((p) => p.domainId === currentResult.domainId)
+      .sort((a, b) => new Date(b.assessmentDate).getTime() - new Date(a.assessmentDate).getTime());
+
+    const recentPrior = domainPriorsSorted[0];
+    if (
+      recentPrior &&
+      bandMin - recentPrior.abilityScore >= PROVISIONAL_REGRESSION.abilityDropThreshold &&
+      wrongCompetenciesInNew.size >= 3
+    ) {
+      isMultiStepException = true;
+      dropMagnitude = 2;
+    }
+  }
+
+  let targetLevel = currentResult.level - dropMagnitude;
+  // Strictly prevent 4 -> 1 drop in one event!
+  if (currentResult.level === 4 && targetLevel <= 1) {
+    targetLevel = 2;
+    dropMagnitude = 2;
+  }
+  const clampedTargetLevel = Math.max(0, targetLevel) as 0 | 1 | 2 | 3 | 4 | 5;
+
+  return {
+    hasRegressed: true,
+    regressedLevel: clampedTargetLevel,
+    previousLevel: currentResult.level,
+    levelChange: clampedTargetLevel - currentResult.level,
+    reason: isMultiStepException
+      ? 'Multi-step regression (-2): high confidence with consecutive below-band assessments and competency contradictions'
+      : 'Standard regression (-1): all 6 specification gates satisfied',
+    gates,
+    isCatastrophicException: isCatastrophic && priorObsCount < PROVISIONAL_REGRESSION.minPriorObservations,
+    isMultiStepException,
+  };
+}
+
+/**
+ * Builds a deterministic full reassessment attempt (§19).
+ * Uses FULL_REASSESSMENT_DEFINITION (180 min, 10 modules, 84 items).
+ * Selects eligible items matching the authoritative module structure.
+ */
+export function buildFullReassessmentAttempt(
+  _assessmentState?: AssessmentState,
+  seed: string = `reassessment-${Date.now()}`
+): AssessmentAttempt {
+  const definition = FULL_REASSESSMENT_DEFINITION;
+  const selectedItemIds: string[] = [];
+
+  for (const moduleDef of definition.modules) {
+    const moduleItems = BASELINE_ASSESSMENT_ITEMS.filter((i) => i.domainId === moduleDef.domainId);
+
+    const roleRank = (role: 'anchor' | 'branch' | 'confirm'): number => {
+      switch (role) {
+        case 'anchor': return 1;
+        case 'branch': return 2;
+        case 'confirm': return 3;
+        default: return 4;
+      }
+    };
+
+    const ordered = [...moduleItems].sort((a, b) => {
+      const rDiff = roleRank(a.assessmentRole) - roleRank(b.assessmentRole);
+      if (rDiff !== 0) return rDiff;
+      return a.difficulty - b.difficulty;
+    });
+
+    for (const item of ordered) {
+      selectedItemIds.push(item.id);
+    }
+  }
+
+  return {
+    id: `reassessment-${Date.now()}`,
+    definitionId: definition.id,
+    definitionVersion: definition.version,
+    kind: 'full_reassessment',
+    status: 'in_progress',
+    startedAt: new Date().toISOString(),
+    timeLimitSeconds: definition.timeLimitMinutes * 60,
+    seed,
+    selectedItemIds,
+  };
+}
+
+/**
+ * Executes a full reassessment creation and returns the attempt.
+ */
+export function runFullReassessment(
+  assessmentState?: AssessmentState,
+  seed?: string
+): { attempt: AssessmentAttempt } {
+  const attempt = buildFullReassessmentAttempt(assessmentState, seed);
+  return { attempt };
 }

@@ -103,7 +103,24 @@ export const SUNDAY_MINI_TEST_DEFINITION: AssessmentDefinition = {
   version: 1,
 };
 
+/**
+ * Full Diagnostic Reassessment Definition (§19)
+ *
+ * 180-minute hard limit across the 10 authoritative modules (84 items total).
+ * Identical blueprint family to baseline diagnostic, measuring longitudinal progress
+ * and evaluating regression/confirmation. (Projects domain excluded per §20).
+ */
+export const FULL_REASSESSMENT_DEFINITION: AssessmentDefinition = {
+  id: 'full-reassessment-v1',
+  kind: 'full_reassessment',
+  name: 'PlacementOS Full Diagnostic Reassessment',
+  timeLimitMinutes: 180,
+  modules: BASELINE_ASSESSMENT_DEFINITION.modules,
+  version: 1,
+};
+
 export const ASSESSMENT_DEFINITIONS: AssessmentDefinition[] = [
   BASELINE_ASSESSMENT_DEFINITION,
   SUNDAY_MINI_TEST_DEFINITION,
+  FULL_REASSESSMENT_DEFINITION,
 ];

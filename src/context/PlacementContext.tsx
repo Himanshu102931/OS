@@ -40,6 +40,7 @@ import { applyPracticeAttempt } from '../engine/practiceEngine';
 import {
   buildBaselineAttempt,
   buildSundayMiniTestAttempt,
+  buildFullReassessmentAttempt,
   isSundayTestEligible,
   checkSundayObligation,
   evaluateItemResponse,
@@ -54,6 +55,7 @@ import { BASELINE_ASSESSMENT_ITEMS } from '../data/assessment/items';
 import {
   BASELINE_ASSESSMENT_DEFINITION,
   SUNDAY_MINI_TEST_DEFINITION,
+  FULL_REASSESSMENT_DEFINITION,
 } from '../data/assessment/definitions';
 
 export type RoutePath = 'dashboard' | 'roadmap' | 'dsa' | 'skills' | 'practice' | 'preparation' | 'project' | 'companies' | 'analytics' | 'settings' | 'assessment';
@@ -147,6 +149,7 @@ interface PlacementContextType {
   storageBytes: number;
   startBaselineAssessment: () => AssessmentAttempt;
   startSundayAssessment: (options?: Partial<SundaySelectionOptions>) => AssessmentAttempt;
+  startFullReassessment: () => AssessmentAttempt;
   isSundayEligible: boolean;
   pendingSundayObligation: boolean;
   recordAssessmentResponse: (
@@ -678,6 +681,34 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return attempt;
   };
 
+  const startFullReassessment = (): AssessmentAttempt => {
+    const attempt = buildFullReassessmentAttempt(appState.assessmentState);
+    setAppState((prev) => {
+      const existingState = prev.assessmentState ?? {
+        attempts: [],
+        responses: [],
+        exposures: {},
+        domainResults: [],
+        snapshots: [],
+        weaknessSignals: [],
+        profile: { pendingSunday: false },
+      };
+      const updatedAttempts = existingState.attempts.map((a) =>
+        a.status === 'in_progress'
+          ? { ...a, status: 'abandoned' as const, endedAt: new Date().toISOString() }
+          : a
+      );
+      return {
+        ...prev,
+        assessmentState: {
+          ...existingState,
+          attempts: [...updatedAttempts, attempt],
+        },
+      };
+    });
+    return attempt;
+  };
+
   const recordAssessmentResponse = (
     attemptId: string,
     itemId: string,
@@ -732,8 +763,11 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const attemptResponses = (existingState?.responses || []).filter((r) => r.attemptId === attemptId);
 
     const isWeekly = attempt.kind === 'weekly_assessment';
+    const isFullReassessment = attempt.kind === 'full_reassessment';
     const definition = isWeekly
       ? SUNDAY_MINI_TEST_DEFINITION
+      : isFullReassessment
+      ? FULL_REASSESSMENT_DEFINITION
       : BASELINE_ASSESSMENT_DEFINITION;
 
     const scoringResult = scoreAssessmentAttempt(
@@ -742,7 +776,9 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       BASELINE_ASSESSMENT_ITEMS,
       definition,
       existingState?.exposures,
-      existingState?.weaknessSignals
+      existingState?.weaknessSignals,
+      existingState?.domainResults,
+      appState.evidenceLogs
     );
 
     setAppState((prev) => {
@@ -787,6 +823,10 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             baselineCompletedAt: scoringResult.attempt.kind === 'diagnostic_assessment' ? scoringResult.attempt.endedAt : curr.profile.baselineCompletedAt,
             lastSundayAt: scoringResult.attempt.kind === 'weekly_assessment' ? scoringResult.attempt.endedAt : curr.profile.lastSundayAt,
             pendingSunday: scoringResult.attempt.kind === 'weekly_assessment' ? false : curr.profile.pendingSunday,
+            nextReassessmentSuggestedAt:
+              scoringResult.attempt.kind === 'full_reassessment' || scoringResult.attempt.kind === 'diagnostic_assessment'
+                ? new Date(new Date(scoringResult.attempt.endedAt || Date.now()).getTime() + 42 * 24 * 60 * 60 * 1000).toISOString()
+                : curr.profile.nextReassessmentSuggestedAt,
           },
         },
       };
@@ -890,6 +930,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         storageBytes: StorageAdapter.getStorageBytes(),
         startBaselineAssessment,
         startSundayAssessment,
+        startFullReassessment,
         isSundayEligible,
         pendingSundayObligation,
         recordAssessmentResponse,
