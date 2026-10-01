@@ -28,6 +28,12 @@ import type {
   ItemCalibrationObservation,
   ItemCalibrationSummary,
   CompanyOverlay,
+  AssessmentExecutionResult,
+  AssessmentExecutionRecord,
+  PythonExecutionContract,
+  PythonTestCase,
+  SqlFixture,
+  SqlTableFixture,
 } from '../types';
 import {
   BASELINE_ASSESSMENT_DEFINITION,
@@ -35,6 +41,16 @@ import {
   FULL_REASSESSMENT_DEFINITION,
 } from '../data/assessment/definitions';
 import { BASELINE_ASSESSMENT_ITEMS } from '../data/assessment/items';
+import {
+  executePythonAssessmentItem,
+  executeSqlAssessmentItem,
+  validatePythonSafety,
+  validateSqlSafety,
+  EXECUTION_ERROR_CODES,
+  SandboxedPythonInterpreter,
+  SandboxedSqlExecutor,
+  areOutputsEqual,
+} from './assessmentExecutionEngine';
 
 // ============================================================================
 // Type Guards & Validation
@@ -461,6 +477,7 @@ export interface EvaluatedItemScore {
   scoredCredit: number;
   weightApplied: number;
   errorCategories: string[];
+  executionResult?: AssessmentExecutionResult;
 }
 
 /**
@@ -468,6 +485,7 @@ export interface EvaluatedItemScore {
  * - MCQs: evaluates against key (0.0 or 1.0).
  * - SQL normalized_match: evaluates against acceptableForms[].
  * - Rubric/constructed: self-evaluation NEVER awards points (credit = 0.0).
+ * - Execution_test: sandboxed execution against authored contract/fixture (Phase H).
  * - Flags dont_know and unanswered appropriately.
  */
 export function evaluateItemResponse(
@@ -549,6 +567,43 @@ export function evaluateItemResponse(
     };
   }
 
+  // 4. Execution-Backed Python/SQL Test (Phase H)
+  if (item.scoring.kind === 'execution_test') {
+    let execResult: AssessmentExecutionResult;
+    const userCode = String(userResponse);
+
+    if (item.pythonContract || item.domainId === 'python') {
+      execResult = executePythonAssessmentItem(item, userCode);
+    } else if (item.sqlFixture || item.domainId === 'sql') {
+      execResult = executeSqlAssessmentItem(item, userCode);
+    } else {
+      execResult = {
+        passed: false,
+        status: 'unsupported',
+        errorCategory: EXECUTION_ERROR_CODES.UNSUPPORTED,
+        message: 'No supported execution contract or fixture found for item',
+        testsPassed: 0,
+        totalTests: 0,
+        executionTimeMs: 0,
+      };
+    }
+
+    const isCorrect = execResult.passed;
+    const errorCats = isCorrect
+      ? []
+      : execResult.errorCategory
+      ? Array.from(new Set([execResult.errorCategory, ...item.errorCategories]))
+      : item.errorCategories;
+
+    return {
+      result: isCorrect ? 'correct' : 'incorrect',
+      scoredCredit: isCorrect ? 1.0 : 0.0,
+      weightApplied: finalWeight,
+      errorCategories: errorCats,
+      executionResult: execResult,
+    };
+  }
+
   // Fallback
   return {
     result: 'incorrect',
@@ -570,6 +625,7 @@ export interface AssessmentScoringResult {
   exposures: Record<string, AssessmentItemExposure>;
   evidenceLogs: EvidenceLog[];
   calibrationObservations?: ItemCalibrationObservation[];
+  executionRecords?: AssessmentExecutionRecord[];
 }
 
 /**
@@ -596,6 +652,7 @@ export function scoreAssessmentAttempt(
   const exposures: Record<string, AssessmentItemExposure> = {};
   const evidenceLogs: EvidenceLog[] = [];
   const calibrationObservations: ItemCalibrationObservation[] = [];
+  const executionRecords: AssessmentExecutionRecord[] = [];
 
   const responseMap = new Map<string, AssessmentResponse>();
   for (const resp of responses) {
@@ -753,6 +810,19 @@ export function scoreAssessmentAttempt(
       calibrationObservations.push(
         recordItemCalibrationObservation(resp, terminalAttempt, item)
       );
+
+      // Phase H: Execution Record Recording
+      if (resp.executionResult) {
+        executionRecords.push({
+          id: `exec-${terminalAttempt.id}-${item.id}`,
+          attemptId: terminalAttempt.id,
+          itemId: item.id,
+          language: item.pythonContract || item.domainId === 'python' ? 'python' : 'sql',
+          code: String(resp.response),
+          result: resp.executionResult,
+          timestamp: assessmentDate,
+        });
+      }
     }
 
     // Apply item influence cap per §6.2 / §9.2 Step 3 (max 25% standard, 30% for DSA)
@@ -982,6 +1052,7 @@ export function scoreAssessmentAttempt(
     exposures,
     evidenceLogs,
     calibrationObservations,
+    executionRecords: executionRecords.length > 0 ? executionRecords : undefined,
   };
 }
 
@@ -3209,4 +3280,21 @@ export type {
   CompanyAssessmentOverlayResult,
   ItemCalibrationObservation,
   ItemCalibrationSummary,
+  AssessmentExecutionResult,
+  AssessmentExecutionRecord,
+  PythonExecutionContract,
+  PythonTestCase,
+  SqlFixture,
+  SqlTableFixture,
+};
+
+export {
+  executePythonAssessmentItem,
+  executeSqlAssessmentItem,
+  validatePythonSafety,
+  validateSqlSafety,
+  EXECUTION_ERROR_CODES,
+  SandboxedPythonInterpreter,
+  SandboxedSqlExecutor,
+  areOutputsEqual,
 };

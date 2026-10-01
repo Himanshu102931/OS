@@ -9,6 +9,7 @@ import {
 import type {
   AssessmentConfidence,
   AssessmentItem,
+  AssessmentExecutionResult,
 } from '../../types';
 import {
   Clock,
@@ -29,6 +30,7 @@ import {
   TrendingUp,
   Calendar,
   Briefcase,
+  Code2,
 } from 'lucide-react';
 
 export const AssessmentRunnerView: React.FC = () => {
@@ -84,7 +86,15 @@ export const AssessmentRunnerView: React.FC = () => {
 
   // Responses map for active attempt
   const responseMap = useMemo(() => {
-    const map = new Map<string, { response: number | string; confidence?: AssessmentConfidence; result: string }>();
+    const map = new Map<
+      string,
+      {
+        response: number | string;
+        confidence?: AssessmentConfidence;
+        result: string;
+        executionResult?: AssessmentExecutionResult;
+      }
+    >();
     if (!activeAssessmentAttempt || !assessmentState) return map;
 
     for (const resp of assessmentState.responses) {
@@ -93,6 +103,7 @@ export const AssessmentRunnerView: React.FC = () => {
           response: resp.response,
           confidence: resp.responseConfidence,
           result: resp.result,
+          executionResult: resp.executionResult,
         });
       }
     }
@@ -362,6 +373,85 @@ export const AssessmentRunnerView: React.FC = () => {
                         rows={6}
                         className="w-full bg-[#0D0F12] text-[#F1F5F9] font-sans text-xs p-3.5 rounded border border-[#262D38] focus:border-[#E5A93C] focus:outline-none transition-colors"
                       />
+                    </div>
+                  )}
+
+                  {/* 4. Execution-Backed Python/SQL Test (Phase H) */}
+                  {currentItem.scoring.kind === 'execution_test' && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-xs text-[#8E98A8]">
+                        <span className="flex items-center gap-1.5 font-mono">
+                          <Code2 className="size-3.5 text-[#E5A93C]" />
+                          {currentItem.domainId === 'python' ? 'Python 3 Sandbox' : 'SQL Relational Fixture'}
+                        </span>
+                        <span className="text-[11px] text-[#64748B]">
+                          Deterministic sandboxed evaluation
+                        </span>
+                      </div>
+
+                      <textarea
+                        value={textInput}
+                        onChange={(e) => {
+                          setTextInput(e.target.value);
+                          handleAnswerChange(e.target.value);
+                        }}
+                        placeholder={
+                          currentItem.domainId === 'python'
+                            ? `def ${currentItem.pythonContract?.entryPoint || 'solution'}(...):\n    # Write your solution here\n    pass`
+                            : 'SELECT ... FROM ... WHERE ...'
+                        }
+                        rows={7}
+                        spellCheck={false}
+                        className="w-full bg-[#0D0F12] text-[#F1F5F9] font-mono text-xs p-3.5 rounded border border-[#262D38] focus:border-[#E5A93C] focus:outline-none transition-colors"
+                      />
+
+                      {/* Execution feedback readout */}
+                      {recordedCurrent?.executionResult && (
+                        <div
+                          className={`p-3 rounded border text-xs font-mono transition-all ${
+                            recordedCurrent.executionResult.passed
+                              ? 'bg-emerald-950/20 border-emerald-800/40 text-emerald-400'
+                              : recordedCurrent.executionResult.status === 'timeout'
+                              ? 'bg-amber-950/20 border-amber-800/40 text-amber-400'
+                              : recordedCurrent.executionResult.status === 'sandbox_violation'
+                              ? 'bg-red-950/30 border-red-800/50 text-red-400'
+                              : recordedCurrent.executionResult.status === 'unsupported'
+                              ? 'bg-slate-900 border-slate-700 text-slate-400'
+                              : 'bg-red-950/20 border-red-800/40 text-rose-400'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between font-sans text-xs font-semibold mb-1">
+                            <span className="flex items-center gap-1.5">
+                              {recordedCurrent.executionResult.passed ? (
+                                <CheckCircle2 className="size-3.5 text-emerald-400" />
+                              ) : (
+                                <AlertTriangle className="size-3.5" />
+                              )}
+                              {recordedCurrent.executionResult.passed
+                                ? 'Execution Passed'
+                                : recordedCurrent.executionResult.status === 'timeout'
+                                ? 'Execution Timeout'
+                                : recordedCurrent.executionResult.status === 'syntax_error'
+                                ? 'Syntax Error'
+                                : recordedCurrent.executionResult.status === 'sandbox_violation'
+                                ? 'Sandbox Violation'
+                                : recordedCurrent.executionResult.status === 'unsupported'
+                                ? 'Unsupported Execution'
+                                : 'Execution Assertion Failed'}
+                            </span>
+                            <span className="text-[11px] font-normal text-[#8E98A8]">
+                              {recordedCurrent.executionResult.executionTimeMs}ms
+                            </span>
+                          </div>
+
+                          <div className="text-[11px] leading-relaxed break-words whitespace-pre-wrap">
+                            {recordedCurrent.executionResult.message ||
+                              (recordedCurrent.executionResult.passed
+                                ? `Passed ${recordedCurrent.executionResult.testsPassed}/${recordedCurrent.executionResult.totalTests} tests`
+                                : `Error: ${recordedCurrent.executionResult.errorCategory || 'Failure'}`)}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 

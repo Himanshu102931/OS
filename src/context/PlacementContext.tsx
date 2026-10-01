@@ -742,6 +742,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         scoredCredit: evaluated.scoredCredit,
         weightApplied: evaluated.weightApplied,
         responseConfidence: confidence,
+        executionResult: evaluated.executionResult,
       };
 
       const otherResponses = existingState.responses.filter(
@@ -827,6 +828,10 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           calibrationObservations: [
             ...(curr.calibrationObservations || []),
             ...(scoringResult.calibrationObservations || []),
+          ],
+          executionRecords: [
+            ...(curr.executionRecords || []),
+            ...(scoringResult.executionRecords || []),
           ],
           profile: {
             ...curr.profile,

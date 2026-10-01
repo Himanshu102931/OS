@@ -347,6 +347,67 @@ export interface AssessmentModule {
   difficultyMix: { easy: number; medium: number; hard: number };
 }
 
+export interface PythonTestCase {
+  id?: string;
+  name?: string;
+  inputs: unknown[];
+  expected: unknown;
+  description?: string;
+}
+
+export interface PythonExecutionContract {
+  entryPoint: string;
+  testCases: PythonTestCase[];
+  timeoutMs?: number;
+  memoryLimitBytes?: number;
+  allowedBuiltins?: string[];
+  forbiddenPatterns?: string[];
+}
+
+export interface SqlTableFixture {
+  columns: string[];
+  rows: (string | number | boolean | null)[][];
+}
+
+export interface SqlFixture {
+  tables: Record<string, SqlTableFixture>;
+  expectedOutput: {
+    columns: string[];
+    rows: (string | number | boolean | null)[][];
+    orderSensitive?: boolean;
+  };
+}
+
+export interface AssessmentExecutionResult {
+  passed: boolean;
+  status:
+    | 'success'
+    | 'syntax_error'
+    | 'runtime_error'
+    | 'assertion_failure'
+    | 'timeout'
+    | 'sandbox_violation'
+    | 'unsupported';
+  errorCategory?: string;
+  message?: string;
+  testsPassed: number;
+  totalTests: number;
+  executionTimeMs: number;
+  actualOutput?: unknown;
+  expectedOutput?: unknown;
+  capturedLogs?: string[];
+}
+
+export interface AssessmentExecutionRecord {
+  id: string;
+  attemptId: string;
+  itemId: string;
+  language: 'python' | 'sql';
+  code: string;
+  result: AssessmentExecutionResult;
+  timestamp: string;
+}
+
 export interface AssessmentItem {
   id: string;
   domainId: DomainId;
@@ -368,6 +429,8 @@ export interface AssessmentItem {
   explanation: string;
   errorCategories: string[];
   origin: 'assessment';
+  pythonContract?: PythonExecutionContract;
+  sqlFixture?: SqlFixture;
 }
 
 export type AssessmentQuestionType =
@@ -391,7 +454,7 @@ export interface AssessmentExposurePolicy {
 }
 
 export interface AssessmentScoring {
-  kind: 'objective' | 'normalized_match' | 'rubric';
+  kind: 'objective' | 'normalized_match' | 'rubric' | 'execution_test';
   key?: number | string;
   rubricId?: string;
   weight: number;
@@ -423,6 +486,7 @@ export interface AssessmentResponse {
   errorCategories: string[];
   scoredCredit: number;
   weightApplied: number;
+  executionResult?: AssessmentExecutionResult;
 }
 
 export interface AssessmentItemExposure {
@@ -583,6 +647,7 @@ export interface AssessmentState {
   weaknessSignals: WeaknessSignal[];
   profile: AssessmentProfile;
   calibrationObservations?: ItemCalibrationObservation[];
+  executionRecords?: AssessmentExecutionRecord[];
 }
 
 // --- Practice & Assessment Subsystem Types ---

@@ -17,6 +17,7 @@ import type {
   AssessmentItemExposure,
   AssessmentProfile,
   ItemCalibrationObservation,
+  AssessmentExecutionRecord,
 } from '../types';
 import {
   TASK_PROGRESS,
@@ -511,6 +512,11 @@ function validateAssessmentState(state: unknown): state is AssessmentState {
       if (!Array.isArray(response.errorCategories)) return false;
       if (typeof response.scoredCredit !== 'number') return false;
       if (typeof response.weightApplied !== 'number') return false;
+      if (response.executionResult !== undefined) {
+        if (!response.executionResult || typeof response.executionResult !== 'object') return false;
+        if (typeof response.executionResult.passed !== 'boolean') return false;
+        if (typeof response.executionResult.status !== 'string') return false;
+      }
     }
   }
 
@@ -615,6 +621,26 @@ function validateAssessmentState(state: unknown): state is AssessmentState {
     }
   }
 
+  if (s.executionRecords !== undefined) {
+    if (!Array.isArray(s.executionRecords)) return false;
+    for (const rec of s.executionRecords) {
+      if (!rec || typeof rec !== 'object') return false;
+      const r = rec as Partial<AssessmentExecutionRecord>;
+      if (typeof r.id !== 'string') return false;
+      if (typeof r.attemptId !== 'string') return false;
+      if (typeof r.itemId !== 'string') return false;
+      if (r.language !== 'python' && r.language !== 'sql') return false;
+      if (typeof r.code !== 'string') return false;
+      if (typeof r.timestamp !== 'string') return false;
+      if (!r.result || typeof r.result !== 'object') return false;
+      if (typeof r.result.passed !== 'boolean') return false;
+      if (typeof r.result.status !== 'string') return false;
+      if (typeof r.result.testsPassed !== 'number') return false;
+      if (typeof r.result.totalTests !== 'number') return false;
+      if (typeof r.result.executionTimeMs !== 'number') return false;
+    }
+  }
+
   return true;
 }
 
@@ -671,10 +697,20 @@ export function pruneAssessmentResponses(state: AssessmentState): AssessmentStat
     });
   }
 
+  let prunedExecutionRecords = state.executionRecords;
+  if (state.executionRecords) {
+    prunedExecutionRecords = state.executionRecords.filter((rec) => {
+      if (keepFullAttemptIds.has(rec.attemptId)) return true;
+      const recDate = new Date(rec.timestamp);
+      return recDate >= ninetyDaysAgo;
+    });
+  }
+
   return {
     ...state,
     responses: prunedResponses,
     ...(prunedObservations ? { calibrationObservations: prunedObservations } : {}),
+    ...(prunedExecutionRecords ? { executionRecords: prunedExecutionRecords } : {}),
   };
 }
 
