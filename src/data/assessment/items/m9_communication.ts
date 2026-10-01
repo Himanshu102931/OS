@@ -1,0 +1,208 @@
+import type { AssessmentItem } from '../../../types';
+
+/**
+ * M9: Communication
+ * 8 items, 16 minutes budget (including 1 structured written response)
+ * Difficulty: 3 easy (diff 1-2), 3 medium (diff 3), 2 hard (diff 4)
+ * Formats: Grammar/vocab MCQ, passage comprehension, 1 structured written response
+ * Scope: Class B written-only construct (§21: written/verbal knowledge, provisional)
+ */
+export const M9_COMMUNICATION_ITEMS: AssessmentItem[] = [
+  // --- Easy Items (3 items: 2 diff 1, 1 diff 2) ---
+  {
+    id: 'asm-comm-001',
+    domainId: 'communication',
+    topicId: 'prep-comm',
+    competency: 'comm-grammar',
+    difficulty: 1,
+    estimatedMinutes: 1.5,
+    questionType: 'mcq',
+    assessmentRole: 'anchor',
+    eligibleFor: ['baseline'],
+    exposurePolicy: { maxEstimationUses: 1, releaseToPractice: false },
+    scoring: { kind: 'objective', weight: 1 },
+    prompt: 'Which of the following sentences correctly follows subject-verb agreement rules with compound subjects?',
+    options: [
+      'Neither the lead architect nor the software engineers were convinced by the proposed timeline.',
+      'Neither the lead architect nor the software engineers was convinced by the proposed timeline.',
+      'Neither the software engineers nor the lead architect were convinced by the proposed timeline.',
+      'Neither the lead architect or the software engineers are convinced yesterday.'
+    ],
+    key: 0,
+    explanation: 'When subjects are linked by "neither... nor", the verb agrees with the subject closer to it. "Software engineers" is plural and adjacent to "were", making the sentence grammatically sound.',
+    errorCategories: ['E-CONCEPT', 'comm-grammar'],
+    origin: 'assessment',
+  },
+  {
+    id: 'asm-comm-002',
+    domainId: 'communication',
+    topicId: 'prep-comm',
+    competency: 'comm-vocabulary',
+    difficulty: 1,
+    estimatedMinutes: 1.5,
+    questionType: 'mcq',
+    assessmentRole: 'anchor',
+    eligibleFor: ['baseline'],
+    exposurePolicy: { maxEstimationUses: 1, releaseToPractice: false },
+    scoring: { kind: 'objective', weight: 1 },
+    prompt: 'Choose the word that most accurately completes the sentence in a formal technical engineering context:\n"The security team initiated a comprehensive audit to ________ all identified critical vulnerabilities before the cloud launch."',
+    options: [
+      'remediate',
+      'obfuscate',
+      'fabricate',
+      'promulgate'
+    ],
+    key: 0,
+    explanation: '"Remediate" means to rectify, resolve, or cure problems/deficiencies. Obfuscate means to make obscure; fabricate means to invent/fake; promulgate means to publicly declare.',
+    errorCategories: ['E-TERM', 'comm-vocabulary'],
+    origin: 'assessment',
+  },
+  {
+    id: 'asm-comm-003',
+    domainId: 'communication',
+    topicId: 'prep-comm',
+    competency: 'comm-grammar',
+    difficulty: 2,
+    estimatedMinutes: 1.5,
+    questionType: 'mcq',
+    assessmentRole: 'anchor',
+    eligibleFor: ['baseline'],
+    exposurePolicy: { maxEstimationUses: 1, releaseToPractice: false },
+    scoring: { kind: 'objective', weight: 1 },
+    prompt: 'Which sentence correctly avoids a dangling or misplaced modifier?',
+    options: [
+      'After refactoring the caching layer, the engineers observed that response times dropped by 40%.',
+      'Refactoring the caching layer, the backend crashed due to out of memory errors.',
+      'Having reviewed the pull request, several critical bugs were discovered.',
+      'To deploy the microservice smoothly, configuration files must be updated by the intern.'
+    ],
+    key: 0,
+    explanation: 'In option 0, the introductory modifier "After refactoring the caching layer" is immediately followed by the logical subject performing the action ("the engineers"). In dangling modifiers, the participle improperly attaches to inanimate nouns ("the backend", "several critical bugs").',
+    errorCategories: ['E-APPLY', 'comm-grammar'],
+    origin: 'assessment',
+  },
+
+  // --- Medium Items (3 items: diff 3) ---
+  {
+    id: 'asm-comm-004',
+    domainId: 'communication',
+    topicId: 'prep-comm',
+    competency: 'comm-comprehension',
+    difficulty: 3,
+    estimatedMinutes: 2,
+    questionType: 'mcq',
+    assessmentRole: 'branch',
+    eligibleFor: ['baseline'],
+    exposurePolicy: { maxEstimationUses: 1, releaseToPractice: false },
+    scoring: { kind: 'objective', weight: 1 },
+    prompt: 'Passage:\n"Distributed consensus protocols like Raft decompose state-machine replication into leader election, log replication, and safety. By enforcing strong leadership where log entries flow strictly from leader to followers, Raft simplifies cluster reasoning compared to Multi-Paxos. However, during network partitions, a minority partition may continue electing temporary leaders that accept uncommitted writes. These uncommitted writes are later superseded and overwritten once cluster connectivity is restored, ensuring linearizability at the cost of transient client latency."\n\nQuestion: What happens to uncommitted writes accepted by a temporary leader in a network minority partition once cluster connectivity is restored?',
+    options: [
+      'They are superseded and overwritten by the authoritative leader of the majority partition',
+      'They are committed retroactively to preserve client data',
+      'They cause an unrecoverable split-brain crash requiring manual intervention',
+      'They are merged via three-way differential diffing'
+    ],
+    key: 0,
+    explanation: 'The passage explicitly states: "These uncommitted writes are later superseded and overwritten once cluster connectivity is restored, ensuring linearizability at the cost of transient client latency."',
+    errorCategories: ['E-INTERPRET', 'comm-comprehension'],
+    origin: 'assessment',
+  },
+  {
+    id: 'asm-comm-005',
+    domainId: 'communication',
+    topicId: 'prep-comm',
+    competency: 'comm-comprehension',
+    difficulty: 3,
+    estimatedMinutes: 2,
+    questionType: 'mcq',
+    assessmentRole: 'branch',
+    eligibleFor: ['baseline'],
+    exposurePolicy: { maxEstimationUses: 1, releaseToPractice: false },
+    scoring: { kind: 'objective', weight: 1 },
+    prompt: 'Referring to the previous passage: What is the primary structural trade-off Raft makes to maintain linearizability during network partitions?',
+    options: [
+      'Accepting transient client latency to maintain state consistency across partitions',
+      'Sacrificing strong leadership in favor of decentralized peer-to-peer voting',
+      'Permitting dirty reads across uncommitted follower logs',
+      'Abandoning log replication during high network traffic'
+    ],
+    key: 0,
+    explanation: 'The passage concludes that the protocol achieves its goals by "...ensuring linearizability at the cost of transient client latency."',
+    errorCategories: ['E-INTERPRET', 'comm-comprehension'],
+    origin: 'assessment',
+  },
+  {
+    id: 'asm-comm-006',
+    domainId: 'communication',
+    topicId: 'prep-comm',
+    competency: 'comm-written-organization',
+    difficulty: 3,
+    estimatedMinutes: 2,
+    questionType: 'mcq',
+    assessmentRole: 'branch',
+    eligibleFor: ['baseline'],
+    exposurePolicy: { maxEstimationUses: 1, releaseToPractice: false },
+    scoring: { kind: 'objective', weight: 1 },
+    prompt: 'In written workplace communication, which sentence expresses professional disagreement with an engineering proposal in the most constructive and objective manner?',
+    options: [
+      '"While the proposed monolith-first approach offers faster initial prototyping, our anticipated scale within six months suggests an event-driven design will reduce overall technical debt and rewrite costs."',
+      '"Your proposed architecture makes no sense for our project and will definitely crash once user traffic spikes."',
+      '"I don\'t care which architecture we choose as long as nobody asks me to debug the legacy modules."',
+      '"Everyone knows microservices are universally superior to monoliths in modern software engineering."'
+    ],
+    key: 0,
+    explanation: 'Constructive disagreement validates the rationale of the alternative ("faster initial prototyping"), introduces objective business/technical constraints ("scale within six months"), and outlines clear benefits without emotional confrontation.',
+    errorCategories: ['E-APPLY', 'comm-written-organization'],
+    origin: 'assessment',
+  },
+
+  // --- Hard Items (2 items: diff 4) ---
+  {
+    id: 'asm-comm-007',
+    domainId: 'communication',
+    topicId: 'prep-comm',
+    competency: 'comm-vocabulary',
+    difficulty: 4,
+    estimatedMinutes: 2,
+    questionType: 'mcq',
+    assessmentRole: 'confirm',
+    eligibleFor: ['baseline'],
+    exposurePolicy: { maxEstimationUses: 1, releaseToPractice: false },
+    scoring: { kind: 'objective', weight: 1 },
+    prompt: 'Choose the pair of words that best completes the sentence logically and idiomatically:\n"Although the junior developer\'s initial pull request was ________ with minor formatting inconsistencies, the underlying algorithmic architecture was remarkably ________."',
+    options: [
+      'rife ... sound',
+      'replete ... deficient',
+      'sparse ... flawed',
+      'devoid ... lucid'
+    ],
+    key: 0,
+    explanation: '"Although" signals a contrast between surface imperfections and underlying quality. "Rife with" means full of errors/problems, while "sound" means robust, correct, and reliable.',
+    errorCategories: ['E-TERM', 'comm-vocabulary'],
+    origin: 'assessment',
+  },
+  {
+    id: 'asm-comm-008',
+    domainId: 'communication',
+    topicId: 'prep-comm',
+    competency: 'comm-written-organization',
+    difficulty: 4,
+    estimatedMinutes: 3.5,
+    questionType: 'rubric_written',
+    assessmentRole: 'confirm',
+    eligibleFor: ['baseline'],
+    exposurePolicy: { maxEstimationUses: 1, releaseToPractice: false },
+    scoring: { kind: 'rubric', weight: 1, rubricId: 'rubric-comm-incident-email' },
+    prompt: 'Draft a short, 3-section incident update message to engineering and product stakeholders regarding an unexpected 15-minute authentication API outage that has just been mitigated.\n\nStructure:\n1. Status & Impact Summary (clear statement of resolution, duration, affected services).\n2. Root Cause & Immediate Mitigation (technical summary of failure and fix applied).\n3. Next Steps & Post-Mortem (preventative actions and timeline for full RCA).',
+    options: [
+      'Incident Status: Resolved. Impact: 15-minute auth latency. Root Cause: Redis connection pool exhaustion, mitigated by pooling fix. Next Steps: Full post-mortem review by Friday with automated alerting.',
+      'We had a small server bug but fixed it quickly. Nothing was lost.',
+      'The database crashed due to cloud provider issues. It was not our team\'s fault.',
+      'All servers are rebooted and functioning normally now.'
+    ],
+    key: 0,
+    explanation: 'Rubric Criteria:\n1. Clarity & Tone: Professional, transparent, objective, free of defensive blame.\n2. Completeness: Accurately specifies 15-minute duration, impacted service, technical root cause, and immediate mitigation.\n3. Actionability: Outlines post-mortem schedule and long-term preventative action items.',
+    errorCategories: ['E-APPLY', 'comm-written-organization'],
+    origin: 'assessment',
+  },
+];
