@@ -11,6 +11,7 @@ import { CompaniesView } from './components/companies/CompaniesView';
 import { AnalyticsView } from './components/analytics/AnalyticsView';
 import { SettingsView } from './components/settings/SettingsView';
 import { PracticeView } from './components/practice/PracticeView';
+import { AssessmentRunnerView } from './components/assessment/AssessmentRunnerView';
 import { GuideOverlay } from './components/guide/GuideOverlay';
 import { GuideProvider } from './components/guide/GuideContext';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
@@ -21,6 +22,8 @@ const MainContent: React.FC = () => {
   switch (currentRoute) {
     case 'dashboard':
       return <DashboardView />;
+    case 'assessment':
+      return <AssessmentRunnerView />;
     case 'roadmap':
       return <RoadmapView />;
     case 'dsa':

@@ -15,6 +15,7 @@ import {
   Target,
   GraduationCap,
   Dumbbell,
+  ClipboardCheck,
 } from 'lucide-react';
 
 
@@ -27,6 +28,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
   const navItems: { id: RoutePath; label: string; icon: React.FC<{ className?: string }> }[] = [
     { id: 'dashboard', label: 'Today', icon: LayoutDashboard },
+    { id: 'assessment', label: 'Diagnostic', icon: ClipboardCheck },
     { id: 'roadmap', label: 'Roadmap', icon: Map },
     { id: 'dsa', label: 'DSA', icon: Code2 },
     { id: 'skills', label: 'Skills', icon: GraduationCap },
@@ -41,6 +43,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
   const getPageTitle = (route: RoutePath): string => {
     switch (route) {
       case 'dashboard': return 'Today / Operational Workspace';
+      case 'assessment': return 'Baseline Diagnostic Assessment';
       case 'roadmap': return 'Master Roadmap & Trajectory';
       case 'dsa': return 'DSA Bank & Spaced Repetition';
       case 'skills': return 'Skills Matrix & Readiness';

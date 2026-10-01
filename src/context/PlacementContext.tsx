@@ -20,6 +20,9 @@ import type {
   PracticeAttempt,
   PreparationTopicProgress,
   AssessmentState,
+  AssessmentAttempt,
+  AssessmentResponse,
+  AssessmentConfidence,
 } from '../types';
 import {
   DOMAINS,
@@ -34,8 +37,17 @@ import { StorageAdapter, DEFAULT_USER_SETTINGS, type AppStorageState } from '../
 import { getPreparationTopicIdByRoadmapId } from '../data/preparationDataset';
 import { applyTaskStateUpdate, applyTaskStateRestore, type TaskStateAction, type TaskStateRestore } from '../engine/taskStateEngine';
 import { applyPracticeAttempt } from '../engine/practiceEngine';
+import {
+  buildBaselineAttempt,
+  evaluateItemResponse,
+  scoreAssessmentAttempt,
+  transitionAttempt,
+  type AssessmentScoringResult,
+} from '../engine/assessmentEngine';
+import { BASELINE_ASSESSMENT_ITEMS } from '../data/assessment/items';
+import { BASELINE_ASSESSMENT_DEFINITION } from '../data/assessment/definitions';
 
-export type RoutePath = 'dashboard' | 'roadmap' | 'dsa' | 'skills' | 'practice' | 'preparation' | 'project' | 'companies' | 'analytics' | 'settings';
+export type RoutePath = 'dashboard' | 'roadmap' | 'dsa' | 'skills' | 'practice' | 'preparation' | 'project' | 'companies' | 'analytics' | 'settings' | 'assessment';
 
 /** Optional target identifier for route-specific deep links.
  *  - preparation: topicId (existing)
@@ -124,6 +136,16 @@ interface PlacementContextType {
   exportBackupJSON: () => string;
   importBackupJSON: (jsonStr: string) => { success: boolean; error?: string };
   storageBytes: number;
+  startBaselineAssessment: () => AssessmentAttempt;
+  recordAssessmentResponse: (
+    attemptId: string,
+    itemId: string,
+    userResponse: number | string | null | undefined,
+    confidence?: AssessmentConfidence,
+    timeSpentSeconds?: number
+  ) => void;
+  submitAssessmentAttempt: (attemptId: string, isAuto?: boolean) => AssessmentScoringResult;
+  activeAssessmentAttempt?: AssessmentAttempt;
 }
 
 function getTodayISO(): string {
@@ -194,7 +216,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const parts = hash.split('/');
       const route = parts[0] as RoutePath;
       
-      if (['dashboard', 'roadmap', 'dsa', 'skills', 'practice', 'preparation', 'project', 'companies', 'analytics', 'settings'].includes(route)) {
+      if (['dashboard', 'roadmap', 'dsa', 'skills', 'practice', 'preparation', 'project', 'companies', 'analytics', 'settings', 'assessment'].includes(route)) {
         const targetId = parts[1];
         setRouteState({ route, targetId });
       } else {
@@ -584,6 +606,146 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
+  const startBaselineAssessment = (): AssessmentAttempt => {
+    const newAttempt = buildBaselineAttempt();
+    setAppState((prev) => {
+      const existingState = prev.assessmentState ?? {
+        attempts: [],
+        responses: [],
+        exposures: {},
+        domainResults: [],
+        snapshots: [],
+        weaknessSignals: [],
+        profile: { pendingSunday: false },
+      };
+      const updatedAttempts = existingState.attempts.map((a) =>
+        a.status === 'in_progress'
+          ? { ...a, status: 'abandoned' as const, endedAt: new Date().toISOString() }
+          : a
+      );
+      return {
+        ...prev,
+        assessmentState: {
+          ...existingState,
+          attempts: [...updatedAttempts, newAttempt],
+        },
+      };
+    });
+    return newAttempt;
+  };
+
+  const recordAssessmentResponse = (
+    attemptId: string,
+    itemId: string,
+    userResponse: number | string | null | undefined,
+    confidence?: AssessmentConfidence,
+    timeSpentSeconds: number = 0
+  ) => {
+    const item = BASELINE_ASSESSMENT_ITEMS.find((i) => i.id === itemId);
+    if (!item) return;
+
+    const evaluated = evaluateItemResponse(item, userResponse, confidence, timeSpentSeconds);
+
+    setAppState((prev) => {
+      const existingState = prev.assessmentState;
+      if (!existingState) return prev;
+
+      const newResp: AssessmentResponse = {
+        id: `resp-${attemptId}-${itemId}`,
+        attemptId,
+        itemId,
+        response: userResponse !== null && userResponse !== undefined ? userResponse : 'unanswered',
+        result: evaluated.result,
+        timeSpentSeconds,
+        errorCategories: evaluated.errorCategories,
+        scoredCredit: evaluated.scoredCredit,
+        weightApplied: evaluated.weightApplied,
+        responseConfidence: confidence,
+      };
+
+      const otherResponses = existingState.responses.filter(
+        (r) => !(r.attemptId === attemptId && r.itemId === itemId)
+      );
+
+      return {
+        ...prev,
+        assessmentState: {
+          ...existingState,
+          responses: [...otherResponses, newResp],
+        },
+      };
+    });
+  };
+
+  const submitAssessmentAttempt = (attemptId: string, isAuto: boolean = false): AssessmentScoringResult => {
+    const existingState = appState.assessmentState;
+    const attempt = existingState?.attempts.find((a) => a.id === attemptId);
+    if (!attempt) {
+      throw new Error(`Assessment attempt ${attemptId} not found`);
+    }
+
+    const terminalStatus = isAuto ? 'auto_submitted' : 'submitted';
+    const attemptResponses = (existingState?.responses || []).filter((r) => r.attemptId === attemptId);
+
+    const scoringResult = scoreAssessmentAttempt(
+      attempt.status === 'in_progress' ? transitionAttempt(attempt, terminalStatus) : attempt,
+      attemptResponses,
+      BASELINE_ASSESSMENT_ITEMS,
+      BASELINE_ASSESSMENT_DEFINITION
+    );
+
+    setAppState((prev) => {
+      const curr = prev.assessmentState ?? {
+        attempts: [],
+        responses: [],
+        exposures: {},
+        domainResults: [],
+        snapshots: [],
+        weaknessSignals: [],
+        profile: { pendingSunday: false },
+      };
+
+      const updatedAttempts = curr.attempts.map((a) =>
+        a.id === attemptId ? scoringResult.attempt : a
+      );
+
+      const updatedExposures = {
+        ...curr.exposures,
+        ...scoringResult.exposures,
+      };
+
+      const otherDomainResults = curr.domainResults.filter((dr) => dr.attemptId !== attemptId);
+      const otherWeaknesses = curr.weaknessSignals.filter((ws) => !ws.sourceAttemptIds.includes(attemptId));
+      const otherSnapshots = curr.snapshots.filter((s) => s.id !== scoringResult.snapshot.id);
+
+      return {
+        ...prev,
+        evidenceLogs: [
+          ...(prev.evidenceLogs || []),
+          ...scoringResult.evidenceLogs,
+        ],
+        assessmentState: {
+          ...curr,
+          attempts: updatedAttempts,
+          exposures: updatedExposures,
+          domainResults: [...otherDomainResults, ...scoringResult.domainResults],
+          snapshots: [...otherSnapshots, scoringResult.snapshot],
+          weaknessSignals: [...otherWeaknesses, ...scoringResult.weaknessSignals],
+          profile: {
+            ...curr.profile,
+            baselineCompletedAt: scoringResult.attempt.endedAt,
+          },
+        },
+      };
+    });
+
+    return scoringResult;
+  };
+
+  const activeAssessmentAttempt = appState.assessmentState?.attempts.find(
+    (a) => a.status === 'in_progress'
+  );
+
   return (
     <PlacementContext.Provider
       value={{
@@ -631,6 +793,10 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         exportBackupJSON,
         importBackupJSON,
         storageBytes: StorageAdapter.getStorageBytes(),
+        startBaselineAssessment,
+        recordAssessmentResponse,
+        submitAssessmentAttempt,
+        activeAssessmentAttempt,
       }}
     >
       {children}
