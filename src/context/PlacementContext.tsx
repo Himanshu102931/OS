@@ -183,6 +183,39 @@ function getTodayISO(): string {
   return `${year}-${month}-${day}`;
 }
 
+/**
+ * Seals every check-in belonging to a local calendar day strictly earlier than
+ * `todayISO`.
+ *
+ * This is the single definition of "that day is over", shared by hydration
+ * (reload) and the in-session midnight rollover, so an app left open across
+ * local midnight ends in exactly the state a reload would have produced.
+ *
+ * Idempotent by construction:
+ * - an already-sealed check-in is returned untouched (never re-stamped),
+ * - no record is ever added, removed or duplicated, and
+ * - when nothing qualifies the *same array reference* comes back, so callers
+ *   can bail out of the state update entirely. Repeated interval ticks
+ *   therefore neither re-seal nor write to storage.
+ *
+ * Both timestamps are stamped from the same clock reads the reload path has
+ * always used; only `todayISO` (a local `YYYY-MM-DD` string) decides eligibility.
+ */
+function sealStaleCheckIns(checkIns: DailyCheckIn[], todayISO: string): DailyCheckIn[] {
+  let changed = false;
+  const next = checkIns.map((ci) => {
+    if (ci.date >= todayISO || ci.isSealed) return ci;
+    changed = true;
+    return {
+      ...ci,
+      isSealed: true,
+      sealedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  });
+  return changed ? next : checkIns;
+}
+
 export type { PlacementContextType };
 export const PlacementContext = createContext<PlacementContextType | undefined>(undefined);
 
@@ -190,36 +223,13 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [routeState, setRouteState] = useState<RouteState>({ route: 'dashboard' });
   const [todayDate, setTodayDate] = useState<string>(getTodayISO);
 
-  // Periodically check local calendar date rollover (e.g. crossing midnight)
-  useEffect(() => {
-    const checkDateRollover = () => {
-      const current = getTodayISO();
-      setTodayDate((prev) => (prev !== current ? current : prev));
-    };
-
-    const interval = setInterval(checkDateRollover, 60000);
-    window.addEventListener('focus', checkDateRollover);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('focus', checkDateRollover);
-    };
-  }, []);
-
   // Hydrate state safely from StorageAdapter
   const [appState, setAppState] = useState<AppExtendedStorageState>(() => {
     const loaded = StorageAdapter.loadState() as AppExtendedStorageState;
     const initialToday = getTodayISO();
-    const updatedCheckIns = (loaded.dailyCheckIns || []).map((ci) => {
-      if (ci.date < initialToday && !ci.isSealed) {
-        return {
-          ...ci,
-          isSealed: true,
-          sealedAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-      }
-      return ci;
-    });
+    // Same rule the in-session rollover uses, so a reload and an open app
+    // crossing local midnight seal exactly the same records.
+    const updatedCheckIns = sealStaleCheckIns(loaded.dailyCheckIns || [], initialToday);
 
     let updatedAssessmentState = loaded.assessmentState;
     if (updatedAssessmentState && updatedAssessmentState.attempts) {
@@ -251,6 +261,39 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => {
     StorageAdapter.saveState(appState);
   }, [appState]);
+
+  // Periodically check local calendar date rollover (e.g. crossing midnight)
+  useEffect(() => {
+    const checkDateRollover = () => {
+      const current = getTodayISO();
+
+      // F-INTEG-MIDNIGHT-SEAL: seal the previous local day's check-in *before*
+      // "today" advances, so an app left open across local midnight persists the
+      // same sealed state a reload would have produced, instead of waiting for
+      // the next reload to run the hydration pass above.
+      //
+      // Runs on every tick but only ever writes when a prior local day is still
+      // unsealed: hydration already sealed everything at load, so the sole time
+      // this does work is the tick that observes the rollover. `sealStaleCheckIns`
+      // returns `prev` unchanged otherwise, so React bails out with no re-render
+      // and no storage write. Both updates are batched, so no render ever shows
+      // the advanced date alongside an unsealed previous day.
+      setAppState((prev) => {
+        const dailyCheckIns = sealStaleCheckIns(prev.dailyCheckIns, current);
+        if (dailyCheckIns === prev.dailyCheckIns) return prev;
+        return { ...prev, dailyCheckIns };
+      });
+
+      setTodayDate((prev) => (prev !== current ? current : prev));
+    };
+
+    const interval = setInterval(checkDateRollover, 60000);
+    window.addEventListener('focus', checkDateRollover);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', checkDateRollover);
+    };
+  }, []);
 
   useEffect(() => {
     const handleHashChange = () => {
