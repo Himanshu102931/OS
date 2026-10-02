@@ -11,6 +11,8 @@ import { DailyJourney } from './DailyJourney';
 import { CompletionAnimation } from './CompletionAnimation';
 import { GuideTrigger } from '../guide/GuideTrigger';
 import { getEvaluatedCandidates, evaluatePracticeSignals } from '../../engine/adaptiveEngine';
+import { generateReviewCandidates } from '../../engine/reviewScheduler';
+import { evaluateAnalyticsTelemetry } from '../../engine/analyticsEngine';
 import { captureCompletionRestore, captureDeferRestore, type TaskStateRestore } from '../../engine/taskStateEngine';
 import { getRecommendedPracticeSession } from '../../engine/practiceEngine';
 import {
@@ -33,11 +35,11 @@ import { Button } from '../ui/button';
  * IntersectionObserver cannot be created, all of them are revealed immediately
  * so no section can stay permanently invisible.
  */
-const REVEAL_IDS = ['hero', 'journey', 'signals', 'practice', 'plan', 'progress', 'telemetry'];
+const REVEAL_IDS = ['hero', 'journey', 'signals', 'practice', 'review', 'plan', 'progress', 'telemetry'];
 
 export const DashboardView: React.FC = () => {
   const {
-    taskDefinitions, taskProgress, dsaProblems, dsaProgress,
+    taskDefinitions, taskProgress, dsaProblems, dsaProgress, dsaAttempts,
     domains, topics, activePhase, currentMode, todayDate, updateTaskState,
     restoreTaskTransaction, setRoute, companyOverlays, skillStates, dailyCheckIns,
     dailyTaskAssignments, commitDailyPlan, sealDayExecution,
@@ -145,6 +147,50 @@ export const DashboardView: React.FC = () => {
     { key: 'lowAccuracy', label: 'Low accuracy', active: practiceSignals.lowAccuracy },
     { key: 'interviewPracticeDue', label: 'Interview practice due', active: practiceSignals.interviewPracticeDue },
   ].filter((c) => c.active);
+
+  // Analytics telemetry — evaluate once per render to produce review prompts
+  const analyticsTelemetry = useMemo(() =>
+    evaluateAnalyticsTelemetry(
+      '30d', // 30-day window for review prompts
+      todayDate,
+      taskDefinitions,
+      taskProgress,
+      dsaProblems,
+      dsaProgress,
+      dsaAttempts || [],
+      topics,
+      domains,
+      skillStates,
+      dailyCheckIns,
+      companyOverlays,
+      activePhase,
+      evidenceLogs
+    ),
+    [todayDate, taskDefinitions, taskProgress, dsaProblems, dsaProgress, dsaAttempts, topics, domains, skillStates, dailyCheckIns, companyOverlays, activePhase, evidenceLogs]
+  );
+
+  // Adaptive Review Scheduler — deterministic review candidates from existing state
+  const reviewSchedule = useMemo(() =>
+    generateReviewCandidates({
+      tasks: taskDefinitions,
+      taskProgressMap: taskProgress,
+      dsaProblems,
+      dsaProgressMap: dsaProgress,
+      topics,
+      domains,
+      skillStates,
+      companyOverlays,
+      currentMode,
+      todayStr: todayDate,
+      todayAssignments,
+      analyticsReviewPrompts: analyticsTelemetry.reviewPrompts,
+    }),
+    [taskDefinitions, taskProgress, dsaProblems, dsaProgress, topics, domains, skillStates, companyOverlays, currentMode, todayDate, todayAssignments, analyticsTelemetry]
+  );
+
+  const reviewCandidates = reviewSchedule.candidates;
+  const hasRemediation = reviewSchedule.hasRemediation;
+  const hasOverdueReviews = reviewSchedule.hasOverdueReviews;
 
   const completedCount = Object.values(taskProgress).filter((tp) => tp.state === 'completed').length;
   const totalTasks = taskDefinitions.length;
@@ -590,6 +636,94 @@ export const DashboardView: React.FC = () => {
                 className="h-8 text-xs font-bold bg-[#1B2028] hover:bg-[#222833] text-[#FFC665] border border-[#E5A93C]/40 rounded-md px-3">
                 <Play className="size-3 mr-1" /> Start Drill
               </Button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Review Schedule — Adaptive review candidates from existing evidence/review/remediation signals */}
+      {reviewCandidates.length > 0 && (
+        <section ref={setScrollRef('review')} className={`scroll-reveal ${revealedSections.has('review') ? 'visible' : ''}`} data-reveal="review" data-guide-target="today-review-schedule">
+          <div className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="size-4 text-[#F59E0B]" />
+                <span className="text-xs font-bold text-[#F1F5F9]">Review Schedule</span>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-[#1B2028] text-[#FFC665] border border-[#262D38] font-mono">
+                {reviewCandidates.length} candidate{reviewCandidates.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            {(hasRemediation || hasOverdueReviews) && (
+              <div className="flex flex-wrap gap-1.5">
+                {hasRemediation && (
+                  <span className="px-2 py-0.5 text-[10px] font-mono uppercase rounded bg-[#F59E0B]/10 text-[#F59E0B] border border-[#F59E0B]/30">Remediation Required</span>
+                )}
+                {hasOverdueReviews && (
+                  <span className="px-2 py-0.5 text-[10px] font-mono uppercase rounded bg-[#F59E0B]/10 text-[#F59E0B] border border-[#F59E0B]/30">Overdue Reviews</span>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
+              {reviewCandidates.slice(0, 5).map((candidate, index) => (
+                <div
+                  key={candidate.id}
+                  className={`p-3 bg-[#0D0F12] border rounded-lg space-y-2 transition-colors ${
+                    candidate.priority === 'remediation' ? 'border-[#F59E0B]/40' :
+                    candidate.priority === 'overdue_review' ? 'border-[#F59E0B]/40' :
+                    candidate.priority === 'stale_evidence' ? 'border-[#F59E0B]/40' :
+                    candidate.priority === 'weak_topic' ? 'border-[#E5A93C]/40' :
+                    candidate.priority === 'retention' ? 'border-[#10B981]/40' :
+                    'border-[#262D38]'
+                  }`}
+                  data-guide-target={`today-review-item-${index}`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium capitalize ${
+                          candidate.priority === 'remediation' ? 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30' :
+                          candidate.priority === 'overdue_review' ? 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30' :
+                          candidate.priority === 'stale_evidence' ? 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30' :
+                          candidate.priority === 'weak_topic' ? 'bg-[#E5A93C]/10 text-[#E5A93C] border-[#E5A93C]/30' :
+                          candidate.priority === 'retention' ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/30' :
+                          'bg-[#1B2028] text-[#8E98A8] border-[#262D38]'
+                        }`}>
+                          {candidate.priority.replace('_', ' ')}
+                        </span>
+                        {getDomain(candidate.domainId) && (
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-[#1B2028] text-[#FFC665] border border-[#262D38] font-medium">
+                            {getDomain(candidate.domainId)?.shortName}
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="text-xs font-semibold text-[#F1F5F9] mt-1 truncate">{candidate.title}</h4>
+                      <p className="text-[11px] text-[#8E98A8] mt-0.5 line-clamp-1">{candidate.reason}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] text-[#8E98A8] font-mono">{candidate.estimatedMinutes} min</span>
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        onClick={() => setRoute(candidate.route, candidate.targetId)}
+                        className="h-7 text-[11px] border-[#262D38] bg-[#14171D] text-[#F1F5F9] hover:bg-[#1B2028] rounded-md px-2.5"
+                      >
+                        Go
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {reviewCandidates.length > 5 && (
+                <button
+                  onClick={() => setRoute('analytics')}
+                  className="w-full py-2 text-xs font-medium text-[#8E98A8] hover:text-[#F1F5F9] bg-[#14171D] hover:bg-[#1B2028] border border-[#262D38] rounded-md flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  View all {reviewCandidates.length} review candidates in Analytics <ArrowRight className="size-3.5" />
+                </button>
+              )}
             </div>
           </div>
         </section>

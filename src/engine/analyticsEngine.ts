@@ -16,7 +16,7 @@ import { calculateTopicReadiness, calculateDomainReadinessList, type TopicReadin
 
 export type TimeWindow = '7d' | '30d' | 'phase' | 'all';
 
-interface ReviewPrompt {
+export interface ReviewPrompt {
   id: string;
   type: 'overdue_review' | 'stale_evidence' | 'repeated_postpone' | 'remediation_needed' | 'low_independence';
   severity: 'high' | 'medium' | 'info';
