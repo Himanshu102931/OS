@@ -144,10 +144,32 @@ describe('Phase C: Baseline Assessment Engine + Runner', () => {
     const sampleRubric = BASELINE_ASSESSMENT_ITEMS.find((i) => i.scoring.kind === 'rubric')!;
 
     it('strictly forbids awarding credit from learner self-evaluation', () => {
-      // Even with confident self-reporting and full text, rubric automated credit is 0.0
-      const result = evaluateItemResponse(sampleRubric, 'Some well written answer', 'confident', 120);
+      // Even with confident self-reporting and full text, unmatched text receives 0.0
+      const result = evaluateItemResponse(sampleRubric, 'Some well written answer without keywords', 'confident', 120);
       expect(result.scoredCredit).toBe(0.0);
       expect(result.result).toBe('incorrect');
+    });
+
+    it('awards credit when authored rubric criteria are met', () => {
+      // Sample rubric for dsa longest zero sum subarray:
+      // Expects prefix sum, hash map index, and O(N) linear time
+      const response = 'We maintain a running prefix sum and a hash map of earliest index. Runs in O(N) linear time.';
+      const result = evaluateItemResponse(sampleRubric, response, 'guessing', 60);
+      expect(result.scoredCredit).toBe(1.0);
+      expect(result.result).toBe('correct');
+    });
+
+    it('awards partial credit when some rubric criteria are met', () => {
+      const response = 'Use a running prefix sum accumulator to check zeros.';
+      const result = evaluateItemResponse(sampleRubric, response, 'confident', 60);
+      expect(result.scoredCredit).toBeGreaterThan(0.0);
+      expect(result.scoredCredit).toBeLessThan(1.0);
+    });
+
+    it('awards credit when selecting reference answer key option', () => {
+      const result = evaluateItemResponse(sampleRubric, sampleRubric.key, 'confident', 30);
+      expect(result.scoredCredit).toBe(1.0);
+      expect(result.result).toBe('correct');
     });
   });
 
@@ -539,6 +561,106 @@ describe('Phase C: Baseline Assessment Engine + Runner', () => {
       for (const d of allDomains) {
         expect(presentDomains).toContain(d);
       }
+    });
+  });
+
+  // 19. Exposure estimation weighting wired into scoreAssessmentAttempt (F-EXPO-01)
+  describe('19. Exposure estimation weighting integration', () => {
+    it('applies 0.5x discount on 2nd exposure and 0.0x exclusion on 3rd exposure during scoring', () => {
+      const attempt = buildBaselineAttempt();
+      const sampleItem = BASELINE_ASSESSMENT_ITEMS.find((i) => i.domainId === 'dsa')!;
+
+      // 1st exposure: fresh
+      const exposures1st = {
+        [sampleItem.id]: {
+          itemId: sampleItem.id,
+          exposureCount: 1,
+          lastSeenAt: new Date().toISOString(),
+          lastAttemptId: 'prev-att-1',
+          lastResult: 'correct' as const,
+          previousAssessmentUsage: ['diagnostic_assessment' as const],
+          estimationUses: 1,
+          eligibleForFutureEstimation: true,
+          releasedToPractice: false,
+        },
+      };
+
+      const resp: AssessmentResponse = {
+        id: 'r-expo',
+        attemptId: attempt.id,
+        itemId: sampleItem.id,
+        response: sampleItem.key ?? 0,
+        result: 'correct',
+        timeSpentSeconds: 60,
+        errorCategories: [],
+        scoredCredit: 1.0,
+        weightApplied: 1.0,
+      };
+
+      // Score with 1 prior exposure (2nd use -> 0.5x weight)
+      const scoring2nd = scoreAssessmentAttempt(attempt, [resp], [sampleItem], BASELINE_ASSESSMENT_DEFINITION, exposures1st);
+      expect(scoring2nd.exposures[sampleItem.id].exposureCount).toBe(2);
+      expect(scoring2nd.exposures[sampleItem.id].estimationUses).toBe(2);
+
+      // Score with 2 prior estimation uses (3rd use -> 0.0x weight excluded)
+      const exposures2nd = {
+        [sampleItem.id]: {
+          ...exposures1st[sampleItem.id],
+          exposureCount: 2,
+          estimationUses: 2,
+          eligibleForFutureEstimation: false,
+        },
+      };
+
+      const scoring3rd = scoreAssessmentAttempt(attempt, [resp], [sampleItem], BASELINE_ASSESSMENT_DEFINITION, exposures2nd);
+      expect(scoring3rd.exposures[sampleItem.id].exposureCount).toBe(3);
+      // estimationUses did not increase because item was excluded from estimation (weight 0)
+      expect(scoring3rd.exposures[sampleItem.id].estimationUses).toBe(2);
+      expect(scoring3rd.exposures[sampleItem.id].eligibleForFutureEstimation).toBe(false);
+    });
+  });
+
+  // 20. Topic-partitioned evidence log emission (F-EVID-01)
+  describe('20. Topic-partitioned evidence log emission', () => {
+    it('emits separate evidence log entries for each topic sampled within a domain', () => {
+      const attempt = buildBaselineAttempt();
+      // Select 2 items from aptitude with different topicIds
+      const aptItems = BASELINE_ASSESSMENT_ITEMS.filter((i) => i.domainId === 'aptitude');
+      const item1 = aptItems[0];
+      const item2 = aptItems.find((i) => i.topicId !== item1.topicId)!;
+
+      const responses: AssessmentResponse[] = [
+        {
+          id: 'r-1',
+          attemptId: attempt.id,
+          itemId: item1.id,
+          response: item1.key ?? 0,
+          result: 'correct',
+          timeSpentSeconds: 40,
+          errorCategories: [],
+          scoredCredit: 1.0,
+          weightApplied: 1.0,
+        },
+        {
+          id: 'r-2',
+          attemptId: attempt.id,
+          itemId: item2.id,
+          response: item2.key ?? 0,
+          result: 'correct',
+          timeSpentSeconds: 40,
+          errorCategories: [],
+          scoredCredit: 1.0,
+          weightApplied: 1.0,
+        },
+      ];
+
+      const scoring = scoreAssessmentAttempt(attempt, responses, [item1, item2]);
+      const aptEvidence = scoring.evidenceLogs.filter((ev) => ev.domainId === 'aptitude');
+      expect(aptEvidence.length).toBe(2);
+
+      const topicIds = aptEvidence.map((ev) => ev.topicId);
+      expect(topicIds).toContain(item1.topicId);
+      expect(topicIds).toContain(item2.topicId);
     });
   });
 });

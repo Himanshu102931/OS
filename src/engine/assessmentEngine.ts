@@ -480,11 +480,169 @@ export interface EvaluatedItemScore {
   executionResult?: AssessmentExecutionResult;
 }
 
+export interface RubricCriterion {
+  id: string;
+  description: string;
+  matchKeywords: string[][];
+}
+
+export interface AuthoredRubric {
+  rubricId: string;
+  criteria: RubricCriterion[];
+}
+
+export const AUTHORED_RUBRICS: Record<string, AuthoredRubric> = {
+  'rubric-dsa-longest-zero-sum-subarr': {
+    rubricId: 'rubric-dsa-longest-zero-sum-subarr',
+    criteria: [
+      {
+        id: 'crit-prefix-sum',
+        description: 'Running prefix sum accumulator',
+        matchKeywords: [['prefix', 'sum'], ['running', 'sum'], ['cumulative']],
+      },
+      {
+        id: 'crit-hash-map',
+        description: 'Hash map / dictionary storing earliest seen index',
+        matchKeywords: [['hash', 'map'], ['dict'], ['earliest', 'index'], ['first', 'seen']],
+      },
+      {
+        id: 'crit-complexity',
+        description: 'O(N) time and O(N) auxiliary space complexity',
+        matchKeywords: [['o(n)'], ['linear', 'time']],
+      },
+    ],
+  },
+  'rubric-py-context-mgr': {
+    rubricId: 'rubric-py-context-mgr',
+    criteria: [
+      {
+        id: 'crit-dunder-methods',
+        description: '__enter__ and __exit__ dunder methods',
+        matchKeywords: [['__enter__', '__exit__'], ['enter', 'exit']],
+      },
+      {
+        id: 'crit-exit-args',
+        description: 'Exception arguments: exc_type, exc_val, exc_tb',
+        matchKeywords: [['exc_type'], ['exc_val'], ['exc_tb'], ['traceback'], ['exception', 'type']],
+      },
+      {
+        id: 'crit-suppress-return-true',
+        description: 'Returning True from __exit__ suppresses exception propagation',
+        matchKeywords: [['return', 'true'], ['returning', 'true'], ['suppress']],
+      },
+    ],
+  },
+  'rubric-oop-di': {
+    rubricId: 'rubric-oop-di',
+    criteria: [
+      {
+        id: 'crit-abstractions',
+        description: 'Both high-level and low-level modules depend on abstractions',
+        matchKeywords: [['high', 'low', 'abstract'], ['depend', 'abstraction'], ['abstractions']],
+      },
+      {
+        id: 'crit-details-depend',
+        description: 'Abstractions should not depend on details; details depend on abstractions',
+        matchKeywords: [['details', 'depend'], ['abstract', 'detail']],
+      },
+      {
+        id: 'crit-concrete-example',
+        description: 'Concrete interface or dependency injection example',
+        matchKeywords: [['interface'], ['decoupl'], ['payment'], ['service'], ['inject']],
+      },
+    ],
+  },
+  'rubric-comm-incident-email': {
+    rubricId: 'rubric-comm-incident-email',
+    criteria: [
+      {
+        id: 'crit-status-impact',
+        description: 'Clear statement of resolution, 15-minute duration, affected service',
+        matchKeywords: [['resolved'], ['mitigat'], ['15', 'min'], ['outage'], ['status']],
+      },
+      {
+        id: 'crit-root-cause',
+        description: 'Technical root cause and immediate fix applied',
+        matchKeywords: [['root', 'cause'], ['pool'], ['redis'], ['exhaust'], ['fix']],
+      },
+      {
+        id: 'crit-next-steps',
+        description: 'Preventative action items and post-mortem / RCA timeline',
+        matchKeywords: [['post-mortem'], ['postmortem'], ['rca'], ['next', 'step'], ['prevent']],
+      },
+    ],
+  },
+  'rubric-int-tradeoff-explanation': {
+    rubricId: 'rubric-int-tradeoff-explanation',
+    criteria: [
+      {
+        id: 'crit-advantages',
+        description: 'Advantageous scenarios: horizontal partition scale, high write throughput, schema flexibility',
+        matchKeywords: [['horizontal'], ['partition'], ['scale'], ['throughput'], ['flexible']],
+      },
+      {
+        id: 'crit-tradeoffs',
+        description: 'Trade-offs: ACID multi-table transactions, lack of declarative SQL joins',
+        matchKeywords: [['acid'], ['transaction'], ['join'], ['consisten']],
+      },
+      {
+        id: 'crit-principle',
+        description: 'Choice guided by access patterns, scaling limits, rather than hype',
+        matchKeywords: [['access', 'pattern'], ['pattern'], ['scaling', 'limit'], ['tradeoff'], ['principle']],
+      },
+    ],
+  },
+};
+
+/**
+ * Deterministically evaluates structured written/rubric responses (§14.4).
+ * Learner self-evaluation NEVER awards credit. Credit is derived strictly
+ * from authored criteria clusters matching response text.
+ */
+export function evaluateRubricResponse(
+  rubricId: string,
+  userResponse: number | string | null | undefined,
+  referenceKey?: number
+): { earnedFraction: number; result: 'correct' | 'incorrect' } {
+  if (typeof userResponse === 'number') {
+    const isCorrect = referenceKey !== undefined && userResponse === referenceKey;
+    return {
+      earnedFraction: isCorrect ? 1.0 : 0.0,
+      result: isCorrect ? 'correct' : 'incorrect',
+    };
+  }
+
+  const text = String(userResponse || '').toLowerCase().trim();
+  if (!text) {
+    return { earnedFraction: 0.0, result: 'incorrect' };
+  }
+
+  const rubric = AUTHORED_RUBRICS[rubricId];
+  if (!rubric || rubric.criteria.length === 0) {
+    return { earnedFraction: text.length > 20 ? 0.5 : 0.0, result: 'incorrect' };
+  }
+
+  let criteriaMet = 0;
+  for (const crit of rubric.criteria) {
+    const matches = crit.matchKeywords.some((cluster) =>
+      cluster.every((word) => text.includes(word.toLowerCase()))
+    );
+    if (matches) {
+      criteriaMet++;
+    }
+  }
+
+  const fraction = criteriaMet / rubric.criteria.length;
+  const earnedFraction = Math.min(1.0, Math.max(0.0, Number(fraction.toFixed(2))));
+  const result = earnedFraction >= 0.66 ? 'correct' : 'incorrect';
+  return { earnedFraction, result };
+}
+
 /**
  * Evaluates a user response against an AssessmentItem definition.
  * - MCQs: evaluates against key (0.0 or 1.0).
  * - SQL normalized_match: evaluates against acceptableForms[].
- * - Rubric/constructed: self-evaluation NEVER awards points (credit = 0.0).
+ * - Rubric/constructed: evaluated deterministically via authored criteria (§14.4).
  * - Execution_test: sandboxed execution against authored contract/fixture (Phase H).
  * - Flags dont_know and unanswered appropriately.
  */
@@ -492,7 +650,7 @@ export function evaluateItemResponse(
   item: AssessmentItem,
   userResponse: number | string | null | undefined,
   _confidence?: AssessmentConfidence,
-  _timeSpentSeconds: number = 0
+  _timeSpentSeconds?: number
 ): EvaluatedItemScore {
   const diffWeight = getProvisionalDifficultyWeight(item.difficulty);
   const itemWeightMultiplier = item.scoring.weight ?? 1;
@@ -558,12 +716,20 @@ export function evaluateItemResponse(
 
   // 3. Constructed-Response / Rubric Items (§14.4 & DECIDED 1)
   // Hard Rule: Learner self-evaluation NEVER independently awards correctness/ability credit.
+  // Evaluation is purely a deterministic function of the authored rubric criteria.
   if (item.scoring.kind === 'rubric') {
+    const rubricId = item.scoring.rubricId || `rubric-${item.id}`;
+    const rubricResult = evaluateRubricResponse(
+      rubricId,
+      userResponse,
+      typeof item.key === 'number' ? item.key : undefined
+    );
+
     return {
-      result: 'incorrect',
-      scoredCredit: 0.0,
+      result: rubricResult.result,
+      scoredCredit: rubricResult.earnedFraction,
       weightApplied: finalWeight,
-      errorCategories: [],
+      errorCategories: rubricResult.result === 'correct' ? [] : item.errorCategories,
     };
   }
 
@@ -664,21 +830,6 @@ export function scoreAssessmentAttempt(
     itemMap.set(item.id, item);
   }
 
-  // Map to get domain topics for evidence logging
-  const domainTopicFallback: Record<DomainId, string> = {
-    aptitude: 'prep-apt-quant',
-    dsa: 'topic-dsa-arrays',
-    python: 'prep-lang',
-    sql: 'prep-sql',
-    dbms: 'prep-dbms',
-    oop: 'prep-oop',
-    os: 'prep-os',
-    cn: 'prep-cn',
-    communication: 'prep-comm',
-    interviews: 'prep-interview-tech',
-    projects: 'topic-proj-rest',
-  };
-
   const isWeekly = terminalAttempt.kind === 'weekly_assessment';
   const isFullReassessment = terminalAttempt.kind === 'full_reassessment';
 
@@ -718,8 +869,13 @@ export function scoreAssessmentAttempt(
 
       if (!resp || resp.result === 'unanswered') {
         unansweredCount++;
+        const estWeight = calculateItemEstimationWeight(
+          item,
+          existingExposures?.[item.id],
+          assessmentDate
+        );
         scoredItems.push({
-          weight: getProvisionalDifficultyWeight(item.difficulty) * (item.scoring.weight ?? 1),
+          weight: estWeight,
           credit: 0.0,
           guessFloor: item.options && item.options.length > 0 ? 1 / item.options.length : 0,
         });
@@ -736,8 +892,13 @@ export function scoreAssessmentAttempt(
       competenciesSet.add(item.competency);
 
       const numOptions = item.options ? item.options.length : 0;
+      const estWeight = calculateItemEstimationWeight(
+        item,
+        existingExposures?.[item.id],
+        assessmentDate
+      );
       scoredItems.push({
-        weight: resp.weightApplied > 0 ? resp.weightApplied : getProvisionalDifficultyWeight(item.difficulty),
+        weight: estWeight,
         credit: resp.scoredCredit,
         guessFloor: numOptions > 1 ? 1 / numOptions : 0,
       });
@@ -794,6 +955,7 @@ export function scoreAssessmentAttempt(
       const prevUses = prevExposure?.estimationUses ?? 0;
       const prevUsages = prevExposure?.previousAssessmentUsage ?? [];
 
+      const usedInEstimation = estWeight > 0;
       exposures[item.id] = {
         itemId: item.id,
         exposureCount: prevCount + 1,
@@ -801,8 +963,8 @@ export function scoreAssessmentAttempt(
         lastAttemptId: terminalAttempt.id,
         lastResult: resp.result,
         previousAssessmentUsage: [...prevUsages, terminalAttempt.kind],
-        estimationUses: prevUses + 1,
-        eligibleForFutureEstimation: (prevUses + 1) < 2,
+        estimationUses: prevUses + (usedInEstimation ? 1 : 0),
+        eligibleForFutureEstimation: (prevUses + (usedInEstimation ? 1 : 0)) < 2,
         releasedToPractice: item.exposurePolicy.releaseToPractice,
       };
 
@@ -989,22 +1151,40 @@ export function scoreAssessmentAttempt(
 
     domainResults.push(domainResult);
 
-    // Evidence Log Emission (§23.1)
+    // Evidence Log Emission (§23.1) partitioned by topicId
     if (scoredResponsesCount > 0) {
-      const topicId = domainItems[0]?.topicId ?? domainTopicFallback[domainId];
       const confRating: 1 | 2 | 3 | 4 | 5 = confidence === 'high' ? 5 : confidence === 'medium' ? 3 : 2;
 
-      evidenceLogs.push({
-        id: `ev-asm-${terminalAttempt.id}-${domainId}`,
-        timestamp: assessmentDate,
-        sourceType: 'test',
-        sourceId: terminalAttempt.id,
-        topicId,
-        domainId,
-        score: abilityScore,
-        confidence: confRating,
-        details: `Assessment: ${terminalAttempt.kind} · ability ${abilityScore} · level ${finalLevel} · confidence ${confidence}`,
-      });
+      // Group domain items by topicId so every tested topic gets evidence
+      const topicItemsMap = new Map<string, AssessmentItem[]>();
+      for (const item of domainItems) {
+        const list = topicItemsMap.get(item.topicId) || [];
+        list.push(item);
+        topicItemsMap.set(item.topicId, list);
+      }
+
+      for (const [topicId, topicItems] of topicItemsMap.entries()) {
+        const topicResponses = topicItems
+          .map((i) => responseMap.get(i.id))
+          .filter((r): r is AssessmentResponse => r !== undefined && r.result !== 'unanswered');
+
+        if (topicResponses.length > 0) {
+          const totalEarned = topicResponses.reduce((sum, r) => sum + r.scoredCredit, 0);
+          const topicScore = Math.round((totalEarned / topicResponses.length) * 100);
+
+          evidenceLogs.push({
+            id: `ev-asm-${terminalAttempt.id}-${domainId}-${topicId}`,
+            timestamp: assessmentDate,
+            sourceType: 'test',
+            sourceId: terminalAttempt.id,
+            topicId,
+            domainId,
+            score: topicScore,
+            confidence: confRating,
+            details: `Assessment: ${terminalAttempt.kind} · topicScore ${topicScore}% · ability ${abilityScore} · level ${finalLevel}`,
+          });
+        }
+      }
     }
   }
 
@@ -2859,11 +3039,12 @@ export function checkLevelRegression(
  * Selects eligible items matching the authoritative module structure.
  */
 export function buildFullReassessmentAttempt(
-  _assessmentState?: AssessmentState,
+  assessmentState?: AssessmentState,
   seed: string = `reassessment-${Date.now()}`
 ): AssessmentAttempt {
   const definition = FULL_REASSESSMENT_DEFINITION;
   const selectedItemIds: string[] = [];
+  const exposures = assessmentState?.exposures ?? {};
 
   for (const moduleDef of definition.modules) {
     const moduleItems = BASELINE_ASSESSMENT_ITEMS.filter((i) => i.domainId === moduleDef.domainId);
@@ -2877,13 +3058,32 @@ export function buildFullReassessmentAttempt(
       }
     };
 
+    // Exposure-aware sorting per §13 / §19.3:
+    // 1. Items with fewer past exposures come first (fresh before repeated)
+    // 2. Items with fewer estimation uses come first
+    // 3. Assessment role rank: anchor -> branch -> confirm
+    // 4. Difficulty ascending
+    // 5. Deterministic tie-breaker with item.id
     const ordered = [...moduleItems].sort((a, b) => {
+      const expA = exposures[a.id]?.exposureCount ?? 0;
+      const expB = exposures[b.id]?.exposureCount ?? 0;
+      if (expA !== expB) return expA - expB;
+
+      const usesA = exposures[a.id]?.estimationUses ?? 0;
+      const usesB = exposures[b.id]?.estimationUses ?? 0;
+      if (usesA !== usesB) return usesA - usesB;
+
       const rDiff = roleRank(a.assessmentRole) - roleRank(b.assessmentRole);
       if (rDiff !== 0) return rDiff;
-      return a.difficulty - b.difficulty;
+
+      const dDiff = a.difficulty - b.difficulty;
+      if (dDiff !== 0) return dDiff;
+
+      return a.id.localeCompare(b.id);
     });
 
-    for (const item of ordered) {
+    const itemsToTake = moduleDef.itemCount ? ordered.slice(0, moduleDef.itemCount) : ordered;
+    for (const item of itemsToTake) {
       selectedItemIds.push(item.id);
     }
   }
@@ -3272,6 +3472,103 @@ export function generateOverlayPlanInputs(
       primaryFocusDomain,
     },
   };
+}
+
+// ============================================================================
+// Assessment State Reset Operations (DECIDED 3)
+// ============================================================================
+
+/**
+ * Creates an empty, first-run assessment state where all 11 domains are Level 0,
+ * status 'unassessed', confidence 'none', provisional true (§4, §31, DECIDED 3).
+ */
+export function createInitialAssessmentState(): AssessmentState {
+  const initialDomainResults: DomainAssessmentResult[] = ALL_11_DOMAINS.map((domainId) => ({
+    domainId,
+    abilityScore: 0,
+    level: 0,
+    confidence: 'none',
+    status: 'unassessed',
+    coverage: {
+      topicsCovered: 0,
+      topicsTotal: 1,
+      competenciesCovered: [],
+      difficultyBands: [],
+    },
+    errorDistribution: {},
+    assessmentDate: new Date().toISOString(),
+    attemptId: 'initial-unassessed',
+    kind: 'diagnostic_assessment',
+    provisional: true,
+  }));
+
+  return {
+    attempts: [],
+    responses: [],
+    exposures: {},
+    domainResults: initialDomainResults,
+    snapshots: [],
+    weaknessSignals: [],
+    profile: {
+      baselineCompletedAt: undefined,
+      lastSundayAt: undefined,
+      pendingSunday: false,
+      nextReassessmentSuggestedAt: undefined,
+    },
+    calibrationObservations: [],
+    executionRecords: [],
+  };
+}
+
+/**
+ * Operation 1 (DECIDED 3): Reset learner levels / profile only.
+ * - Clears DomainAssessmentResult profile (levels -> 0, status -> unassessed, confidence -> none).
+ * - Clears profile date markers (baselineCompletedAt, lastSundayAt, etc.).
+ * - KEEPS all attempts, responses, snapshots, weakness signals, exposures, calibration, execution records.
+ * - Refuses to touch DSA, curriculum, practice, or task progress.
+ */
+export function resetAssessmentProfileOnly(state?: AssessmentState): AssessmentState {
+  if (!state) return createInitialAssessmentState();
+
+  const resetResults: DomainAssessmentResult[] = ALL_11_DOMAINS.map((domainId) => ({
+    domainId,
+    abilityScore: 0,
+    level: 0,
+    confidence: 'none',
+    status: 'unassessed',
+    coverage: {
+      topicsCovered: 0,
+      topicsTotal: 1,
+      competenciesCovered: [],
+      difficultyBands: [],
+    },
+    errorDistribution: {},
+    assessmentDate: new Date().toISOString(),
+    attemptId: 'reset-profile',
+    kind: 'diagnostic_assessment',
+    provisional: true,
+  }));
+
+  return {
+    ...state,
+    domainResults: resetResults,
+    profile: {
+      baselineCompletedAt: undefined,
+      lastSundayAt: undefined,
+      pendingSunday: false,
+      nextReassessmentSuggestedAt: undefined,
+    },
+  };
+}
+
+/**
+ * Operation 2 (DECIDED 3): Reset assessment history and data.
+ * - Clears all attempts, responses, snapshots, weakness signals, exposures, calibration, and execution records.
+ * - Profile returns to clean unassessed state.
+ * - Refuses to touch DSA, curriculum, practice, or task progress.
+ */
+export function resetAssessmentHistoryOnly(): AssessmentState {
+  return createInitialAssessmentState();
 }
 
 export type {

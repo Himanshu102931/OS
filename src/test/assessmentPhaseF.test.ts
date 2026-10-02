@@ -834,4 +834,43 @@ describe('Phase F: Level Regression & Full Reassessment Specification', () => {
     expect(applyConfidenceTimeDecay('medium', baseDate, day60)).toBe('low');
     expect(applyConfidenceTimeDecay('low', baseDate, day60)).toBe('low');
   });
+
+  // Reassessment exposure prioritization (F-REASS-01)
+  it('prioritizes unexposed items over previously exposed items during reassessment selection', () => {
+    const dsaItems = BASELINE_ASSESSMENT_ITEMS.filter((i) => i.domainId === 'dsa');
+    const exposedItem = dsaItems[0];
+
+    const stateWithExposure: AssessmentState = {
+      attempts: [],
+      responses: [],
+      exposures: {
+        [exposedItem.id]: {
+          itemId: exposedItem.id,
+          exposureCount: 3,
+          lastSeenAt: '2026-08-01T10:00:00.000Z',
+          lastAttemptId: 'att-1',
+          lastResult: 'correct',
+          previousAssessmentUsage: ['diagnostic_assessment'],
+          estimationUses: 2,
+          eligibleForFutureEstimation: false,
+          releasedToPractice: false,
+        },
+      },
+      domainResults: [],
+      snapshots: [],
+      weaknessSignals: [],
+      profile: { pendingSunday: false },
+    };
+
+    const attempt = buildFullReassessmentAttempt(stateWithExposure, 'seed-exposure-test');
+    // Items with exposureCount 0 must appear BEFORE exposedItem in the selected list
+    const exposedIdx = attempt.selectedItemIds.indexOf(exposedItem.id);
+    const unexposedDsaItems = dsaItems.filter((i) => i.id !== exposedItem.id);
+    for (const unexp of unexposedDsaItems) {
+      const unexpIdx = attempt.selectedItemIds.indexOf(unexp.id);
+      if (unexpIdx !== -1 && exposedIdx !== -1) {
+        expect(unexpIdx).toBeLessThan(exposedIdx);
+      }
+    }
+  });
 });

@@ -746,7 +746,21 @@ export const StorageAdapter = {
 
       const parsed = JSON.parse(raw);
 
-      if (validateStorageState(parsed)) {
+      let isValid = validateStorageState(parsed);
+      if (!isValid && parsed && typeof parsed === 'object') {
+        // Isolate assessmentState corruption: if only assessmentState was malformed,
+        // fall back to assessmentState = undefined and preserve core progress per §27.2
+        if (parsed.assessmentState !== undefined && validateStorageState({ ...parsed, assessmentState: undefined })) {
+          console.warn(
+            '[PlacementOS] Stored assessmentState failed integrity check. ' +
+              'Isolating failure: resetting assessmentState to undefined while preserving all core progress per §27.2.',
+          );
+          parsed.assessmentState = undefined;
+          isValid = true;
+        }
+      }
+
+      if (isValid) {
         const defaults = getDefaultStorageState();
         const mergedTaskProgress = { ...defaults.taskProgress, ...parsed.taskProgress };
         const mergedSkillStates = { ...defaults.skillStates, ...parsed.skillStates };
@@ -781,6 +795,16 @@ export const StorageAdapter = {
         // parsed is guaranteed to have required fields by validateStorageState
         const validatedParsed = parsed as AppExtendedStorageState;
 
+        // Validate assessmentState independently to protect core user progress
+        let safeAssessmentState = validatedParsed.assessmentState;
+        if (safeAssessmentState !== undefined && !validateAssessmentState(safeAssessmentState)) {
+          console.warn(
+            '[PlacementOS] Assessment state failed integrity check. ' +
+              'Isolating failure: resetting assessmentState to undefined while preserving all core progress.',
+          );
+          safeAssessmentState = undefined;
+        }
+
         // Merge with defaults (AGENTS.md storage step 3). User values always
         // win over the clean baseline; defaults only fill fields a pre-change
         // payload predates, so a legacy backup hydrates complete instead of
@@ -803,7 +827,7 @@ export const StorageAdapter = {
           dsaAttempts: validatedParsed.dsaAttempts || [],
           evidenceLogs: validatedParsed.evidenceLogs || [],
           customTaskDefinitions: validatedParsed.customTaskDefinitions || [],
-          assessmentState: validatedParsed.assessmentState,
+          assessmentState: safeAssessmentState,
         };
         this.saveState(migratedState);
         return migratedState;

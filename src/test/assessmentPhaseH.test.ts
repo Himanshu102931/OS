@@ -614,4 +614,50 @@ def reverse_list(lst):
     expect(evalExpired.scoredCredit).toBe(0.0);
     expect(evalExpired.errorCategories).toContain('E-SPEED');
   });
+
+  // 23. Prototype pollution defense (F-SEC-01)
+  it('23. rejects dynamically constructed __proto__ assignment and prevents Object.prototype pollution', () => {
+    const maliciousPayload = [
+      'def reverse_list(lst):',
+      '    d = {}',
+      '    k = "__" + "proto" + "__"',
+      '    d[k] = {"polluted": True}',
+      '    return lst',
+    ].join('\n');
+
+    const result = executePythonAssessmentItem(samplePythonItem, maliciousPayload);
+    expect(result.passed).toBe(false);
+    expect(result.status).toBe('sandbox_violation');
+    expect(result.errorCategory).toBe(EXECUTION_ERROR_CODES.SANDBOX_VIOLATION);
+    expect(result.message).toContain('forbidden property');
+
+    // Prove JavaScript Object.prototype was NOT mutated
+    expect((Object.prototype as unknown as Record<string, unknown>).polluted).toBeUndefined();
+    expect((({} as unknown) as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
+  it('24. rejects prototype and constructor assignments across literal and subscription paths', () => {
+    const payloadConstructor = [
+      'def reverse_list(lst):',
+      '    d = {}',
+      '    c = "con" + "structor"',
+      '    d[c] = 123',
+      '    return lst',
+    ].join('\n');
+
+    const res1 = executePythonAssessmentItem(samplePythonItem, payloadConstructor);
+    expect(res1.passed).toBe(false);
+    expect(res1.status).toBe('sandbox_violation');
+
+    const payloadDictLiteral = [
+      'def reverse_list(lst):',
+      '    k = "proto" + "type"',
+      '    d = {k: "evil"}',
+      '    return lst',
+    ].join('\n');
+
+    const res2 = executePythonAssessmentItem(samplePythonItem, payloadDictLiteral);
+    expect(res2.passed).toBe(false);
+    expect(res2.status).toBe('sandbox_violation');
+  });
 });

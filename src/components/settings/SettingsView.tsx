@@ -22,6 +22,8 @@ export const SettingsView: React.FC = () => {
     exportBackupJSON,
     importBackupJSON,
     storageBytes,
+    resetAssessmentProfileOnly,
+    resetAssessmentHistoryOnly,
   } = usePlacement();
 
   const [importStatus, setImportStatus] = useState<{ message: string; isError: boolean } | null>(null);
@@ -192,6 +194,55 @@ export const SettingsView: React.FC = () => {
             className="text-xs font-bold bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/80 rounded-md h-8 px-3 transition-all settings-control"
           >
             Reset Application Data
+          </Button>
+        </div>
+      </section>
+
+      {/* Section 3: Diagnostic Assessment Maintenance (DECIDED 3) */}
+      <section className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-4 settings-section">
+        <div className="flex items-center justify-between border-b border-[#262D38] pb-3">
+          <h2 className="text-sm font-semibold text-[#F1F5F9] flex items-center gap-2">
+            <RotateCcw className="size-4 text-[#E5A93C]" /> Diagnostic Assessment Maintenance (DECIDED 3)
+          </h2>
+        </div>
+
+        <div className="pt-1 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <span className="text-xs font-semibold text-[#F1F5F9]">Reset Assessment Profile Only</span>
+            <p className="text-[11px] text-[#8E98A8]">
+              Resets calculated domain proficiency levels to 0 and unassessed. Retains attempt history, item exposures, and snapshots.
+            </p>
+          </div>
+
+          <Button
+            size="sm"
+            onClick={() => {
+              resetAssessmentProfileOnly();
+              triggerSaveNotify('Assessment domain profile reset to 0 (history preserved).');
+            }}
+            className="text-xs font-semibold bg-[#1B2028] hover:bg-[#222833] text-[#F1F5F9] border border-[#262D38] rounded-md h-8 px-3 shrink-0 settings-control"
+          >
+            Reset Profile Only
+          </Button>
+        </div>
+
+        <div className="pt-4 border-t border-[#262D38] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <span className="text-xs font-semibold text-amber-400">Reset Assessment History & Data</span>
+            <p className="text-[11px] text-[#8E98A8]">
+              Clears all assessment attempts, responses, exposures, and snapshots back to clean unassessed state. Does not touch curriculum or DSA progress.
+            </p>
+          </div>
+
+          <Button
+            size="sm"
+            onClick={() => {
+              resetAssessmentHistoryOnly();
+              triggerSaveNotify('Assessment history, attempts, and exposures cleared.');
+            }}
+            className="text-xs font-semibold bg-amber-950/40 hover:bg-amber-900/60 text-amber-300 border border-amber-800/80 rounded-md h-8 px-3 shrink-0 settings-control"
+          >
+            Reset Assessment History
           </Button>
         </div>
       </section>

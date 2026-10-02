@@ -124,6 +124,22 @@ class PythonRuntimeError extends Error {
   }
 }
 
+export class PythonSandboxViolationError extends Error {
+  constructor(message: string = 'Sandbox security violation') {
+    super(message);
+    this.name = 'PythonSandboxViolationError';
+  }
+}
+
+const FORBIDDEN_PROPERTIES = new Set(['__proto__', 'prototype', 'constructor']);
+
+export function assertSafeProperty(prop: unknown): void {
+  const p = String(prop);
+  if (FORBIDDEN_PROPERTIES.has(p)) {
+    throw new PythonSandboxViolationError(`Sandbox security violation: forbidden property access or assignment "${p}"`);
+  }
+}
+
 class ReturnSignal {
   value: unknown;
   constructor(value: unknown) {
@@ -285,6 +301,19 @@ export class SandboxedPythonInterpreter {
           .map((a) => (a === null ? 'None' : a === true ? 'True' : a === false ? 'False' : String(a)))
           .join(' ');
         this.logs.push(line);
+      },
+      dict: (...args: unknown[]) => {
+        const d: Record<string, unknown> = Object.create(null);
+        if (args.length > 0 && Array.isArray(args[0])) {
+          for (const item of args[0]) {
+            if (Array.isArray(item) && item.length >= 2) {
+              const k = String(item[0]);
+              assertSafeProperty(k);
+              d[k] = item[1];
+            }
+          }
+        }
+        return d;
       },
     };
 
@@ -646,20 +675,34 @@ export class SandboxedPythonInterpreter {
   }
 
   private assignValue(target: string, value: unknown, scope: Scope): void {
-    // Check if subscription: arr[idx] = val
+    // Check if subscription: arr[idx] = val or d[k] = val
     const subMatch = target.match(/^(.+)\[([^\]]+)\]$/);
     if (subMatch) {
       const obj = this.evalExpression(subMatch[1].trim(), scope) as Record<string | number, unknown>;
       const idx = this.evalExpression(subMatch[2].trim(), scope) as string | number;
+      assertSafeProperty(idx);
       if (Array.isArray(obj)) {
         const i = typeof idx === 'number' && idx < 0 ? obj.length + idx : (idx as number);
         obj[i] = value;
       } else if (obj && typeof obj === 'object') {
-        obj[idx] = value;
+        obj[String(idx)] = value;
       }
       return;
     }
 
+    // Check if attribute assignment: obj.prop = val
+    const dotMatch = target.match(/^(.+)\.([a-zA-Z_]\w*)$/);
+    if (dotMatch) {
+      const obj = this.evalExpression(dotMatch[1].trim(), scope) as Record<string, unknown>;
+      const prop = dotMatch[2].trim();
+      assertSafeProperty(prop);
+      if (obj && typeof obj === 'object') {
+        obj[prop] = value;
+      }
+      return;
+    }
+
+    assertSafeProperty(target);
     this.setVar(target, value, scope);
   }
 
@@ -680,8 +723,11 @@ export class SandboxedPythonInterpreter {
     if (/^-?\d+$/.test(expr)) return parseInt(expr, 10);
     if (/^-?\d+\.\d+$/.test(expr)) return parseFloat(expr);
 
-    // String literals
-    if ((expr.startsWith('"') && expr.endsWith('"')) || (expr.startsWith("'") && expr.endsWith("'"))) {
+    // String literals (single quoted string with no middle top-level quotes)
+    if (
+      (/^"[^"\\]*(?:\\.[^"\\]*)*"$/.test(expr)) ||
+      (/^'[^'\\]*(?:\\.[^'\\]*)*'$/.test(expr))
+    ) {
       return expr.slice(1, -1);
     }
 
@@ -723,12 +769,13 @@ export class SandboxedPythonInterpreter {
     // Dict literals {k: v}
     if (expr.startsWith('{') && expr.endsWith('}')) {
       const inner = expr.slice(1, -1).trim();
-      if (!inner) return {};
+      if (!inner) return Object.create(null);
       const pairs = this.splitTopLevel(inner, ',');
-      const dict: Record<string, unknown> = {};
+      const dict: Record<string, unknown> = Object.create(null);
       for (const pair of pairs) {
         const [kExpr, vExpr] = this.splitTopLevel(pair, ':');
         const k = String(this.evalExpression(kExpr, scope));
+        assertSafeProperty(k);
         const v = this.evalExpression(vExpr, scope);
         dict[k] = v;
       }
@@ -890,7 +937,10 @@ export class SandboxedPythonInterpreter {
         if (methodName === 'get') {
           const dict = obj as Record<string, unknown>;
           const key = String(args[0]);
-          return dict[key] !== undefined ? dict[key] : args[1] !== undefined ? args[1] : null;
+          assertSafeProperty(key);
+          return Object.prototype.hasOwnProperty.call(dict, key)
+            ? dict[key]
+            : args[1] !== undefined ? args[1] : null;
         }
         if (methodName === 'keys') return Object.keys(obj);
         if (methodName === 'values') return Object.values(obj);
@@ -933,6 +983,7 @@ export class SandboxedPythonInterpreter {
       } else if (target && typeof target === 'object') {
         const dict = target as Record<string, unknown>;
         const key = String(idx);
+        assertSafeProperty(key);
         if (!Object.prototype.hasOwnProperty.call(dict, key)) {
           throw new PythonRuntimeError(`KeyError: '${key}'`);
         }
@@ -1157,12 +1208,21 @@ export function executePythonAssessmentItem(
   } catch (err: unknown) {
     const msg = (err as Error).message || String(err);
     const isTimeout = err instanceof ExecutionTimeoutError;
+    const isViolation = err instanceof PythonSandboxViolationError;
     const isSyntax = msg.startsWith('SyntaxError:');
     return {
       passed: false,
-      status: isTimeout ? 'timeout' : isSyntax ? 'syntax_error' : 'runtime_error',
+      status: isTimeout
+        ? 'timeout'
+        : isViolation
+        ? 'sandbox_violation'
+        : isSyntax
+        ? 'syntax_error'
+        : 'runtime_error',
       errorCategory: isTimeout
         ? EXECUTION_ERROR_CODES.TIMEOUT
+        : isViolation
+        ? EXECUTION_ERROR_CODES.SANDBOX_VIOLATION
         : isSyntax
         ? EXECUTION_ERROR_CODES.SYNTAX
         : EXECUTION_ERROR_CODES.RUNTIME,
@@ -1199,10 +1259,15 @@ export function executePythonAssessmentItem(
     } catch (err: unknown) {
       const msg = (err as Error).message || String(err);
       const isTimeout = err instanceof ExecutionTimeoutError;
+      const isViolation = err instanceof PythonSandboxViolationError;
       return {
         passed: false,
-        status: isTimeout ? 'timeout' : 'runtime_error',
-        errorCategory: isTimeout ? EXECUTION_ERROR_CODES.TIMEOUT : EXECUTION_ERROR_CODES.RUNTIME,
+        status: isTimeout ? 'timeout' : isViolation ? 'sandbox_violation' : 'runtime_error',
+        errorCategory: isTimeout
+          ? EXECUTION_ERROR_CODES.TIMEOUT
+          : isViolation
+          ? EXECUTION_ERROR_CODES.SANDBOX_VIOLATION
+          : EXECUTION_ERROR_CODES.RUNTIME,
         message: `Runtime error on input (${tc.inputs.map((i) => JSON.stringify(i)).join(', ')}): ${msg}`,
         testsPassed,
         totalTests: contract.testCases.length,

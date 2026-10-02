@@ -302,5 +302,33 @@ describe('Phase A: Assessment Specification Foundations', () => {
 
       expect(validateStorageState(storageState)).toBe(false);
     });
+
+    it('should isolate malformed assessmentState in loadState and preserve core progress without resetting defaults', () => {
+      const firstProbId = Object.keys(defaultState.dsaProgress)[0];
+      const customState: AppStorageState = {
+        ...defaultState,
+        dsaProgress: {
+          ...defaultState.dsaProgress,
+          [firstProbId]: {
+            ...defaultState.dsaProgress[firstProbId],
+            currentBox: 3,
+            attemptCount: 5,
+            passedIndependently: true,
+          },
+        },
+        assessmentState: {
+          attempts: 'malformed_data' as unknown as AssessmentState['attempts'],
+        } as unknown as AssessmentState,
+      };
+
+      StorageAdapter.saveState(customState);
+      const loaded = StorageAdapter.loadState();
+
+      // Core progress MUST be preserved
+      expect(loaded.dsaProgress[firstProbId].currentBox).toBe(3);
+      expect(loaded.dsaProgress[firstProbId].passedIndependently).toBe(true);
+      // Malformed assessmentState is isolated to undefined
+      expect(loaded.assessmentState).toBeUndefined();
+    });
   });
 });

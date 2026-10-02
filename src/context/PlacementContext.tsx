@@ -46,6 +46,9 @@ import {
   evaluateItemResponse,
   scoreAssessmentAttempt,
   transitionAttempt,
+  isAttemptExpired,
+  resetAssessmentProfileOnly as resetAssessmentProfileOnlyEngine,
+  resetAssessmentHistoryOnly as resetAssessmentHistoryOnlyEngine,
   deriveAssessmentProfileReadout,
   createCompanyAssessmentOverlay,
   applyCompanyAssessmentOverlay,
@@ -168,6 +171,8 @@ interface PlacementContextType {
   selectedCompanyOverlayId: string | null;
   setSelectedCompanyOverlayId: (id: string | null) => void;
   companyAssessmentOverlayResult?: CompanyAssessmentOverlayResult;
+  resetAssessmentProfileOnly: () => void;
+  resetAssessmentHistoryOnly: () => void;
 }
 
 function getTodayISO(): string {
@@ -216,6 +221,21 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return ci;
     });
 
+    let updatedAssessmentState = loaded.assessmentState;
+    if (updatedAssessmentState && updatedAssessmentState.attempts) {
+      let hasModified = false;
+      const updatedAttempts = updatedAssessmentState.attempts.map((att) => {
+        if (att.status === 'in_progress' && isAttemptExpired(att)) {
+          hasModified = true;
+          return transitionAttempt(att, 'abandoned');
+        }
+        return att;
+      });
+      if (hasModified) {
+        updatedAssessmentState = { ...updatedAssessmentState, attempts: updatedAttempts };
+      }
+    }
+
     return {
       ...loaded,
       dailyCheckIns: updatedCheckIns,
@@ -224,7 +244,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       evidenceLogs: loaded.evidenceLogs || [],
       practiceAttempts: loaded.practiceAttempts || [],
       preparationTopicProgress: loaded.preparationTopicProgress || {},
-      assessmentState: loaded.assessmentState,
+      assessmentState: updatedAssessmentState,
     };
   });
 
@@ -722,6 +742,11 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     confidence?: AssessmentConfidence,
     timeSpentSeconds: number = 0
   ) => {
+    const activeAttempt = appState.assessmentState?.attempts.find((a) => a.id === attemptId);
+    if (!activeAttempt || activeAttempt.status !== 'in_progress') {
+      return;
+    }
+
     const item = BASELINE_ASSESSMENT_ITEMS.find((i) => i.id === itemId);
     if (!item) return;
 
@@ -730,6 +755,11 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setAppState((prev) => {
       const existingState = prev.assessmentState;
       if (!existingState) return prev;
+
+      const attempt = existingState.attempts.find((a) => a.id === attemptId);
+      if (!attempt || attempt.status !== 'in_progress') {
+        return prev;
+      }
 
       const newResp: AssessmentResponse = {
         id: `resp-${attemptId}-${itemId}`,
@@ -764,6 +794,9 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const attempt = existingState?.attempts.find((a) => a.id === attemptId);
     if (!attempt) {
       throw new Error(`Assessment attempt ${attemptId} not found`);
+    }
+    if (attempt.status !== 'in_progress') {
+      throw new Error(`Cannot submit assessment attempt ${attemptId} with status "${attempt.status}"`);
     }
 
     const terminalStatus = isAuto ? 'auto_submitted' : 'submitted';
@@ -910,6 +943,20 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [selectedCompanyOverlayId, appState.companyOverlays, assessmentProfileReadout]);
 
+  const resetAssessmentProfileOnly = () => {
+    setAppState((prev) => ({
+      ...prev,
+      assessmentState: resetAssessmentProfileOnlyEngine(prev.assessmentState),
+    }));
+  };
+
+  const resetAssessmentHistoryOnly = () => {
+    setAppState((prev) => ({
+      ...prev,
+      assessmentState: resetAssessmentHistoryOnlyEngine(),
+    }));
+  };
+
   return (
     <PlacementContext.Provider
       value={{
@@ -969,6 +1016,8 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         selectedCompanyOverlayId,
         setSelectedCompanyOverlayId,
         companyAssessmentOverlayResult,
+        resetAssessmentProfileOnly,
+        resetAssessmentHistoryOnly,
       }}
     >
       {children}
