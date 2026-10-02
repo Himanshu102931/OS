@@ -70,6 +70,32 @@ export function nextDayISO(dateISO: string): string {
   return `${y}-${m}-${d}`;
 }
 
+export interface TaskPrerequisiteStatus {
+  isBlocked: boolean;
+  unmetPrerequisiteIds: string[];
+}
+
+/**
+ * Evaluates whether a task has unmet prerequisite tasks using canonical taskProgress.
+ * A prerequisite is satisfied only when taskProgressMap[prerequisiteId]?.state === 'completed'.
+ */
+export function evaluateTaskPrerequisites(
+  task: TaskDefinition,
+  taskProgressMap: Record<string, TaskProgress>
+): TaskPrerequisiteStatus {
+  const ids = task.prerequisiteTaskDefinitionIds ?? [];
+  if (ids.length === 0) {
+    return { isBlocked: false, unmetPrerequisiteIds: [] };
+  }
+  const unmetPrerequisiteIds = ids.filter(
+    (prereqId) => taskProgressMap[prereqId]?.state !== 'completed'
+  );
+  return {
+    isBlocked: unmetPrerequisiteIds.length > 0,
+    unmetPrerequisiteIds,
+  };
+}
+
 /**
  * Task-completion evidence → skill strength, using the existing task-completion
  * (evening-seal) EMA precedent:

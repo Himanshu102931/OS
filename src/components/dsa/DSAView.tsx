@@ -19,7 +19,7 @@ import {
 import { Button } from '../ui/button';
 
 export const DSAView: React.FC = () => {
-  const { dsaProblems, dsaProgress, logDSAAttempt, activePhase, updateDSAProgress } =
+  const { dsaProblems, dsaProgress, logDSAAttempt, activePhase, updateDSAProgress, todayDate } =
     usePlacement();
 
   const [activeTab, setActiveTab] = useState<'journey' | 'bank' | 'patterns'>('journey');
@@ -36,7 +36,6 @@ export const DSAView: React.FC = () => {
   const [filterDifficulty, setFilterDifficulty] = useState<string>('all');
 
   const currentPhaseIndex = activePhase ? activePhase.order : 1;
-  const todayISO = new Date().toISOString().split('T')[0];
 
   // Helper for status
   const getProblemStatus = (p: DSAProblem) => {
@@ -49,7 +48,7 @@ export const DSAView: React.FC = () => {
     if (prog?.passedIndependently) {
       return { label: 'Mastered', color: 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/30', isLocked: false };
     }
-    if (prog?.nextReviewAt && prog.nextReviewAt <= todayISO) {
+    if (prog?.nextReviewAt && prog.nextReviewAt <= todayDate) {
       return { label: 'Review Due', color: 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30', isLocked: false };
     }
     if (prog?.assistedProvisional) {
@@ -67,7 +66,7 @@ export const DSAView: React.FC = () => {
   // Reviews due today
   const reviewsDue = dsaProblems.filter((p) => {
     const prog = dsaProgress[p.id];
-    return prog?.nextReviewAt && prog.nextReviewAt <= todayISO;
+    return prog?.nextReviewAt && prog.nextReviewAt <= todayDate;
   });
 
   // Filtered problems list

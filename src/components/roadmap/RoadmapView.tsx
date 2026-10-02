@@ -4,6 +4,7 @@ import { TaskLearningWorkspaceDrawer } from '../common/TaskLearningWorkspaceDraw
 import type { Topic, TaskDefinition } from '../../types';
 import { PREPARATION_TOPICS } from '../../data/preparationDataset';
 import { GuideTrigger } from '../guide/GuideTrigger';
+import { evaluateTaskPrerequisites } from '../../engine/taskStateEngine';
 import {
   Clock,
   Filter,
@@ -11,6 +12,7 @@ import {
   ChevronDown,
   X,
   Target,
+  Lock,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 
@@ -325,20 +327,47 @@ export const RoadmapView: React.FC = () => {
               <div className="space-y-2">
                 {topicTasks.map((t) => {
                   const state = taskProgress[t.id]?.state || 'not_started';
+                  const prereqStatus = evaluateTaskPrerequisites(t, taskProgress);
+                  const isBlocked = prereqStatus.isBlocked && state !== 'completed';
+                  const unmetTitles = isBlocked
+                    ? prereqStatus.unmetPrerequisiteIds
+                        .map((id) => taskDefinitions.find((def) => def.id === id)?.title || id)
+                        .join(', ')
+                    : '';
 
                   return (
                     <div
                       key={t.id}
-                      className="p-3 bg-[#0D0F12] border border-[#262D38] rounded-lg space-y-2"
+                      className={`p-3 bg-[#0D0F12] border rounded-lg space-y-2 transition-colors ${
+                        isBlocked ? 'border-[#262D38]/80 bg-[#0D0F12]/60' : 'border-[#262D38]'
+                      }`}
+                      data-testid={`task-card-${t.id}`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <h5 className="text-xs font-semibold text-[#F1F5F9]">{t.title}</h5>
+                          <div className="flex items-center gap-1.5">
+                            <h5 className="text-xs font-semibold text-[#F1F5F9]">{t.title}</h5>
+                            {isBlocked && (
+                              <Lock className="size-3 text-[#F59E0B] shrink-0" aria-label="Prerequisites required" />
+                            )}
+                          </div>
                           <p className="text-[11px] text-[#8E98A8] mt-0.5">{t.description}</p>
+                          {isBlocked && (
+                            <p
+                              className="text-[11px] text-[#F59E0B] flex items-center gap-1.5 mt-1 font-medium"
+                              data-testid={`prereq-warning-${t.id}`}
+                            >
+                              <Lock className="size-3 text-[#F59E0B] shrink-0" />
+                              <span>Prerequisites must be completed first:</span>
+                              <span className="font-semibold text-[#FCD34D]">{unmetTitles}</span>
+                            </p>
+                          )}
                         </div>
                         <span className={`text-[10px] px-2 py-0.5 rounded border capitalize font-semibold shrink-0 ${
                           state === 'completed'
                             ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/30'
+                            : isBlocked
+                            ? 'bg-[#1B2028] text-[#8E98A8] border-[#262D38]'
                             : state === 'in_progress'
                             ? 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30'
                             : 'bg-[#1B2028] text-[#8E98A8] border-[#262D38]'
@@ -364,13 +393,27 @@ export const RoadmapView: React.FC = () => {
                             Learning Workspace
                           </Button>
                           {state !== 'completed' && (
-                            <Button
-                              size="xs"
-                              onClick={() => updateTaskState(t.id, 'completed')}
-                              className="h-7 text-[11px] bg-[#10B981] hover:bg-[#059669] text-[#002113] rounded-md px-2.5 font-semibold"
-                            >
-                              Complete
-                            </Button>
+                            isBlocked ? (
+                              <Button
+                                size="xs"
+                                disabled
+                                title={`Prerequisites must be completed first: ${unmetTitles}`}
+                                data-testid={`complete-btn-${t.id}`}
+                                className="h-7 text-[11px] bg-[#1B2028] text-[#5C6675] border border-[#262D38] rounded-md px-2.5 font-semibold cursor-not-allowed flex items-center gap-1 opacity-70"
+                              >
+                                <Lock className="size-3 text-[#5C6675]" />
+                                <span>Locked</span>
+                              </Button>
+                            ) : (
+                              <Button
+                                size="xs"
+                                onClick={() => updateTaskState(t.id, 'completed')}
+                                data-testid={`complete-btn-${t.id}`}
+                                className="h-7 text-[11px] bg-[#10B981] hover:bg-[#059669] text-[#002113] rounded-md px-2.5 font-semibold"
+                              >
+                                Complete
+                              </Button>
+                            )
                           )}
                         </div>
                       </div>

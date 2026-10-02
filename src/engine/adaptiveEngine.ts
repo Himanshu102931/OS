@@ -7,6 +7,7 @@ import type {
   CompanyOverlay,
   PlacementMode,
 } from '../types';
+import { evaluateTaskPrerequisites } from './taskStateEngine';
 
 export interface PriorityBreakdown {
   urgency: number;         // 0 - 100
@@ -255,11 +256,8 @@ export function getEvaluatedCandidates(
     }
 
     // Exclude tasks with incomplete prerequisites
-    if (task.prerequisiteTaskDefinitionIds && task.prerequisiteTaskDefinitionIds.length > 0) {
-      const hasUnmetPrereqs = task.prerequisiteTaskDefinitionIds.some(
-        (prereqId) => taskProgressMap[prereqId]?.state !== 'completed'
-      );
-      if (hasUnmetPrereqs) continue;
+    if (evaluateTaskPrerequisites(task, taskProgressMap).isBlocked) {
+      continue;
     }
 
     const dsaProblem = dsaProblems.find((p) => p.topicId === task.topicId);
