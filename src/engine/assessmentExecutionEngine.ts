@@ -599,7 +599,7 @@ export class SandboxedPythonInterpreter {
         }
         idx++;
       } else if (node.type === 'while') {
-        while (Boolean(this.evalExpression(node.condition, scope))) {
+        while (this.evalExpression(node.condition, scope)) {
           this.checkLimit();
           try {
             this.executeStatements(node.body, scope);
@@ -799,7 +799,7 @@ export class SandboxedPythonInterpreter {
     if (orParts.length > 1) {
       for (const part of orParts) {
         const val = this.evalExpression(part, scope);
-        if (Boolean(val)) return val;
+        if (val) return val;
       }
       return this.evalExpression(orParts[orParts.length - 1], scope);
     }
@@ -808,13 +808,13 @@ export class SandboxedPythonInterpreter {
     if (andParts.length > 1) {
       for (const part of andParts) {
         const val = this.evalExpression(part, scope);
-        if (!Boolean(val)) return val;
+        if (!val) return val;
       }
       return this.evalExpression(andParts[andParts.length - 1], scope);
     }
 
     if (expr.startsWith('not ')) {
-      return !Boolean(this.evalExpression(expr.slice(4).trim(), scope));
+      return !this.evalExpression(expr.slice(4).trim(), scope);
     }
 
     // Comparisons (==, !=, <=, >=, <, >, in, not in)
@@ -961,7 +961,7 @@ export class SandboxedPythonInterpreter {
         const step = parts[2] ? Number(this.evalExpression(parts[2], scope)) : 1;
 
         if (typeof target === 'string' || Array.isArray(target)) {
-          let items = Array.isArray(target) ? [...target] : target.split('');
+          const items = Array.isArray(target) ? [...target] : target.split('');
           if (step === -1) {
             items.reverse();
             return typeof target === 'string' ? items.join('') : items;
@@ -1709,7 +1709,7 @@ export class SandboxedSqlExecutor {
     if (compMatch) {
       const colIdx = this.resolveColumnIndex(compMatch[1], colIndices);
       const op = compMatch[2];
-      let rawVal = compMatch[3].trim();
+      const rawVal = compMatch[3].trim();
       const val = row[colIdx];
 
       if (val === null) return false; // In SQL, comparisons with NULL evaluate to UNKNOWN (false in WHERE)

@@ -19,6 +19,14 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // TypeScript's `noUnusedParameters` (enabled in tsconfig.app.json) already
+      // treats a leading `_` as "deliberately unused" for parameters, which is
+      // how the assessment scoring API keeps contract-only arguments such as
+      // `evaluateItemResponse`'s confidence/time explicit without scoring them.
+      // Mirror that convention here; unused locals and non-`_` arguments still error.
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    },
   },
 
   {

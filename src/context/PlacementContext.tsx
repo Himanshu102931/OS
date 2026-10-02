@@ -895,35 +895,43 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return checkSundayObligation(appState.assessmentState, todayDate).pendingSunday;
   }, [appState.assessmentState, todayDate]);
 
-  useEffect(() => {
-    if (
-      isSundayEligible &&
-      !appState.assessmentState?.profile?.pendingSunday &&
-      new Date(todayDate).getDay() === 0
-    ) {
-      const completedToday = (appState.assessmentState?.attempts || []).some(
-        (a) =>
-          a.kind === 'weekly_assessment' &&
-          (a.status === 'submitted' || a.status === 'auto_submitted') &&
-          a.endedAt?.startsWith(todayDate)
-      );
-      if (!completedToday) {
-        setAppState((prev) => {
-          if (!prev.assessmentState || prev.assessmentState.profile?.pendingSunday) return prev;
-          return {
-            ...prev,
-            assessmentState: {
-              ...prev.assessmentState,
-              profile: {
-                ...prev.assessmentState.profile,
-                pendingSunday: true,
-              },
-            },
-          };
-        });
-      }
-    }
-  }, [todayDate, isSundayEligible, appState.assessmentState]);
+  // Persist the Sunday obligation latch (§18: a missed Sunday rolls forward as a
+  // single obligation) instead of writing it from an effect.
+  //
+  // The condition is derived entirely from values already in scope for this
+  // render, and the update is applied during render guarded so it happens
+  // exactly once: `profile.pendingSunday` flips to true, the guard goes false,
+  // and the render settles. Same inputs and same result as the former
+  // setState-in-effect, but without a cascading post-commit render.
+  const isSundayToday = new Date(todayDate).getDay() === 0;
+  const completedWeeklyToday = (appState.assessmentState?.attempts || []).some(
+    (a) =>
+      a.kind === 'weekly_assessment' &&
+      (a.status === 'submitted' || a.status === 'auto_submitted') &&
+      a.endedAt?.startsWith(todayDate)
+  );
+  const needsSundayLatch =
+    isSundayEligible &&
+    Boolean(appState.assessmentState) &&
+    !appState.assessmentState?.profile?.pendingSunday &&
+    isSundayToday &&
+    !completedWeeklyToday;
+
+  if (needsSundayLatch) {
+    setAppState((prev) => {
+      if (!prev.assessmentState || prev.assessmentState.profile?.pendingSunday) return prev;
+      return {
+        ...prev,
+        assessmentState: {
+          ...prev.assessmentState,
+          profile: {
+            ...prev.assessmentState.profile,
+            pendingSunday: true,
+          },
+        },
+      };
+    });
+  }
 
   const assessmentProfileReadout = useMemo(() => {
     return deriveAssessmentProfileReadout(appState.assessmentState);

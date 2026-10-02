@@ -33,6 +33,25 @@ import {
   Code2,
 } from 'lucide-react';
 
+/**
+ * Editable draft for the active item, derived from its recorded response.
+ *
+ * Text entries are recorded synchronously on every change (`onChange` ->
+ * `handleAnswerChange`) and responses are stored verbatim, so the recorded
+ * response always equals what the user typed. Deriving the draft from it keeps
+ * the input correct on mount, navigation, and "Don't know"/"Skip" without a
+ * mirrored local copy or a re-synchronizing effect.
+ */
+const draftFromRecorded = (
+  recorded: { response: number | string } | undefined
+): string =>
+  recorded &&
+  typeof recorded.response === 'string' &&
+  recorded.response !== 'unanswered' &&
+  recorded.response !== 'dont_know'
+    ? recorded.response
+    : '';
+
 export const AssessmentRunnerView: React.FC = () => {
   const {
     assessmentState,
@@ -56,8 +75,6 @@ export const AssessmentRunnerView: React.FC = () => {
   const [currentIdx, setCurrentIdx] = useState<number>(0);
   // Show submission confirmation modal
   const [showSubmitModal, setShowSubmitModal] = useState<boolean>(false);
-  // Current user draft input for SQL or rubric text
-  const [textInput, setTextInput] = useState<string>('');
   // Wall-clock remaining seconds
   const [timeRemainingSeconds, setTimeRemainingSeconds] = useState<number>(180 * 60);
   // Readout sub-tab
@@ -109,17 +126,6 @@ export const AssessmentRunnerView: React.FC = () => {
     }
     return map;
   }, [activeAssessmentAttempt, assessmentState]);
-
-  // Keep draft text synchronized with recorded response when navigating
-  useEffect(() => {
-    if (!currentItem) return;
-    const recorded = responseMap.get(currentItem.id);
-    if (recorded && typeof recorded.response === 'string' && recorded.response !== 'unanswered' && recorded.response !== 'dont_know') {
-      setTextInput(recorded.response);
-    } else {
-      setTextInput('');
-    }
-  }, [currentIdx, currentItem, responseMap]);
 
   // Hard wall-clock timer & auto-submission
   const hasAutoSubmittedRef = useRef(false);
@@ -208,6 +214,7 @@ export const AssessmentRunnerView: React.FC = () => {
   // ---------------------------------------------------------------------------
   if (activeAssessmentAttempt && activeAssessmentAttempt.status === 'in_progress') {
     const recordedCurrent = currentItem ? responseMap.get(currentItem.id) : undefined;
+    const textInput = draftFromRecorded(recordedCurrent);
     const answeredCount = responseMap.size;
     const totalCount = orderedItems.length;
     const formatTime = (secs: number) => {
@@ -346,10 +353,7 @@ export const AssessmentRunnerView: React.FC = () => {
                       </p>
                       <textarea
                         value={textInput}
-                        onChange={(e) => {
-                          setTextInput(e.target.value);
-                          handleAnswerChange(e.target.value);
-                        }}
+                        onChange={(e) => handleAnswerChange(e.target.value)}
                         placeholder="SELECT ... FROM ... WHERE ..."
                         rows={5}
                         className="w-full bg-[#0D0F12] text-[#F1F5F9] font-mono text-xs p-3.5 rounded border border-[#262D38] focus:border-[#E5A93C] focus:outline-none transition-colors"
@@ -365,10 +369,7 @@ export const AssessmentRunnerView: React.FC = () => {
                       </p>
                       <textarea
                         value={textInput}
-                        onChange={(e) => {
-                          setTextInput(e.target.value);
-                          handleAnswerChange(e.target.value);
-                        }}
+                        onChange={(e) => handleAnswerChange(e.target.value)}
                         placeholder="Write your explanation or reasoning..."
                         rows={6}
                         className="w-full bg-[#0D0F12] text-[#F1F5F9] font-sans text-xs p-3.5 rounded border border-[#262D38] focus:border-[#E5A93C] focus:outline-none transition-colors"
@@ -391,10 +392,7 @@ export const AssessmentRunnerView: React.FC = () => {
 
                       <textarea
                         value={textInput}
-                        onChange={(e) => {
-                          setTextInput(e.target.value);
-                          handleAnswerChange(e.target.value);
-                        }}
+                        onChange={(e) => handleAnswerChange(e.target.value)}
                         placeholder={
                           currentItem.domainId === 'python'
                             ? `def ${currentItem.pythonContract?.entryPoint || 'solution'}(...):\n    # Write your solution here\n    pass`

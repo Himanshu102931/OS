@@ -1065,7 +1065,7 @@ export function scoreAssessmentAttempt(
       PROVISIONAL_CONFIDENCE_WEIGHTS.responseQuality * qualityFactor +
       PROVISIONAL_CONFIDENCE_WEIGHTS.formatReliability * formatRelFactor;
 
-    let confidence = scoredResponsesCount > 0 ? computeConfidenceBand(rawConfidenceScore) : 'none';
+    const confidence = scoredResponsesCount > 0 ? computeConfidenceBand(rawConfidenceScore) : 'none';
 
     // Confidence gating (§10.3): Low confidence estimates cannot claim Level 4 or 5
     if (confidence === 'low' && level > 3) {
@@ -1577,7 +1577,7 @@ export function generateAssessmentPlanInputs(
       });
     }
 
-    let reason = '';
+    let reason: string;
     if (domainId === 'projects') {
       reason = 'Independent architectural defense and code implementation in Project Lab.';
     } else if (openWs > 0) {
@@ -2892,7 +2892,7 @@ export function checkLevelRegression(
   const isDropSufficient = dropFromBandMin >= PROVISIONAL_REGRESSION.abilityDropThreshold;
 
   const nowMs = new Date(dateStr).getTime();
-  const windowDays = (PROVISIONAL_REGRESSION as any).recentObservationWindowDays ?? 45;
+  const windowDays = PROVISIONAL_REGRESSION.recentObservationWindowDays ?? 45;
   const windowMs = windowDays * 24 * 60 * 60 * 1000;
 
   const hasPriorAssessmentBelowBand = priors.some((pdr) => {
@@ -2946,7 +2946,7 @@ export function checkLevelRegression(
   const correctCount = responses.filter((r) => r.result === 'correct').length;
   const isCatastrophic =
     newAbility === 0 ||
-    dropFromBandMin >= ((PROVISIONAL_REGRESSION as any).catastrophicDropThreshold ?? 25) ||
+    dropFromBandMin >= (PROVISIONAL_REGRESSION.catastrophicDropThreshold ?? 25) ||
     (correctCount === 0 && scoredCount >= PROVISIONAL_REGRESSION.minScoredResponses);
 
   const meetsObservationThreshold = priorObsCount >= PROVISIONAL_REGRESSION.minPriorObservations || isCatastrophic;
@@ -3028,7 +3028,6 @@ export function checkLevelRegression(
   // Strictly prevent 4 -> 1 drop in one event!
   if (currentResult.level === 4 && targetLevel <= 1) {
     targetLevel = 2;
-    dropMagnitude = 2;
   }
   const clampedTargetLevel = Math.max(0, targetLevel) as 0 | 1 | 2 | 3 | 4 | 5;
 
@@ -3435,7 +3434,7 @@ export function applyCompanyAssessmentOverlay(
   const metDomainsCount = requiredReadiness.filter((dr) => dr.status === 'met').length;
   const gapDomainsCount = requiredReadiness.filter((dr) => dr.status === 'gap' || dr.status === 'unassessed').length;
 
-  let rolePreparationScore = 0;
+  let rolePreparationScore: number;
   if (requiredDomainsCount === 0) {
     rolePreparationScore = authoritativeProfile.overallAbility;
   } else {
