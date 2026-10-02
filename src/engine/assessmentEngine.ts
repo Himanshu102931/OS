@@ -1921,6 +1921,17 @@ export function isSundayTestEligible(assessmentState?: AssessmentState): boolean
 }
 
 /**
+ * Returns the local calendar day-of-week (0=Sun..6=Sat) for a bare YYYY-MM-DD
+ * local ISO date string. Unlike `new Date('YYYY-MM-DD').getDay()` which parses
+ * as UTC midnight and then reads the weekday in local time (off-by-one for
+ * negative UTC offsets), this constructs the date in local time directly.
+ */
+export function getLocalDayOfWeek(isoDate: string): number {
+  const [year, month, day] = isoDate.split('-').map(Number);
+  return new Date(year, month - 1, day).getDay();
+}
+
+/**
  * Checks pending obligation for Sunday mini test (§18).
  * Missed Sundays roll forward as a single obligation; count NEVER exceeds 1.
  */
@@ -1937,11 +1948,10 @@ export function checkSundayObligation(
     return { pendingSunday: true, reason: 'Sunday mini-test obligation is pending.' };
   }
 
-  const dateObj = new Date(currentDate);
-  const isSunday = dateObj.getDay() === 0;
+  const todayISO = currentDate.split('T')[0];
+  const isSunday = getLocalDayOfWeek(todayISO) === 0;
 
   if (isSunday) {
-    const todayISO = currentDate.split('T')[0];
     const completedToday = (assessmentState?.attempts || []).some(
       (a) => a.kind === 'weekly_assessment' &&
              (a.status === 'submitted' || a.status === 'auto_submitted') &&

@@ -43,6 +43,7 @@ import {
   buildFullReassessmentAttempt,
   isSundayTestEligible,
   checkSundayObligation,
+  getLocalDayOfWeek,
   evaluateItemResponse,
   scoreAssessmentAttempt,
   transitionAttempt,
@@ -946,7 +947,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // exactly once: `profile.pendingSunday` flips to true, the guard goes false,
   // and the render settles. Same inputs and same result as the former
   // setState-in-effect, but without a cascading post-commit render.
-  const isSundayToday = new Date(todayDate).getDay() === 0;
+  const isSundayToday = getLocalDayOfWeek(todayDate) === 0;
   const completedWeeklyToday = (appState.assessmentState?.attempts || []).some(
     (a) =>
       a.kind === 'weekly_assessment' &&
