@@ -6,7 +6,6 @@ import {
   scoreAssessmentAttempt,
   transitionAttempt,
   isAttemptExpired,
-  applyChanceCorrection,
   getProvisionalDifficultyWeight,
   mapAbilityToProvisionalLevel,
   normalizeSQLQuery,
@@ -56,7 +55,7 @@ describe('Phase C: Baseline Assessment Engine + Runner', () => {
   // 2. Correct module/item counts
   describe('2. Correct module/item counts', () => {
     it('contains exactly 84 items across 10 modules, with Projects excluded', () => {
-      const attempt = buildBaselineAttempt();
+      const attempt = buildBaselineAttempt('seed-phase-c');
       expect(attempt.selectedItemIds.length).toBe(84);
 
       const itemMap = new Map(BASELINE_ASSESSMENT_ITEMS.map((i) => [i.id, i]));
@@ -173,21 +172,6 @@ describe('Phase C: Baseline Assessment Engine + Runner', () => {
     });
   });
 
-  // 6. Chance correction
-  describe('6. Chance correction', () => {
-    it('calculates chance correction: c\' = max(0, (c - 1/k) / (1 - 1/k))', () => {
-      // 4 options: guessFloor = 0.25
-      expect(applyChanceCorrection(1.0, 4)).toBe(1.0);
-      expect(applyChanceCorrection(0.25, 4)).toBe(0.0);
-      expect(applyChanceCorrection(0.1, 4)).toBe(0.0);
-      expect(applyChanceCorrection(0.625, 4)).toBeCloseTo(0.5, 4);
-    });
-
-    it('returns raw credit when options <= 1', () => {
-      expect(applyChanceCorrection(0.8, 1)).toBe(0.8);
-      expect(applyChanceCorrection(0.8, 0)).toBe(0.8);
-    });
-  });
 
   // 7. Difficulty weighting
   describe('7. Difficulty weighting', () => {
@@ -202,7 +186,7 @@ describe('Phase C: Baseline Assessment Engine + Runner', () => {
   // 8. Ability calculation
   describe('8. Ability calculation', () => {
     it('calculates 100 for all-correct responses in a domain', () => {
-      const attempt = buildBaselineAttempt();
+      const attempt = buildBaselineAttempt('seed-phase-c');
       const domainItems = BASELINE_ASSESSMENT_ITEMS.filter((i) => i.domainId === 'aptitude');
 
       const responses: AssessmentResponse[] = domainItems.map((item) => ({
@@ -226,7 +210,7 @@ describe('Phase C: Baseline Assessment Engine + Runner', () => {
     });
 
     it('calculates 0 for all-incorrect responses in a domain', () => {
-      const attempt = buildBaselineAttempt();
+      const attempt = buildBaselineAttempt('seed-phase-c');
       const domainItems = BASELINE_ASSESSMENT_ITEMS.filter((i) => i.domainId === 'aptitude');
 
       const responses: AssessmentResponse[] = domainItems.map((item) => ({
@@ -270,7 +254,7 @@ describe('Phase C: Baseline Assessment Engine + Runner', () => {
   // 10. Confidence and status behavior
   describe('10. Confidence and status behavior', () => {
     it('sets Class A domains with sufficient evidence to assessed and Class B to partially_assessed', () => {
-      const attempt = buildBaselineAttempt();
+      const attempt = buildBaselineAttempt('seed-phase-c');
       const responses: AssessmentResponse[] = BASELINE_ASSESSMENT_ITEMS.map((item) => ({
         id: `r-${item.id}`,
         attemptId: attempt.id,
@@ -304,7 +288,7 @@ describe('Phase C: Baseline Assessment Engine + Runner', () => {
     });
 
     it('assigns Level 0 when evidence is insufficient (< 5 scored responses)', () => {
-      const attempt = buildBaselineAttempt();
+      const attempt = buildBaselineAttempt('seed-phase-c');
       // Only 2 responses for aptitude (insufficient evidence)
       const aptItems = BASELINE_ASSESSMENT_ITEMS.filter((i) => i.domainId === 'aptitude').slice(0, 2);
       const responses: AssessmentResponse[] = aptItems.map((item) => ({
@@ -331,7 +315,7 @@ describe('Phase C: Baseline Assessment Engine + Runner', () => {
   // 11. Evidence creation using sourceType 'test'
   describe('11. Evidence creation using sourceType "test"', () => {
     it('creates EvidenceLog entries with sourceType: test and diagnostic_assessment details', () => {
-      const attempt = buildBaselineAttempt();
+      const attempt = buildBaselineAttempt('seed-phase-c');
       const responses: AssessmentResponse[] = BASELINE_ASSESSMENT_ITEMS.map((item) => ({
         id: `r-${item.id}`,
         attemptId: attempt.id,
@@ -371,7 +355,7 @@ describe('Phase C: Baseline Assessment Engine + Runner', () => {
         },
       };
 
-      const attempt = buildBaselineAttempt();
+      const attempt = buildBaselineAttempt('seed-phase-c');
       const dsaItems = BASELINE_ASSESSMENT_ITEMS.filter((i) => i.domainId === 'dsa');
 
       const responses: AssessmentResponse[] = dsaItems.map((item) => ({
@@ -402,7 +386,7 @@ describe('Phase C: Baseline Assessment Engine + Runner', () => {
   // 13. Attempt start/progress/submit lifecycle
   describe('13. Attempt start/progress/submit lifecycle', () => {
     it('transitions attempt from in_progress to submitted and records completion time', () => {
-      const attempt = buildBaselineAttempt();
+      const attempt = buildBaselineAttempt('seed-phase-c');
       expect(attempt.status).toBe('in_progress');
       expect(attempt.endedAt).toBeUndefined();
 
@@ -417,7 +401,7 @@ describe('Phase C: Baseline Assessment Engine + Runner', () => {
   // 14. Auto-submit at hard limit
   describe('14. Auto-submit at hard limit', () => {
     it('detects expiration after 180 minutes wall-clock limit and marks status auto_submitted', () => {
-      const attempt = buildBaselineAttempt();
+      const attempt = buildBaselineAttempt('seed-phase-c');
       const pastStartedAt = new Date(Date.now() - (181 * 60 * 1000)).toISOString();
       const expiredAttempt: AssessmentAttempt = {
         ...attempt,
@@ -431,7 +415,7 @@ describe('Phase C: Baseline Assessment Engine + Runner', () => {
     });
 
     it('does not expire within 180 minutes', () => {
-      const attempt = buildBaselineAttempt();
+      const attempt = buildBaselineAttempt('seed-phase-c');
       const recentStartedAt = new Date(Date.now() - (60 * 60 * 1000)).toISOString(); // 1 hour ago
       const nonExpiredAttempt: AssessmentAttempt = {
         ...attempt,
@@ -446,7 +430,7 @@ describe('Phase C: Baseline Assessment Engine + Runner', () => {
   describe('15. Refresh/reload recovery', () => {
     it('persists in-progress attempt and responses through storage round-trip', () => {
       const defaultState = getDefaultStorageState();
-      const attempt = buildBaselineAttempt();
+      const attempt = buildBaselineAttempt('seed-phase-c');
       const response: AssessmentResponse = {
         id: 'resp-test-1',
         attemptId: attempt.id,
@@ -487,7 +471,7 @@ describe('Phase C: Baseline Assessment Engine + Runner', () => {
   // 16. Invalid lifecycle transitions
   describe('16. Invalid lifecycle transitions', () => {
     it('throws when attempting to transition from submitted, auto_submitted, or abandoned', () => {
-      const attempt = buildBaselineAttempt();
+      const attempt = buildBaselineAttempt('seed-phase-c');
       const submitted = transitionAttempt(attempt, 'submitted');
 
       expect(() => transitionAttempt(submitted, 'in_progress')).toThrow(/terminal status "submitted"/);
@@ -546,7 +530,7 @@ describe('Phase C: Baseline Assessment Engine + Runner', () => {
   // 18. Baseline completion/readout data integrity
   describe('18. Baseline completion/readout data integrity', () => {
     it('produces a complete AssessmentSnapshot with all 11 domains represented', () => {
-      const attempt = buildBaselineAttempt();
+      const attempt = buildBaselineAttempt('seed-phase-c');
       const scoring = scoreAssessmentAttempt(attempt, []);
 
       expect(scoring.snapshot).toBeDefined();
@@ -567,7 +551,7 @@ describe('Phase C: Baseline Assessment Engine + Runner', () => {
   // 19. Exposure estimation weighting wired into scoreAssessmentAttempt (F-EXPO-01)
   describe('19. Exposure estimation weighting integration', () => {
     it('applies 0.5x discount on 2nd exposure and 0.0x exclusion on 3rd exposure during scoring', () => {
-      const attempt = buildBaselineAttempt();
+      const attempt = buildBaselineAttempt('seed-phase-c');
       const sampleItem = BASELINE_ASSESSMENT_ITEMS.find((i) => i.domainId === 'dsa')!;
 
       // 1st exposure: fresh
@@ -623,7 +607,7 @@ describe('Phase C: Baseline Assessment Engine + Runner', () => {
   // 20. Topic-partitioned evidence log emission (F-EVID-01)
   describe('20. Topic-partitioned evidence log emission', () => {
     it('emits separate evidence log entries for each topic sampled within a domain', () => {
-      const attempt = buildBaselineAttempt();
+      const attempt = buildBaselineAttempt('seed-phase-c');
       // Select 2 items from aptitude with different topicIds
       const aptItems = BASELINE_ASSESSMENT_ITEMS.filter((i) => i.domainId === 'aptitude');
       const item1 = aptItems[0];

@@ -648,8 +648,8 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
-  const startBaselineAssessment = (): AssessmentAttempt => {
-    const newAttempt = buildBaselineAttempt();
+  const startBaselineAssessment = (seed: string = 'baseline-diagnostic-attempt'): AssessmentAttempt => {
+    const newAttempt = buildBaselineAttempt(BASELINE_ASSESSMENT_DEFINITION, seed);
     setAppState((prev) => {
       const existingState = prev.assessmentState ?? {
         attempts: [],
@@ -707,8 +707,8 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return attempt;
   };
 
-  const startFullReassessment = (): AssessmentAttempt => {
-    const attempt = buildFullReassessmentAttempt(appState.assessmentState);
+  const startFullReassessment = (seed: string = 'full-reassessment-diagnostic-attempt'): AssessmentAttempt => {
+    const attempt = buildFullReassessmentAttempt(appState.assessmentState, seed);
     setAppState((prev) => {
       const existingState = prev.assessmentState ?? {
         attempts: [],

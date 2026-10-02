@@ -38,7 +38,7 @@ describe('Phase E: Sunday Adaptive Mini Test Specification', () => {
 
   // Helper to create a completed mock baseline assessment state (taken 33 days prior to Sunday)
   function createMockCompletedBaselineState(): AssessmentState {
-    const attempt = buildBaselineAttempt();
+    const attempt = buildBaselineAttempt('seed-phase-e-baseline');
     attempt.status = 'submitted';
     attempt.startedAt = '2026-09-01T08:00:00.000Z';
     attempt.endedAt = '2026-09-01T10:00:00.000Z';
@@ -74,7 +74,7 @@ describe('Phase E: Sunday Adaptive Mini Test Specification', () => {
 
   // Helper to create a baseline state with abundant supply across weakness, recent, and retention
   function createMockBalancedBaselineState(): { state: AssessmentState; recentCompetencies: string[] } {
-    const attempt = buildBaselineAttempt();
+    const attempt = buildBaselineAttempt('seed-phase-e-balanced');
     attempt.status = 'submitted';
     attempt.startedAt = '2026-09-01T08:00:00.000Z';
     attempt.endedAt = '2026-09-01T10:00:00.000Z';

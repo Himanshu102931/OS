@@ -324,15 +324,7 @@ export function getProvisionalDifficultyWeight(difficulty: 1 | 2 | 3 | 4): numbe
   return PROVISIONAL_DIFFICULTY_WEIGHTS[difficulty] ?? 1.0;
 }
 
-/**
- * Applies chance correction for objective MCQ items per §9.2 Step 2:
- * c' = max(0, (c - 1/k) / (1 - 1/k)) where k = number of options.
- */
-export function applyChanceCorrection(credit: number, numOptions: number): number {
-  if (numOptions <= 1) return credit;
-  const guessFloor = 1 / numOptions;
-  return Math.max(0, (credit - guessFloor) / (1 - guessFloor));
-}
+
 
 /**
  * Normalizes SQL queries for robust string matching against authored acceptable forms.
@@ -395,12 +387,34 @@ export function applyInfluenceCap(
 /**
  * Constructs a new baseline diagnostic attempt with deterministic ordering.
  * Orders items by module sequence M1 to M10, then by multistage role (anchor -> branch -> confirm),
- * then by difficulty.
+ * then by difficulty. Requires an explicit deterministic seed string.
  */
 export function buildBaselineAttempt(
-  definition: AssessmentDefinition = BASELINE_ASSESSMENT_DEFINITION,
-  seed: string = `baseline-${Date.now()}`
+  definition: AssessmentDefinition,
+  seed: string
+): AssessmentAttempt;
+export function buildBaselineAttempt(
+  seed: string,
+  definition?: AssessmentDefinition
+): AssessmentAttempt;
+export function buildBaselineAttempt(
+  first: AssessmentDefinition | string,
+  second?: AssessmentDefinition | string
 ): AssessmentAttempt {
+  const definition: AssessmentDefinition =
+    typeof first === 'object' && first !== null
+      ? first
+      : (typeof second === 'object' && second !== null ? second : BASELINE_ASSESSMENT_DEFINITION);
+
+  const seed: string =
+    typeof first === 'string'
+      ? first
+      : (typeof second === 'string' ? second : '');
+
+  if (!seed) {
+    throw new Error('Deterministic seed string is required for buildBaselineAttempt');
+  }
+
   const selectedItemIds: string[] = [];
 
   for (const moduleDef of definition.modules) {
@@ -1882,7 +1896,6 @@ export const SUNDAY_TEST_CONSTANTS = {
   MIN_DISTINCT_DOMAINS: 6,
   EXPOSURE_SUPPRESSION_DAYS: 14,
   REPEAT_WEIGHT_WINDOW_DAYS: 60,
-  MAX_ESTIMATION_USES: 3,
   SWING_CAP_RATIO: 0.50,
   PRIORITY_WEIGHTS: {
     P1: 0.30, // unresolved remediation
@@ -3037,11 +3050,39 @@ export function checkLevelRegression(
  * Builds a deterministic full reassessment attempt (§19).
  * Uses FULL_REASSESSMENT_DEFINITION (180 min, 10 modules, 84 items).
  * Selects eligible items matching the authoritative module structure.
+ * Requires an explicit deterministic seed string.
  */
 export function buildFullReassessmentAttempt(
-  assessmentState?: AssessmentState,
-  seed: string = `reassessment-${Date.now()}`
+  assessmentState: AssessmentState | undefined,
+  seed: string
+): AssessmentAttempt;
+export function buildFullReassessmentAttempt(
+  seed: string,
+  assessmentState?: AssessmentState
+): AssessmentAttempt;
+export function buildFullReassessmentAttempt(
+  first: AssessmentState | string | undefined,
+  second?: AssessmentState | string
 ): AssessmentAttempt {
+  let assessmentState: AssessmentState | undefined;
+  let seed = '';
+
+  if (typeof first === 'string') {
+    seed = first;
+    if (second && typeof second !== 'string') {
+      assessmentState = second;
+    }
+  } else {
+    assessmentState = first;
+    if (typeof second === 'string') {
+      seed = second;
+    }
+  }
+
+  if (!seed) {
+    throw new Error('Deterministic seed string is required for buildFullReassessmentAttempt');
+  }
+
   const definition = FULL_REASSESSMENT_DEFINITION;
   const selectedItemIds: string[] = [];
   const exposures = assessmentState?.exposures ?? {};
@@ -3089,7 +3130,7 @@ export function buildFullReassessmentAttempt(
   }
 
   return {
-    id: `reassessment-${Date.now()}`,
+    id: `reassessment-${seed.replace(/[^a-zA-Z0-9-]/g, '')}`,
     definitionId: definition.id,
     definitionVersion: definition.version,
     kind: 'full_reassessment',
@@ -3106,7 +3147,7 @@ export function buildFullReassessmentAttempt(
  */
 export function runFullReassessment(
   assessmentState?: AssessmentState,
-  seed?: string
+  seed: string = 'full-reassessment-run'
 ): { attempt: AssessmentAttempt } {
   const attempt = buildFullReassessmentAttempt(assessmentState, seed);
   return { attempt };

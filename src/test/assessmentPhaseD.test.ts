@@ -28,7 +28,7 @@ describe('Phase D: Profile & Plan Readout Specification', () => {
 
   // Helper to create a completed mock assessment state
   function createMockCompletedAssessmentState(): AssessmentState {
-    const attempt = buildBaselineAttempt();
+    const attempt = buildBaselineAttempt('seed-phase-d');
     attempt.status = 'submitted';
     attempt.endedAt = '2026-10-01T10:00:00.000Z';
 
@@ -212,7 +212,7 @@ describe('Phase D: Profile & Plan Readout Specification', () => {
   // 6. Assessment evidence remains sourceType 'test'
   describe('6. Assessment evidence remains sourceType "test"', () => {
     it('ensures evidence logs emitted from baseline assessment use sourceType: "test"', () => {
-      const attempt = buildBaselineAttempt();
+      const attempt = buildBaselineAttempt('seed-phase-d-evid');
       const responses: AssessmentResponse[] = BASELINE_ASSESSMENT_ITEMS.map((item) => ({
         id: `r-${item.id}`,
         attemptId: attempt.id,

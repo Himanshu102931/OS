@@ -118,7 +118,7 @@ describe('Phase G: Company/Role Overlays & Calibration Path Specification', () =
 
   // 1. Baseline remains company-agnostic
   it('1. baseline diagnostic attempt and definition contain zero company references', () => {
-    const attempt = buildBaselineAttempt();
+    const attempt = buildBaselineAttempt('seed-phase-g');
     expect(attempt.kind).toBe('diagnostic_assessment');
     expect(BASELINE_ASSESSMENT_DEFINITION.id).toBe('baseline-diagnostic-v1');
     expect((attempt as unknown as Record<string, unknown>).companyId).toBeUndefined();
@@ -278,7 +278,7 @@ describe('Phase G: Company/Role Overlays & Calibration Path Specification', () =
 
   // 8. Overlay cannot bypass exposure rules
   it('8. overlay cannot bypass exposure tracking rules', () => {
-    const attempt = buildBaselineAttempt();
+    const attempt = buildBaselineAttempt('seed-phase-g');
     const item = BASELINE_ASSESSMENT_ITEMS[0];
     const responses: AssessmentResponse[] = [
       {
@@ -360,7 +360,7 @@ describe('Phase G: Company/Role Overlays & Calibration Path Specification', () =
 
   // 12. Calibration observation records are created correctly
   it('12. calibration observation records are created correctly from answered items', () => {
-    const attempt = buildBaselineAttempt();
+    const attempt = buildBaselineAttempt('seed-phase-g');
     const item = BASELINE_ASSESSMENT_ITEMS[0];
     const response: AssessmentResponse = {
       id: 'resp-cal-1',
@@ -392,7 +392,7 @@ describe('Phase G: Company/Role Overlays & Calibration Path Specification', () =
 
   // 13. Calibration data preserves item/domain/module provenance
   it('13. calibration data preserves item, domain, and module/topic provenance', () => {
-    const attempt = buildBaselineAttempt();
+    const attempt = buildBaselineAttempt('seed-phase-g');
     const item = BASELINE_ASSESSMENT_ITEMS.find((i) => i.domainId === 'sql')!;
     const response: AssessmentResponse = {
       id: 'resp-sql-1',
@@ -414,7 +414,7 @@ describe('Phase G: Company/Role Overlays & Calibration Path Specification', () =
 
   // 14. Assessment version is preserved in calibration observations
   it('14. assessment definition version is preserved in calibration observations', () => {
-    const attempt = buildBaselineAttempt();
+    const attempt = buildBaselineAttempt('seed-phase-g');
     expect(attempt.definitionVersion).toBe(1);
 
     const item = BASELINE_ASSESSMENT_ITEMS[0];
@@ -473,7 +473,7 @@ describe('Phase G: Company/Role Overlays & Calibration Path Specification', () =
 
   // 16. Authored difficulty remains authoritative
   it('16. authored difficulty remains authoritative for scoring; empirical data does not alter weights', () => {
-    const attempt = buildBaselineAttempt();
+    const attempt = buildBaselineAttempt('seed-phase-g');
     const item = BASELINE_ASSESSMENT_ITEMS[0]; // difficulty 1
     const responses: AssessmentResponse[] = [
       {
@@ -636,9 +636,9 @@ describe('Phase G: Company/Role Overlays & Calibration Path Specification', () =
 
   // 20. Weekly/baseline/reassessment semantics remain distinct
   it('20. weekly, baseline, and full reassessment semantics remain distinct in calibration observations', () => {
-    const baseAttempt = buildBaselineAttempt();
+    const baseAttempt = buildBaselineAttempt('seed-phase-g');
     const sundayAttempt = buildSundayMiniTestAttempt(createCompletedAssessmentState()).attempt;
-    const fullAttempt = buildFullReassessmentAttempt();
+    const fullAttempt = buildFullReassessmentAttempt('seed-phase-g-reassess');
 
     const item = BASELINE_ASSESSMENT_ITEMS[0];
     const resp: AssessmentResponse = {

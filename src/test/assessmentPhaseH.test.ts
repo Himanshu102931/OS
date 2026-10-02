@@ -326,7 +326,7 @@ def reverse_list(lst):
 
   // 14. sourceType 'test' evidence
   it('14. guarantees all evidence logs generated from attempts with execution-backed items have sourceType: test', () => {
-    const attempt = buildBaselineAttempt();
+    const attempt = buildBaselineAttempt('seed-phase-h');
     const responses: AssessmentResponse[] = [
       {
         id: 'resp-1',
@@ -362,7 +362,7 @@ def reverse_list(lst):
 
   // 15. Execution provenance preservation
   it('15. records execution records with full item, attempt, language, code, and result provenance', () => {
-    const attempt = buildBaselineAttempt();
+    const attempt = buildBaselineAttempt('seed-phase-h');
     const responses: AssessmentResponse[] = [
       {
         id: 'resp-exec',
@@ -409,7 +409,7 @@ def reverse_list(lst):
     const initialTopicsCount = TOPICS.length;
     const initialTasksCount = TASK_DEFINITIONS.length;
 
-    const attempt = buildBaselineAttempt();
+    const attempt = buildBaselineAttempt('seed-phase-h');
     const responses: AssessmentResponse[] = [
       {
         id: 'resp-exec',
@@ -487,7 +487,7 @@ def reverse_list(lst):
 
   // 18. Baseline, weekly, and full-reassessment semantics remain distinct
   it('18. supports execution items across baseline, weekly mini-test, and full reassessment cleanly', () => {
-    const baselineAttempt = buildBaselineAttempt();
+    const baselineAttempt = buildBaselineAttempt('seed-phase-h');
     const stateWithBaseline: AssessmentState = {
       attempts: [
         {
@@ -518,7 +518,7 @@ def reverse_list(lst):
       currentDate: new Date().toISOString(),
       allItems: [samplePythonItem, ...BASELINE_ASSESSMENT_ITEMS],
     }).attempt;
-    const fullAttempt = buildFullReassessmentAttempt();
+    const fullAttempt = buildFullReassessmentAttempt('seed-phase-h-reassess');
 
     expect(baselineAttempt.kind).toBe('diagnostic_assessment');
     expect(weeklyAttempt.kind).toBe('weekly_assessment');
@@ -530,7 +530,7 @@ def reverse_list(lst):
 
   // 19. Calibration observation compatibility
   it('19. generates calibration observation records for execution items preserving execution error categories', () => {
-    const attempt = buildBaselineAttempt();
+    const attempt = buildBaselineAttempt('seed-phase-h');
     const responses: AssessmentResponse[] = [
       {
         id: 'resp-exec-err',
@@ -597,7 +597,7 @@ def reverse_list(lst):
 
   // 22. Timeout and expiration interaction with the existing assessment hard wall
   it('22. handles attempt hard wall expiration correctly, recording unanswered status for open items', () => {
-    const attempt = buildBaselineAttempt();
+    const attempt = buildBaselineAttempt('seed-phase-h');
     // Simulate expired attempt
     const expiredAttempt = {
       ...attempt,

@@ -91,7 +91,7 @@ def solution():
 
     it('end-to-end integration: rubric items contribute non-zero credit to domain scoring', () => {
       const rubricItem = BASELINE_ASSESSMENT_ITEMS.find((i) => i.scoring.kind === 'rubric')!;
-      const attempt = buildBaselineAttempt();
+      const attempt = buildBaselineAttempt('seed-remediation-1');
       const response: AssessmentResponse = {
         id: 'resp-rubric-test',
         attemptId: attempt.id,
@@ -115,7 +115,7 @@ def solution():
   describe('F-EXPO-01 & F-TEST-01: Exposure discount and exclusion in scoring', () => {
     it('discounts 2nd exposure to 0.5x weight and excludes >=3rd exposure from estimation', () => {
       const item = BASELINE_ASSESSMENT_ITEMS[0];
-      const attempt = buildBaselineAttempt();
+      const attempt = buildBaselineAttempt('seed-remediation-1');
 
       const response: AssessmentResponse = {
         id: 'resp-expo-1',
@@ -179,7 +179,7 @@ def solution():
   // F-STAT-01: State-machine integrity
   describe('F-STAT-01: State-machine integrity and lifecycle transitions', () => {
     it('identifies expired in_progress attempts and allows transition to abandoned', () => {
-      const attempt = buildBaselineAttempt();
+      const attempt = buildBaselineAttempt('seed-remediation-1');
       attempt.startedAt = new Date(Date.now() - (attempt.timeLimitSeconds + 60) * 1000).toISOString();
 
       expect(isAttemptExpired(attempt)).toBe(true);
@@ -189,7 +189,7 @@ def solution():
     });
 
     it('rejects illegal transitions from terminal states', () => {
-      const attempt = buildBaselineAttempt();
+      const attempt = buildBaselineAttempt('seed-remediation-1');
       const abandoned = transitionAttempt(attempt, 'abandoned');
       expect(() => transitionAttempt(abandoned, 'submitted')).toThrow(/cannot move from terminal status/);
     });
@@ -199,7 +199,7 @@ def solution():
   describe('F-RESET-01: DECIDED 3 two distinct reset operations', () => {
     it('resetAssessmentProfileOnly resets levels to 0 but preserves attempt history and exposures', () => {
       const state = createInitialAssessmentState();
-      state.attempts.push(buildBaselineAttempt());
+      state.attempts.push(buildBaselineAttempt('seed-remediation-1'));
       state.exposures['item-1'] = {
         itemId: 'item-1',
         lastAttemptId: 'att-mock',
@@ -237,7 +237,7 @@ def solution():
 
     it('resetAssessmentHistoryOnly clears all history, exposures, and attempts back to baseline', () => {
       const state = createInitialAssessmentState();
-      state.attempts.push(buildBaselineAttempt());
+      state.attempts.push(buildBaselineAttempt('seed-remediation-1'));
       state.exposures['item-1'] = {
         itemId: 'item-1',
         lastAttemptId: 'att-mock',
@@ -263,7 +263,7 @@ def solution():
   // F-EVID-01: Multi-topic evidence partitioning
   describe('F-EVID-01: Partitioning EvidenceLog entries by sampled topic', () => {
     it('creates topic-specific EvidenceLog entries for all topics sampled in an assessment', () => {
-      const attempt = buildBaselineAttempt();
+      const attempt = buildBaselineAttempt('seed-remediation-1');
       const aptItems = BASELINE_ASSESSMENT_ITEMS.filter((i) => i.domainId === 'aptitude');
       const itemA = aptItems[0];
       const itemB = aptItems.find((i) => i.topicId !== itemA.topicId)!;

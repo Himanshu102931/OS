@@ -74,7 +74,7 @@ describe('Phase F: Level Regression & Full Reassessment Specification', () => {
 
   // Helper to build a completed mock baseline state
   function createMockCompletedBaselineState(): AssessmentState {
-    const attempt = buildBaselineAttempt();
+    const attempt = buildBaselineAttempt('seed-phase-f');
     attempt.status = 'submitted';
     attempt.startedAt = '2026-09-01T08:00:00.000Z';
     attempt.endedAt = '2026-09-01T10:00:00.000Z';
@@ -523,7 +523,7 @@ describe('Phase F: Level Regression & Full Reassessment Specification', () => {
   // 14. full_reassessment kind and lifecycle (§19)
   // ==========================================================================
   it('14. full_reassessment kind and lifecycle', () => {
-    const attempt = buildFullReassessmentAttempt();
+    const attempt = buildFullReassessmentAttempt('seed-phase-f-reassess');
     expect(attempt.kind).toBe('full_reassessment');
     expect(attempt.status).toBe('in_progress');
     expect(attempt.timeLimitSeconds).toBe(180 * 60);
@@ -555,7 +555,7 @@ describe('Phase F: Level Regression & Full Reassessment Specification', () => {
     const initialSnapshotId = state.snapshots[0].id;
 
     // Run and score a full reassessment
-    const reassessAttempt = buildFullReassessmentAttempt(state);
+    const reassessAttempt = buildFullReassessmentAttempt(state, 'seed-phase-f-reassess');
     const responses: AssessmentResponse[] = reassessAttempt.selectedItemIds.map((itemId) => ({
       id: `resp-${itemId}`,
       attemptId: reassessAttempt.id,
@@ -589,7 +589,7 @@ describe('Phase F: Level Regression & Full Reassessment Specification', () => {
   // ==========================================================================
   it('17. current-profile update after reassessment', () => {
     const state = createMockCompletedBaselineState();
-    const reassessAttempt = buildFullReassessmentAttempt(state);
+    const reassessAttempt = buildFullReassessmentAttempt(state, 'seed-phase-f-reassess');
     reassessAttempt.status = 'submitted';
     reassessAttempt.endedAt = '2026-10-10T12:00:00.000Z';
 
@@ -634,7 +634,7 @@ describe('Phase F: Level Regression & Full Reassessment Specification', () => {
   // 18. Evidence sourceType 'test' (§23.1)
   // ==========================================================================
   it('18. evidence sourceType test', () => {
-    const attempt = buildFullReassessmentAttempt();
+    const attempt = buildFullReassessmentAttempt('seed-phase-f-reassess');
     const responses: AssessmentResponse[] = attempt.selectedItemIds.slice(0, 10).map((itemId) => ({
       id: `resp-${itemId}`,
       attemptId: attempt.id,
@@ -669,7 +669,7 @@ describe('Phase F: Level Regression & Full Reassessment Specification', () => {
     const initialDsaProgress = JSON.stringify(defaultState.dsaProgress);
     const initialTasks = JSON.stringify(defaultState.taskProgress);
 
-    const attempt = buildFullReassessmentAttempt();
+    const attempt = buildFullReassessmentAttempt('seed-phase-f-reassess');
     const responses: AssessmentResponse[] = attempt.selectedItemIds.map((itemId) => ({
       id: `resp-${itemId}`,
       attemptId: attempt.id,
@@ -693,7 +693,7 @@ describe('Phase F: Level Regression & Full Reassessment Specification', () => {
   // 20. Persistence / reload recovery (§27)
   // ==========================================================================
   it('20. persistence/reload recovery', () => {
-    const attempt = buildFullReassessmentAttempt();
+    const attempt = buildFullReassessmentAttempt('seed-phase-f-reassess');
     const state: AppExtendedStorageState = {
       ...getDefaultStorageState(),
       assessmentState: {
@@ -719,7 +719,7 @@ describe('Phase F: Level Regression & Full Reassessment Specification', () => {
   // 21. Invalid lifecycle transitions (§31)
   // ==========================================================================
   it('21. invalid lifecycle transitions', () => {
-    const attempt = buildFullReassessmentAttempt();
+    const attempt = buildFullReassessmentAttempt('seed-phase-f-reassess');
     const submitted = transitionAttempt(attempt, 'submitted');
 
     // Attempting to transition from submitted back to in_progress should throw
@@ -750,7 +750,7 @@ describe('Phase F: Level Regression & Full Reassessment Specification', () => {
   // 23. Projects remain outside baseline assessment (§20)
   // ==========================================================================
   it('23. Projects remain outside baseline assessment', () => {
-    const attempt = buildFullReassessmentAttempt();
+    const attempt = buildFullReassessmentAttempt('seed-phase-f-reassess');
     const responses: AssessmentResponse[] = attempt.selectedItemIds.map((itemId) => ({
       id: `resp-${itemId}`,
       attemptId: attempt.id,
@@ -782,7 +782,7 @@ describe('Phase F: Level Regression & Full Reassessment Specification', () => {
   // 24. Class B construct boundaries preserved (§4, §21, §22)
   // ==========================================================================
   it('24. Class B construct boundaries preserved', () => {
-    const attempt = buildFullReassessmentAttempt();
+    const attempt = buildFullReassessmentAttempt('seed-phase-f-reassess');
     const responses: AssessmentResponse[] = attempt.selectedItemIds.map((itemId) => ({
       id: `resp-${itemId}`,
       attemptId: attempt.id,
