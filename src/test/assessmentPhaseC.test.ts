@@ -9,6 +9,7 @@ import {
   getProvisionalDifficultyWeight,
   mapAbilityToProvisionalLevel,
   normalizeSQLQuery,
+  calculateItemEstimationWeight,
 } from '../engine/assessmentEngine';
 import { BASELINE_ASSESSMENT_DEFINITION } from '../data/assessment/definitions';
 import { BASELINE_ASSESSMENT_ITEMS } from '../data/assessment/items';
@@ -639,7 +640,8 @@ describe('Phase C: Baseline Assessment Engine + Runner', () => {
     // 2nd exposure within 60 days -> 0.5x weight
     const scoringRecent = scoreAssessmentAttempt(attempt, [resp], [sampleItem], BASELINE_ASSESSMENT_DEFINITION, exposuresRecent);
     expect(scoringRecent.exposures[sampleItem.id].exposureCount).toBe(2);
-    expect(scoringRecent.exposures[sampleItem.id].estimationUses).toBe(2);
+    // After 2nd exposure, eligibleForFutureEstimation becomes false (next would be 3rd)
+    expect(scoringRecent.exposures[sampleItem.id].eligibleForFutureEstimation).toBe(false);
 
     // 2nd exposure beyond 60 days -> 1.0x weight (full weight)
     const oldDate = new Date();
@@ -660,13 +662,61 @@ describe('Phase C: Baseline Assessment Engine + Runner', () => {
 
     const scoringOld = scoreAssessmentAttempt(attempt, [resp], [sampleItem], BASELINE_ASSESSMENT_DEFINITION, exposuresOld);
     expect(scoringOld.exposures[sampleItem.id].exposureCount).toBe(2);
-    expect(scoringOld.exposures[sampleItem.id].estimationUses).toBe(2);
+    expect(scoringOld.exposures[sampleItem.id].eligibleForFutureEstimation).toBe(false);
 
-    // Verify exposure tracking works correctly for both cases
-    // (The weight multiplier is applied in calculateItemEstimationWeight and
-    // affects the item's contribution to the ability score.)
-    // The exposure tracking (exposureCount, estimationUses) works correctly
-    // for both within-window and beyond-window cases.
+    // Verify the weight multiplier directly via calculateItemEstimationWeight
+    // (integration through scoreAssessmentAttempt normalizes weights, so single-item domains
+    // show 100 ability regardless; the multiplier affects relative weight in multi-item domains)
+    const nowISO = new Date().toISOString();
+    const unexposedWeight = calculateItemEstimationWeight(sampleItem, undefined);
+    const recentWeight = calculateItemEstimationWeight(sampleItem, exposuresRecent[sampleItem.id], nowISO);
+    const oldWeight = calculateItemEstimationWeight(sampleItem, exposuresOld[sampleItem.id], nowISO);
+
+    expect(recentWeight).toBe(unexposedWeight * 0.5);
+    expect(oldWeight).toBe(unexposedWeight);
+    expect(oldWeight).toBeGreaterThan(recentWeight);
+  });
+
+    // NEW-01b: 3rd+ exposure is excluded from estimation (0.0 weight)
+    it('excludes 3rd and later exposures from estimation (0.0 weight)', () => {
+    const attempt = buildBaselineAttempt('seed-phase-c-3rd');
+    const sampleItem = BASELINE_ASSESSMENT_ITEMS.find((i) => i.domainId === 'dsa')!;
+
+    const resp: AssessmentResponse = {
+      id: 'r-expo-3rd',
+      attemptId: attempt.id,
+      itemId: sampleItem.id,
+      response: sampleItem.key ?? 0,
+      result: 'correct',
+      timeSpentSeconds: 60,
+      errorCategories: [],
+      scoredCredit: 1.0,
+      weightApplied: 1.0,
+    };
+
+    // After 2 exposures (exposureCount=2), next is 3rd exposure -> weight 0.0
+    const thirdExposure = {
+      [sampleItem.id]: {
+        itemId: sampleItem.id,
+        exposureCount: 2, // seen twice before
+        lastSeenAt: new Date().toISOString(),
+        lastAttemptId: 'prev-att-2',
+        lastResult: 'correct' as const,
+        previousAssessmentUsage: ['diagnostic_assessment' as const, 'diagnostic_assessment' as const],
+        estimationUses: 2,
+        eligibleForFutureEstimation: false,
+        releasedToPractice: false,
+      },
+    };
+
+    const scoring3rd = scoreAssessmentAttempt(attempt, [resp], [sampleItem], BASELINE_ASSESSMENT_DEFINITION, thirdExposure);
+    expect(scoring3rd.exposures[sampleItem.id].exposureCount).toBe(3);
+    expect(scoring3rd.exposures[sampleItem.id].estimationUses).toBe(2); // does not increment when weight=0
+    expect(scoring3rd.exposures[sampleItem.id].eligibleForFutureEstimation).toBe(false);
+
+    // Direct weight function test
+    const thirdWeight = calculateItemEstimationWeight(sampleItem, thirdExposure[sampleItem.id]);
+    expect(thirdWeight).toBe(0.0);
   });
 });
 

@@ -970,15 +970,18 @@ export function scoreAssessmentAttempt(
       const prevUsages = prevExposure?.previousAssessmentUsage ?? [];
 
       const usedInEstimation = estWeight > 0;
+      const newExposureCount = prevCount + 1;
       exposures[item.id] = {
         itemId: item.id,
-        exposureCount: prevCount + 1,
+        exposureCount: newExposureCount,
         lastSeenAt: assessmentDate,
         lastAttemptId: terminalAttempt.id,
         lastResult: resp.result,
         previousAssessmentUsage: [...prevUsages, terminalAttempt.kind],
         estimationUses: prevUses + (usedInEstimation ? 1 : 0),
-        eligibleForFutureEstimation: (prevUses + (usedInEstimation ? 1 : 0)) < 2,
+        // Eligible for future estimation if next exposure would be < 3rd exposure
+        // i.e., current new exposure count < 2 (so next would be 2nd exposure)
+        eligibleForFutureEstimation: newExposureCount < 2,
         releasedToPractice: item.exposurePolicy.releaseToPractice,
       };
 
@@ -1998,7 +2001,8 @@ export function isItemEligibleForSundayTest(
   // Exposure restrictions (§13.3 & §15.2)
   if (exposure) {
     if (exposure.eligibleForFutureEstimation === false) return false;
-    if (exposure.exposureCount >= 3 || exposure.estimationUses >= 2) return false;
+    // Exclude items at 3rd+ exposure (existing exposureCount >= 2)
+    if (exposure.exposureCount >= 2) return false;
 
     // Recent exposure rule: Any item seen in the last 14 days is ineligible
     if (exposure.lastSeenAt && currentDate) {
@@ -2014,9 +2018,10 @@ export function isItemEligibleForSundayTest(
 
 /**
  * Calculates item estimation weight applying the §13.3 repeat discount rules:
- * - 1st use: Full weight (1.0)
- * - 2nd use within 60 days: Weight ×0.5
- * - ≥3rd use: 0.0 (excluded from estimation)
+ * - 1st exposure: Full weight (1.0)
+ * - 2nd exposure within 60 days: Weight ×0.5
+ * - 2nd exposure beyond 60 days: Weight ×1.0
+ * - ≥3rd exposure: 0.0 (excluded from estimation)
  */
 export function calculateItemEstimationWeight(
   item: AssessmentItem,
@@ -2026,9 +2031,11 @@ export function calculateItemEstimationWeight(
   let multiplier = 1.0;
 
   if (exposure) {
-    if (exposure.exposureCount >= 2 || exposure.estimationUses >= 2) {
+    // Exposure count determines eligibility: existing count >= 2 means this is the 3rd+ exposure
+    if (exposure.exposureCount >= 2) {
       multiplier = 0.0;
     } else if (exposure.exposureCount === 1) {
+      // 2nd exposure: apply 60-day repeat discount
       if (exposure.lastSeenAt && currentDate) {
         const days = (new Date(currentDate).getTime() - new Date(exposure.lastSeenAt).getTime()) / (1000 * 3600 * 24);
         multiplier = days <= 60 ? 0.5 : 1.0;
