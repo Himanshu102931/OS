@@ -373,6 +373,10 @@ export function calculateEvidenceScore(
   if (assistanceLevel === 'hint') multiplier = 0.8;
   if (assistanceLevel === 'solution') multiplier = 0.5;
 
+  // Confidence adjustment: penalize low confidence, reward high confidence.
+  // Confidence 1: -10, 2: -5, 3: 0, 4: +5, 5: +10.
+  // This models that low-confidence correct answers are less reliable evidence
+  // than high-confidence ones, while low-confidence failures are less damaging.
   const score = Math.round(base * multiplier) + (confidence - 3) * 5;
   return Math.min(100, Math.max(0, score));
 }

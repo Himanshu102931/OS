@@ -2031,7 +2031,7 @@ export function calculateItemEstimationWeight(
     } else if (exposure.exposureCount === 1) {
       if (exposure.lastSeenAt && currentDate) {
         const days = (new Date(currentDate).getTime() - new Date(exposure.lastSeenAt).getTime()) / (1000 * 3600 * 24);
-        multiplier = days <= 60 ? 0.5 : 0.5;
+        multiplier = days <= 60 ? 0.5 : 1.0;
       } else {
         multiplier = 0.5;
       }
