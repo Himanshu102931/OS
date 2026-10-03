@@ -13,12 +13,14 @@ interface MorningPlanningModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCommitPlan: (checkIn: DailyCheckIn, assignments: DailyTaskAssignment[]) => void;
+  targetCompanyId?: string;
 }
 
 export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
   isOpen,
   onClose,
   onCommitPlan,
+  targetCompanyId,
 }) => {
   const {
     taskDefinitions,
@@ -57,7 +59,8 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
     skillStates,
     companyOverlays,
     mode,
-    todayDate
+    todayDate,
+    targetCompanyId
   );
 
   // 2. Calculate time budget and select daily plan

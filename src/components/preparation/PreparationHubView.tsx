@@ -7,7 +7,10 @@ import {
 } from '../../data/preparationDataset';
 import type { PreparationTopic, PreparationSection } from '../../types';
 import { usePlacement } from '../../context/PlacementContext';
-import { evaluateTopicPreparedness, evaluatePrerequisiteStatus } from '../../engine/preparationEngine';
+import {
+  evaluatePrerequisiteStatus,
+  evaluateTopicProgression,
+} from '../../engine/preparationEngine';
 import { TopicWorkspace } from './TopicWorkspace';
 import { PracticeSessionRunner } from './PracticeSessionRunner';
 import { GuideTrigger } from '../guide/GuideTrigger';
@@ -86,19 +89,19 @@ export const PreparationHubView: React.FC = () => {
         nextAction: 'Choose a topic to begin',
       };
     }
-    const skill = skillStates[activeTopic.id];
-    const preparedness = evaluateTopicPreparedness({
-      topic: activeTopic,
-      progress: preparationTopicProgress[activeTopic.id],
-      skillState: skill
-        ? { evidenceStrength: skill.evidenceStrength, freshness: skill.freshness }
-        : undefined,
-      attempts: practiceAttempts,
-    });
+    const progression = evaluateTopicProgression(
+      activeTopic,
+      getPreparationTopic,
+      preparationTopicProgress,
+      {
+        skillStates,
+        attempts: practiceAttempts,
+      }
+    );
     return {
       activeTopic,
       activeTopicLabel: activeTopic.title,
-      nextAction: preparedness.nextAction,
+      nextAction: progression.actionableStep?.description || progression.preparedness.nextAction,
     };
   };
 
@@ -292,7 +295,20 @@ export const PreparationHubView: React.FC = () => {
                     const prereqStatus = evaluatePrerequisiteStatus(
                       topic,
                       getPreparationTopic,
-                      preparationTopicProgress
+                      preparationTopicProgress,
+                      {
+                        skillStates,
+                        attempts: practiceAttempts,
+                      }
+                    );
+                    const progression = evaluateTopicProgression(
+                      topic,
+                      getPreparationTopic,
+                      preparationTopicProgress,
+                      {
+                        skillStates,
+                        attempts: practiceAttempts,
+                      }
                     );
                     const unmetTitles = prereqStatus.unmetPrerequisiteIds
                       .map((id) => getPreparationTopic(id)?.title)
@@ -309,7 +325,19 @@ export const PreparationHubView: React.FC = () => {
                           </span>
                           {prereqStatus.isLocked && (
                             <span className="text-[10px] text-[#F59E0B] block truncate">
-                              Requires: {unmetTitles.join(', ')}
+                              {prereqStatus.unmetEvidencePrerequisiteIds?.length
+                                ? `Requires proof in: ${unmetTitles.join(', ')}`
+                                : `Requires: ${unmetTitles.join(', ')}`}
+                            </span>
+                          )}
+                          {!prereqStatus.isLocked && progression.state === 'learned_unproven' && (
+                            <span className="text-[10px] text-[#F59E0B] block truncate">
+                              Learned • Practice proof required
+                            </span>
+                          )}
+                          {!prereqStatus.isLocked && progression.state === 'ready_to_progress' && (
+                            <span className="text-[10px] text-[#10B981] block truncate">
+                              Evidenced • Ready to progress
                             </span>
                           )}
                         </span>
@@ -323,6 +351,16 @@ export const PreparationHubView: React.FC = () => {
                             <span className="flex items-center gap-1 text-[#F59E0B]">
                               <Lock className="size-3.5" />
                               <span>Locked</span>
+                            </span>
+                          ) : progression.state === 'learned_unproven' ? (
+                            <span className="text-[#F59E0B] flex items-center gap-1">
+                              <span>Practice</span>
+                              <ChevronRight className="size-3.5" />
+                            </span>
+                          ) : progression.state === 'ready_to_progress' ? (
+                            <span className="text-[#10B981] flex items-center gap-1">
+                              <span>Ready</span>
+                              <ChevronRight className="size-3.5" />
                             </span>
                           ) : (
                             <span className="text-[#E5A93C] flex items-center gap-1">

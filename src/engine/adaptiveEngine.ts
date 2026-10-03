@@ -8,6 +8,7 @@ import type {
   PlacementMode,
 } from '../types';
 import { evaluateTaskPrerequisites } from './taskStateEngine';
+import { calculateCompanyDeadlineUrgency } from './companyPlanEngine';
 
 export interface PriorityBreakdown {
   urgency: number;         // 0 - 100
@@ -90,14 +91,51 @@ export function calculateWeakness(
   return Math.min(100, Math.max(0, Math.round(baseWeakness * freshnessMultiplier)));
 }
 
+import { getDaysUntilEvent } from './companyEngine';
+
 /**
  * 4. Company Relevance Score (0 - 100)
+ * Evaluates company relevance, optionally targeting a single focus company
+ * and factoring in deadline urgency from eventDate.
  */
 export function calculateCompanyRelevance(
   task: TaskDefinition,
   companyOverlays: CompanyOverlay[],
-  mode: PlacementMode
+  mode: PlacementMode,
+  todayStr?: string,
+  targetCompanyId?: string
 ): number {
+  if (companyOverlays.length === 0) return 0;
+
+  // If a specific target company is selected (Company Focus Mode), evaluate against it
+  if (targetCompanyId) {
+    const targetComp = companyOverlays.find((c) => c.id === targetCompanyId);
+    if (!targetComp) return 0;
+
+    let score = 0;
+    if (targetComp.requiredDomains.includes(task.domainId)) score += 30;
+    if (targetComp.requiredTopics.includes(task.topicId)) score += 40;
+
+    if (task.languageTags && targetComp.requiredLanguages) {
+      const hasLangOverlap = task.languageTags.some((lang) =>
+        targetComp.requiredLanguages.includes(lang)
+      );
+      if (hasLangOverlap) score += 30;
+    }
+
+    // Urgency bonus if task is relevant and event date exists
+    if (score > 0 && todayStr && targetComp.eventDate) {
+      score += calculateCompanyDeadlineUrgency(targetComp.eventDate, todayStr).scoreBoost;
+    }
+
+    if (mode === 'placement_sprint') {
+      score = Math.round(score * 1.5);
+    }
+
+    return Math.min(100, score);
+  }
+
+  // Otherwise, evaluate across active companies
   const activeCompanies = companyOverlays.filter((c) =>
     ['target', 'applied', 'oa_scheduled', 'interview_scheduled'].includes(c.applicationStatus)
   );
@@ -116,6 +154,11 @@ export function calculateCompanyRelevance(
         comp.requiredLanguages.includes(lang)
       );
       if (hasLangOverlap) score += 30;
+    }
+
+    // Factor in event deadline urgency if todayStr is available
+    if (score > 0 && todayStr && comp.eventDate) {
+      score += calculateCompanyDeadlineUrgency(comp.eventDate, todayStr).scoreBoost;
     }
 
     if (score > maxCompanyScore) {
@@ -180,12 +223,13 @@ export function evaluateCandidateTask(
   skillStates: Record<string, TopicSkillState>,
   companyOverlays: CompanyOverlay[],
   mode: PlacementMode,
-  todayStr: string
+  todayStr: string,
+  targetCompanyId?: string
 ): PriorityBreakdown {
   const urgency = calculateUrgency(task, todayStr);
   const weakness = calculateWeakness(task, skillStates);
   const importance = calculateImportance(task);
-  const companyRelevance = calculateCompanyRelevance(task, companyOverlays, mode);
+  const companyRelevance = calculateCompanyRelevance(task, companyOverlays, mode, todayStr, targetCompanyId);
   const spacedRepetition = calculateSpacedRepetition(task, dsaProgress, todayStr);
   const recoveryUrgency = calculateRecoveryUrgency(task, progress, todayStr);
 
@@ -205,7 +249,16 @@ export function evaluateCandidateTask(
   if (urgency >= 70) reasons.push('urgent deadline');
   if (weakness >= 70) reasons.push('topic weakness / stale review');
   if (importance >= 80) reasons.push(`high core importance (${task.importance}/10)`);
-  if (companyRelevance >= 50) reasons.push('matches active target company requirements');
+
+  const targetComp = targetCompanyId ? companyOverlays.find((c) => c.id === targetCompanyId) : undefined;
+  if (targetComp && companyRelevance >= 40) {
+    const daysUntil = targetComp.eventDate ? getDaysUntilEvent(targetComp.eventDate, todayStr) : null;
+    const deadlineText = daysUntil !== null ? ` (${daysUntil}d until event)` : '';
+    reasons.push(`matches target company ${targetComp.companyName}${deadlineText}`);
+  } else if (companyRelevance >= 50) {
+    reasons.push('matches active target company requirements');
+  }
+
   if (spacedRepetition >= 50) reasons.push('due in Leitner spaced repetition system');
   if (recoveryUrgency >= 50) reasons.push('repeatedly postponed / overdue recovery');
 
@@ -238,7 +291,8 @@ export function getEvaluatedCandidates(
   skillStates: Record<string, TopicSkillState>,
   companyOverlays: CompanyOverlay[],
   mode: PlacementMode,
-  todayStr: string
+  todayStr: string,
+  targetCompanyId?: string
 ): CandidateTask[] {
   const candidates: CandidateTask[] = [];
 
@@ -271,7 +325,8 @@ export function getEvaluatedCandidates(
       skillStates,
       companyOverlays,
       mode,
-      todayStr
+      todayStr,
+      targetCompanyId
     );
 
     candidates.push({

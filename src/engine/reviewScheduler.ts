@@ -16,17 +16,21 @@ import type {
   PreparationTopicProgress,
   DomainAssessmentResult,
   WeaknessSignal,
+  DSAAttempt,
+  EvidenceLog,
 } from '../types';
 import { getEvaluatedCandidates } from './adaptiveEngine';
 import { evaluateTaskPrerequisites } from './taskStateEngine';
 import { type ReviewPrompt } from './analyticsEngine';
 import type { AssessmentProfileReadout } from './assessmentEngine';
 import { routeWeaknessSignals } from './weaknessRouter';
+import { generateCompanyFocusCandidates } from './companyPlanEngine';
 
 export type ReviewPriority =
   | 'remediation'      // Active remediation required (highest)
   | 'overdue_review'   // Due/overdue Leitner reviews
   | 'routed_weakness'  // Routed weakness signals (practice, assessment, DSA concept, skills)
+  | 'company_gap'      // Target company requirement gaps (Company Focus Mode)
   | 'stale_evidence'   // Stale or weakening evidence (>14 days)
   | 'weak_topic'       // High-value weak topics/patterns
   | 'retention'        // Retention reviews approaching due date
@@ -80,6 +84,10 @@ export interface ReviewSchedulerOptions {
   weaknessSignals?: WeaknessSignal[];
   assessmentProfileReadout?: AssessmentProfileReadout;
   activePhase?: Phase | number;
+  // Optional Company Focus Mode inputs
+  targetCompanyId?: string;
+  dsaAttempts?: DSAAttempt[];
+  evidenceLogs?: EvidenceLog[];
 }
 
 export interface ReviewSchedulerResult {
@@ -88,10 +96,12 @@ export interface ReviewSchedulerResult {
   hasRemediation: boolean;
   hasOverdueReviews: boolean;
   hasRoutedWeakness: boolean;
+  hasCompanyFocusGaps: boolean;
   debugInfo?: {
     remediationCount: number;
     overdueReviewCount: number;
     routedWeaknessCount: number;
+    companyGapCount: number;
     staleTopicCount: number;
     weakTopicCount: number;
     retentionCount: number;
@@ -167,30 +177,57 @@ export function generateReviewCandidates(options: ReviewSchedulerOptions): Revie
   });
   candidates.push(...routedWeaknessCandidates);
 
-  // --- 4. STALE/WEAKENING EVIDENCE ---
+  // --- 4. COMPANY FOCUS MODE GAPS ---
+  const targetCompany = options.targetCompanyId
+    ? companyOverlays.find(c => c.id === options.targetCompanyId)
+    : undefined;
+
+  const companyGapCandidates = targetCompany
+    ? generateCompanyFocusCandidates({
+        targetCompany,
+        domains,
+        topics,
+        tasks,
+        taskProgressMap,
+        dsaProblems,
+        dsaProgressMap,
+        dsaAttempts: options.dsaAttempts,
+        evidenceLogs: options.evidenceLogs,
+        skillStates,
+        preparationTopics: options.preparationTopics,
+        preparationTopicProgress: options.preparationTopicProgress,
+        practiceSessions: options.practiceSessions,
+        todayStr,
+        activePhase: options.activePhase,
+        committedTargetIds: todayAssignmentsSet,
+      })
+    : [];
+  candidates.push(...companyGapCandidates);
+
+  // --- 5. STALE/WEAKENING EVIDENCE ---
   const staleEvidenceCandidates = generateStaleEvidenceCandidates(
     topics, domains, skillStates, dsaProblems, dsaProgressMap,
     tasks, taskProgressMap
   );
   candidates.push(...staleEvidenceCandidates);
 
-  // --- 5. HIGH-VALUE WEAK TOPICS/PATTERNS ---
+  // --- 6. HIGH-VALUE WEAK TOPICS/PATTERNS ---
   const weakTopicCandidates = generateWeakTopicCandidates(
     topics, domains, skillStates, dsaProblems, dsaProgressMap,
-    tasks, taskProgressMap, companyOverlays
+    tasks, taskProgressMap, companyOverlays, options.targetCompanyId
   );
   candidates.push(...weakTopicCandidates);
 
-  // --- 6. RETENTION REVIEWS APPROACHING DUE DATE ---
+  // --- 7. RETENTION REVIEWS APPROACHING DUE DATE ---
   const retentionCandidates = generateRetentionCandidates(
     dsaProblems, dsaProgressMap, topics, domains, todayStr
   );
   candidates.push(...retentionCandidates);
 
-  // --- 7. NORMAL PROGRESSION (via existing adaptive engine) ---
+  // --- 8. NORMAL PROGRESSION (via existing adaptive engine) ---
   const progressionCandidates = generateNormalProgressionCandidates(
     tasks, taskProgressMap, dsaProblems, dsaProgressMap,
-    skillStates, companyOverlays, currentMode, todayStr, todayAssignmentsSet
+    skillStates, companyOverlays, currentMode, todayStr, todayAssignmentsSet, options.targetCompanyId
   );
   candidates.push(...progressionCandidates);
 
@@ -218,6 +255,7 @@ export function generateReviewCandidates(options: ReviewSchedulerOptions): Revie
     'remediation',
     'overdue_review',
     'routed_weakness',
+    'company_gap',
     'stale_evidence',
     'weak_topic',
     'retention',
@@ -250,10 +288,12 @@ export function generateReviewCandidates(options: ReviewSchedulerOptions): Revie
     hasRemediation: remediationCandidates.length > 0,
     hasOverdueReviews: overdueReviewCandidates.length > 0,
     hasRoutedWeakness: routedWeaknessCandidates.length > 0,
+    hasCompanyFocusGaps: companyGapCandidates.length > 0,
     debugInfo: {
       remediationCount: remediationCandidates.length,
       overdueReviewCount: overdueReviewCandidates.length,
       routedWeaknessCount: routedWeaknessCandidates.length,
+      companyGapCount: companyGapCandidates.length,
       staleTopicCount: staleEvidenceCandidates.length,
       weakTopicCount: weakTopicCandidates.length,
       retentionCount: retentionCandidates.length,
@@ -466,7 +506,8 @@ function generateWeakTopicCandidates(
   dsaProgressMap: Record<string, DSAProgress>,
   tasks: TaskDefinition[],
   taskProgressMap: Record<string, TaskProgress>,
-  companyOverlays: CompanyOverlay[]
+  companyOverlays: CompanyOverlay[],
+  targetCompanyId?: string
 ): ReviewCandidate[] {
   const candidates: ReviewCandidate[] = [];
 
@@ -482,7 +523,7 @@ function generateWeakTopicCandidates(
     if (!domain) continue;
 
     // Check company relevance boost
-    const companyBoost = getCompanyRelevanceBoost(topic, domain, companyOverlays);
+    const companyBoost = getCompanyRelevanceBoost(topic, domain, companyOverlays, targetCompanyId);
 
     // Prefer DSA problems for weak topics
     const topicDsaProblems = dsaProblems.filter(p => p.topicId === topic.id);
@@ -612,12 +653,13 @@ function generateNormalProgressionCandidates(
   companyOverlays: CompanyOverlay[],
   currentMode: PlacementMode,
   todayStr: string,
-  todayAssignmentsSet: Set<string>
+  todayAssignmentsSet: Set<string>,
+  targetCompanyId?: string
 ): ReviewCandidate[] {
   // Use existing adaptive engine to get evaluated candidates
   const evaluated = getEvaluatedCandidates(
     tasks, taskProgressMap, dsaProblems, dsaProgressMap,
-    skillStates, companyOverlays, currentMode, todayStr
+    skillStates, companyOverlays, currentMode, todayStr, targetCompanyId
   );
 
   return evaluated
@@ -646,8 +688,18 @@ function generateNormalProgressionCandidates(
 function getCompanyRelevanceBoost(
   topic: Topic,
   domain: DomainDefinition,
-  companyOverlays: CompanyOverlay[]
+  companyOverlays: CompanyOverlay[],
+  targetCompanyId?: string
 ): number {
+  if (targetCompanyId) {
+    const comp = companyOverlays.find(c => c.id === targetCompanyId);
+    if (!comp) return 0;
+    let boost = 0;
+    if (comp.requiredDomains.includes(domain.id)) boost += 20;
+    if (comp.requiredTopics.includes(topic.id)) boost += 30;
+    return boost;
+  }
+
   const activeCompanies = companyOverlays.filter(c =>
     ['target', 'applied', 'oa_scheduled', 'interview_scheduled'].includes(c.applicationStatus)
   );

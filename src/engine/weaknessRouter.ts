@@ -177,7 +177,8 @@ export function routePracticeWeakness(options: WeaknessRoutingOptions): ReviewCa
         const prereqStatus = evaluatePrerequisiteStatus(
           prepTopic,
           (id) => prepTopics.find((t) => t.id === id) || getPreparationTopic(id),
-          prepProgress
+          prepProgress,
+          { skillStates: options.skillStates, attempts: options.practiceAttempts }
         );
 
         candidates.push({
@@ -195,7 +196,9 @@ export function routePracticeWeakness(options: WeaknessRoutingOptions): ReviewCa
           targetId: prepTopic.id,
           sourceTopicId: prepTopic.id,
           isBlocked: prereqStatus.isLocked,
-          blockingReason: prereqStatus.unmetPrerequisiteIds.length
+          blockingReason: prereqStatus.unmetEvidencePrerequisiteIds?.length
+            ? `Prerequisite evidence not demonstrated: ${prereqStatus.unmetEvidencePrerequisiteIds.join(', ')}`
+            : prereqStatus.unmetPrerequisiteIds.length
             ? `Prerequisite preparation not completed: ${prereqStatus.unmetPrerequisiteIds.join(', ')}`
             : undefined,
         });
@@ -329,7 +332,8 @@ export function routeAssessmentWeakness(options: WeaknessRoutingOptions): Review
         const prereqStatus = evaluatePrerequisiteStatus(
           prepTopic,
           (id) => prepTopics.find((t) => t.id === id) || getPreparationTopic(id),
-          prepProgress
+          prepProgress,
+          { skillStates: options.skillStates, attempts: options.practiceAttempts }
         );
 
         candidates.push({
@@ -346,7 +350,9 @@ export function routeAssessmentWeakness(options: WeaknessRoutingOptions): Review
           route: 'preparation',
           targetId: prepTopic.id,
           isBlocked: prereqStatus.isLocked,
-          blockingReason: prereqStatus.unmetPrerequisiteIds.length
+          blockingReason: prereqStatus.unmetEvidencePrerequisiteIds?.length
+            ? `Prerequisite evidence not demonstrated: ${prereqStatus.unmetEvidencePrerequisiteIds.join(', ')}`
+            : prereqStatus.unmetPrerequisiteIds.length
             ? `Prerequisite preparation not completed: ${prereqStatus.unmetPrerequisiteIds.join(', ')}`
             : undefined,
         });
@@ -448,7 +454,8 @@ export function routeAssessmentWeakness(options: WeaknessRoutingOptions): Review
         const prereqStatus = evaluatePrerequisiteStatus(
           fallbackPrep,
           (id) => prepTopics.find((t) => t.id === id) || getPreparationTopic(id),
-          prepProgress
+          prepProgress,
+          { skillStates: options.skillStates, attempts: options.practiceAttempts }
         );
         candidates.push({
           id: `weakness-assessment-prep-${area.id}`,
@@ -464,7 +471,9 @@ export function routeAssessmentWeakness(options: WeaknessRoutingOptions): Review
           route: 'preparation',
           targetId: fallbackPrep.id,
           isBlocked: prereqStatus.isLocked,
-          blockingReason: prereqStatus.unmetPrerequisiteIds.length
+          blockingReason: prereqStatus.unmetEvidencePrerequisiteIds?.length
+            ? `Prerequisite evidence not demonstrated: ${prereqStatus.unmetEvidencePrerequisiteIds.join(', ')}`
+            : prereqStatus.unmetPrerequisiteIds.length
             ? `Prerequisite preparation not completed: ${prereqStatus.unmetPrerequisiteIds.join(', ')}`
             : undefined,
         });
@@ -509,7 +518,8 @@ export function routeSkillWeakness(options: WeaknessRoutingOptions): ReviewCandi
       const prereqStatus = evaluatePrerequisiteStatus(
         prepTopic,
         (id) => prepTopics.find((t) => t.id === id) || getPreparationTopic(id),
-        prepProgress
+        prepProgress,
+        { skillStates: options.skillStates, attempts: options.practiceAttempts }
       );
 
       candidates.push({
@@ -527,7 +537,9 @@ export function routeSkillWeakness(options: WeaknessRoutingOptions): ReviewCandi
         targetId: prepTopic.id,
         sourceSkillState: skill,
         isBlocked: prereqStatus.isLocked,
-        blockingReason: prereqStatus.unmetPrerequisiteIds.length
+        blockingReason: prereqStatus.unmetEvidencePrerequisiteIds?.length
+          ? `Prerequisite evidence not demonstrated: ${prereqStatus.unmetEvidencePrerequisiteIds.join(', ')}`
+          : prereqStatus.unmetPrerequisiteIds.length
           ? `Prerequisite preparation not completed: ${prereqStatus.unmetPrerequisiteIds.join(', ')}`
           : undefined,
       });
@@ -577,7 +589,8 @@ export function routeSkillWeakness(options: WeaknessRoutingOptions): ReviewCandi
         const prereqStatus = evaluatePrerequisiteStatus(
           bridgedPrep,
           (id) => prepTopics.find((t) => t.id === id) || getPreparationTopic(id),
-          prepProgress
+          prepProgress,
+          { skillStates: options.skillStates, attempts: options.practiceAttempts }
         );
 
         candidates.push({
@@ -595,7 +608,9 @@ export function routeSkillWeakness(options: WeaknessRoutingOptions): ReviewCandi
           targetId: bridgedPrep.id,
           sourceSkillState: skill,
           isBlocked: prereqStatus.isLocked,
-          blockingReason: prereqStatus.unmetPrerequisiteIds.length
+          blockingReason: prereqStatus.unmetEvidencePrerequisiteIds?.length
+            ? `Prerequisite evidence not demonstrated: ${prereqStatus.unmetEvidencePrerequisiteIds.join(', ')}`
+            : prereqStatus.unmetPrerequisiteIds.length
             ? `Prerequisite preparation not completed: ${prereqStatus.unmetPrerequisiteIds.join(', ')}`
             : undefined,
         });

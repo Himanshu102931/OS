@@ -1,10 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { usePlacement } from '../../context/PlacementContext';
 import { TaskCard } from '../common/TaskCard';
-import { MorningPlanningModal } from '../daily/MorningPlanningModal';
-import { EveningReflectionModal } from '../daily/EveningReflectionModal';
-import { FocusModeModal } from '../daily/FocusModeModal';
-import { PracticeRunnerModal } from '../practice/PracticeRunnerModal';
 import { TodayHeroVisual } from './TodayHeroVisual';
 import { DailySignalGraph } from './DailySignalGraph';
 import { DailyJourney } from './DailyJourney';
@@ -21,6 +17,10 @@ import {
   buildCompletionNextStep,
 } from '../../engine/taskFlowEngine';
 import type { TaskProgress, TaskDefinition, PracticeSessionDefinition } from '../../types';
+import type { SessionActivity } from '../../engine/sessionComposer';
+import { SessionProvider } from './SessionProvider';
+import { SessionDisplay } from './SessionDisplay';
+import { SessionModals } from './SessionModals';
 import {
   Sun, Moon, Building2, BarChart3, ArrowRight, AlertCircle,
   HelpCircle, ChevronDown, ChevronUp, Check, BookOpen,
@@ -54,6 +54,12 @@ export const DashboardView: React.FC = () => {
   const [activePracticeSession, setActivePracticeSession] = useState<PracticeSessionDefinition | null>(null);
   const [isPlanExpanded, setIsPlanExpanded] = useState(false);
   const [showTelemetryDetails, setShowTelemetryDetails] = useState(false);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+
+  const selectedCompany = useMemo(() =>
+    selectedCompanyId ? companyOverlays.find((c) => c.id === selectedCompanyId) : null,
+    [selectedCompanyId, companyOverlays]
+  );
 
   // Post-completion next-step state. `restore` is the exact snapshot of the
   // ONE completion transaction Undo is allowed to reverse.
@@ -122,8 +128,18 @@ export const DashboardView: React.FC = () => {
   // action, TodayHeroVisual and DailyJourney so every Today section describes
   // the same candidate.
   const evaluatedCandidates = useMemo(() =>
-    getEvaluatedCandidates(taskDefinitions, taskProgress, dsaProblems, dsaProgress, skillStates, companyOverlays, currentMode, todayDate),
-    [taskDefinitions, taskProgress, dsaProblems, dsaProgress, skillStates, companyOverlays, currentMode, todayDate]
+    getEvaluatedCandidates(
+      taskDefinitions,
+      taskProgress,
+      dsaProblems,
+      dsaProgress,
+      skillStates,
+      companyOverlays,
+      currentMode,
+      todayDate,
+      selectedCompanyId || undefined
+    ),
+    [taskDefinitions, taskProgress, dsaProblems, dsaProgress, skillStates, companyOverlays, currentMode, todayDate, selectedCompanyId]
   );
 
   const nextBestActionCandidate = evaluatedCandidates[0];
@@ -190,8 +206,11 @@ export const DashboardView: React.FC = () => {
       preparationTopicProgress,
       assessmentProfileReadout,
       activePhase,
+      targetCompanyId: selectedCompanyId || undefined,
+      dsaAttempts,
+      evidenceLogs,
     }),
-    [taskDefinitions, taskProgress, dsaProblems, dsaProgress, topics, domains, skillStates, companyOverlays, currentMode, todayDate, todayAssignments, analyticsTelemetry, practiceAttempts, practiceSessions, preparationTopicProgress, assessmentProfileReadout, activePhase]
+    [taskDefinitions, taskProgress, dsaProblems, dsaProgress, topics, domains, skillStates, companyOverlays, currentMode, todayDate, todayAssignments, analyticsTelemetry, practiceAttempts, practiceSessions, preparationTopicProgress, assessmentProfileReadout, activePhase, selectedCompanyId, dsaAttempts, evidenceLogs]
   );
 
   const reviewCandidates = reviewSchedule.candidates;
@@ -300,6 +319,38 @@ export const DashboardView: React.FC = () => {
     handleSkipClick(taskId);
   };
 
+  // Session Activity Handler - route to the appropriate view for the activity
+  const handleStartSessionActivity = (activity: SessionActivity) => {
+    // Route to the appropriate view based on activity type
+    switch (activity.route) {
+      case 'dsa':
+        setRoute('dsa', activity.targetId);
+        break;
+      case 'roadmap':
+        setRoute('roadmap');
+        break;
+      case 'preparation':
+        setRoute('preparation', activity.targetId);
+        break;
+      case 'practice':
+        setRoute('practice');
+        break;
+      case 'dashboard':
+      default:
+        // For dashboard activities (like tasks), use the existing task learning route
+        if (activity.sourceTaskId) {
+          const task = taskDefinitions.find((t) => t.id === activity.sourceTaskId);
+          if (task) {
+            openTaskLearning(task);
+          }
+        }
+        break;
+    }
+    // Advance session to next activity (marked as 'completed' since user started it)
+    // The actual completion will be handled by the specific view's completion
+    // For now, we don't auto-advance here - the user completes the activity in its view
+  };
+
   const openTaskLearning = (task: TaskDefinition) => {
     const route = getTaskLearningRoute(task);
     setRoute(route.route, route.linkedTopicId);
@@ -336,51 +387,76 @@ export const DashboardView: React.FC = () => {
     : null;
 
   return (
-    <div className="space-y-8 max-w-6xl xl:max-w-[1350px] mx-auto font-sans">
-      {/* Post-completion animation */}
-      {completionInfo && completionNextStep && (
-        <CompletionAnimation
-          taskTitle={completionInfo.taskTitle}
-          onDismiss={() => setCompletionInfo(null)}
-          onUndo={handleUndoCompletion}
-          nextTask={completionNextStep.nextTask ? { title: completionNextStep.nextTask.title } : null}
-          onOpenNext={completionOpenNext}
-          evidenceScore={completionEvidence?.score}
-          evidenceTopicLabel={completionEvidenceLabel}
-        />
-      )}
+    <SessionProvider
+      availableMinutes={todayCheckIn?.availableMinutes || 0}
+      todayStr={todayDate}
+      mode={currentMode}
+      selectedCompanyId={selectedCompanyId || undefined}
+      tasks={taskDefinitions}
+      taskProgressMap={taskProgress}
+      dsaProblems={dsaProblems}
+      dsaProgressMap={dsaProgress}
+      topics={topics}
+      domains={domains}
+      skillStates={skillStates}
+      companyOverlays={companyOverlays}
+      practiceSessions={practiceSessions}
+      practiceAttempts={practiceAttempts}
+      preparationTopics={[]}
+      preparationTopicProgress={preparationTopicProgress}
+      domainResults={[]}
+      weaknessSignals={[]}
+      assessmentProfileReadout={assessmentProfileReadout}
+      activePhase={activePhase.order}
+      todayAssignments={todayAssignments}
+      dsaAttempts={dsaAttempts}
+      evidenceLogs={evidenceLogs}
+    >
+      <div className="space-y-8 max-w-6xl xl:max-w-[1350px] mx-auto font-sans">
+        {/* Post-completion animation */}
+        {completionInfo && completionNextStep && (
+          <CompletionAnimation
+            taskTitle={completionInfo.taskTitle}
+            onDismiss={() => setCompletionInfo(null)}
+            onUndo={handleUndoCompletion}
+            nextTask={completionNextStep.nextTask ? { title: completionNextStep.nextTask.title } : null}
+            onOpenNext={completionOpenNext}
+            evidenceScore={completionEvidence?.score}
+            evidenceTopicLabel={completionEvidenceLabel}
+          />
+        )}
 
-      {/* Sunday Mini Test Pending Notification (§18) */}
-      {pendingSundayObligation && (
-        <div
-          data-testid="sunday-obligation-banner"
-          className="bg-[#14171D] border-2 border-[#E5A93C] rounded-lg p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg shadow-[#E5A93C]/10"
-        >
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-[#E5A93C] text-xs font-semibold uppercase tracking-wider">
-              <Clock className="size-4" />
-              <span>Sunday Adaptive Mini Test Pending</span>
-            </div>
-            <h2 className="text-base font-bold text-[#F1F5F9]">
-              Weekly Calibration Assessment Scheduled
-            </h2>
-            <p className="text-xs text-[#8E98A8] max-w-2xl leading-relaxed">
-              Your deterministic 90-minute weekly calibration is ready. It targets your diagnosed weaknesses (60%), recent curriculum topics (20%), and retention checks (20%).
-            </p>
-          </div>
-          <Button
-            size="sm"
-            onClick={() => setRoute('assessment')}
-            className="bg-[#E5A93C] hover:bg-[#D4982B] text-[#0D0F12] font-semibold flex items-center gap-2 shrink-0 self-start sm:self-center"
+        {/* Sunday Mini Test Pending Notification (§18) */}
+        {pendingSundayObligation && (
+          <div
+            data-testid="sunday-obligation-banner"
+            className="bg-[#14171D] border-2 border-[#E5A93C] rounded-lg p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg shadow-[#E5A93C]/10"
           >
-            <span>Start Mini Test (90m)</span>
-            <ArrowRight className="size-4" />
-          </Button>
-        </div>
-      )}
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-[#E5A93C] text-xs font-semibold uppercase tracking-wider">
+                <Clock className="size-4" />
+                <span>Sunday Adaptive Mini Test Pending</span>
+              </div>
+              <h2 className="text-base font-bold text-[#F1F5F9]">
+                Weekly Calibration Assessment Scheduled
+              </h2>
+              <p className="text-xs text-[#8E98A8] max-w-2xl leading-relaxed">
+                Your deterministic 90-minute weekly calibration is ready. It targets your diagnosed weaknesses (60%), recent curriculum topics (20%), and retention checks (20%).
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => setRoute('assessment')}
+              className="bg-[#E5A93C] hover:bg-[#D4982B] text-[#0D0F12] font-semibold flex items-center gap-2 shrink-0 self-start sm:self-center"
+            >
+              <span>Start Mini Test (90m)</span>
+              <ArrowRight className="size-4" />
+            </Button>
+          </div>
+        )}
 
-      {/* 1. CALM RITUAL HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#262D38]/80">
+        {/* 1. CALM RITUAL HEADER */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#262D38]/80">
         <div>
           <div className="flex items-center gap-2 text-xs text-[#8E98A8]" data-guide-target="today-phase-mode">
             <Compass className="size-3.5 text-[#E5A93C]" />
@@ -397,6 +473,37 @@ export const DashboardView: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {companyOverlays.length > 0 && (
+            <div className="flex items-center gap-1.5 bg-[#1B2028] border border-[#262D38] rounded-md px-2.5 h-9" data-testid="company-focus-container">
+              <Building2 className="size-3.5 text-[#E5A93C] shrink-0" />
+              <select
+                value={selectedCompanyId || ''}
+                onChange={(e) => setSelectedCompanyId(e.target.value || null)}
+                data-testid="company-focus-select"
+                aria-label="Company Focus Mode"
+                className="bg-transparent text-xs text-[#F1F5F9] focus:outline-none cursor-pointer pr-1"
+                title="Company Focus Mode"
+              >
+                <option value="" className="bg-[#1B2028] text-[#8E98A8]">All Companies</option>
+                {companyOverlays.map((comp) => (
+                  <option key={comp.id} value={comp.id} className="bg-[#1B2028] text-[#F1F5F9]">
+                    {comp.companyName} {comp.eventDate ? `(${comp.eventDate})` : ''}
+                  </option>
+                ))}
+              </select>
+              {selectedCompanyId && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedCompanyId(null)}
+                  data-testid="clear-company-focus"
+                  className="text-[#8E98A8] hover:text-[#F1F5F9] text-xs px-1 font-mono"
+                  title="Clear company focus"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          )}
           <GuideTrigger route="dashboard" />
           <Button size="sm" onClick={() => setIsMorningModalOpen(true)}
             data-guide-target="today-plan-button"
@@ -661,7 +768,7 @@ export const DashboardView: React.FC = () => {
               </span>
             </div>
 
-            {(hasRemediation || hasOverdueReviews || reviewSchedule.hasRoutedWeakness) && (
+            {(hasRemediation || hasOverdueReviews || reviewSchedule.hasRoutedWeakness || reviewSchedule.hasCompanyFocusGaps) && (
               <div className="flex flex-wrap gap-1.5">
                 {hasRemediation && (
                   <span className="px-2 py-0.5 text-[10px] font-mono uppercase rounded bg-[#F59E0B]/10 text-[#F59E0B] border border-[#F59E0B]/30">Remediation Required</span>
@@ -671,6 +778,11 @@ export const DashboardView: React.FC = () => {
                 )}
                 {reviewSchedule.hasRoutedWeakness && (
                   <span className="px-2 py-0.5 text-[10px] font-mono uppercase rounded bg-[#E5A93C]/10 text-[#FFC665] border border-[#E5A93C]/30">Weakness Actions</span>
+                )}
+                {reviewSchedule.hasCompanyFocusGaps && selectedCompany && (
+                  <span className="px-2 py-0.5 text-[10px] font-mono uppercase rounded bg-[#3B82F6]/10 text-[#60A5FA] border border-[#3B82F6]/30" data-testid="review-company-focus-badge">
+                    {selectedCompany.companyName} Targets
+                  </span>
                 )}
               </div>
             )}
@@ -683,6 +795,7 @@ export const DashboardView: React.FC = () => {
                     candidate.priority === 'remediation' ? 'border-[#F59E0B]/40' :
                     candidate.priority === 'overdue_review' ? 'border-[#F59E0B]/40' :
                     candidate.priority === 'routed_weakness' ? 'border-[#E5A93C]/40' :
+                    candidate.priority === 'company_gap' ? 'border-[#3B82F6]/40' :
                     candidate.priority === 'stale_evidence' ? 'border-[#F59E0B]/40' :
                     candidate.priority === 'weak_topic' ? 'border-[#E5A93C]/40' :
                     candidate.priority === 'retention' ? 'border-[#10B981]/40' :
@@ -697,12 +810,17 @@ export const DashboardView: React.FC = () => {
                           candidate.priority === 'remediation' ? 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30' :
                           candidate.priority === 'overdue_review' ? 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30' :
                           candidate.priority === 'routed_weakness' ? 'bg-[#E5A93C]/10 text-[#FFC665] border-[#E5A93C]/30' :
+                          candidate.priority === 'company_gap' ? 'bg-[#3B82F6]/10 text-[#60A5FA] border-[#3B82F6]/30' :
                           candidate.priority === 'stale_evidence' ? 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30' :
                           candidate.priority === 'weak_topic' ? 'bg-[#E5A93C]/10 text-[#E5A93C] border-[#E5A93C]/30' :
                           candidate.priority === 'retention' ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/30' :
                           'bg-[#1B2028] text-[#8E98A8] border-[#262D38]'
                         }`}>
-                          {candidate.priority === 'routed_weakness' ? 'Weakness Action' : candidate.priority.replace('_', ' ')}
+                          {candidate.priority === 'routed_weakness'
+                            ? 'Weakness Action'
+                            : candidate.priority === 'company_gap'
+                            ? `${selectedCompany?.companyName || 'Company'} Target`
+                            : candidate.priority.replace('_', ' ')}
                         </span>
                         {getDomain(candidate.domainId) && (
                           <span className="text-[10px] px-2 py-0.5 rounded bg-[#1B2028] text-[#FFC665] border border-[#262D38] font-medium">
@@ -742,6 +860,9 @@ export const DashboardView: React.FC = () => {
           </div>
         </section>
       )}
+
+      {/* 5b. CHAINED PRACTICE SESSION — Deterministic session from available time */}
+      <SessionDisplay onStartActivity={handleStartSessionActivity} />
 
       {/* 6. UP NEXT / TODAY'S PLAN */}
       <section ref={setScrollRef('plan')} className={`scroll-reveal ${revealedSections.has('plan') ? 'visible' : ''}`} data-reveal="plan" data-guide-target="today-plan-list">
@@ -841,10 +962,25 @@ export const DashboardView: React.FC = () => {
       </section>
 
       {/* Modals */}
-      <PracticeRunnerModal session={activePracticeSession} isOpen={!!activePracticeSession} todayISO={todayDate} onClose={() => setActivePracticeSession(null)} onCompleteSession={(attempt, evidenceLog) => { recordPracticeAttempt(attempt, evidenceLog); }} />
-      <FocusModeModal task={nextBestActionTask} domain={nextBestActionTask ? getDomain(nextBestActionTask.domainId) : undefined} isOpen={isFocusModalOpen} onClose={() => setIsFocusModalOpen(false)} onComplete={() => { if (nextBestActionTask) handleUpdateTaskStateWithToast(nextBestActionTask.id, 'completed'); }} />
-      <MorningPlanningModal isOpen={isMorningModalOpen} onClose={() => setIsMorningModalOpen(false)} onCommitPlan={(checkIn, assignments) => commitDailyPlan(checkIn, assignments)} />
-      <EveningReflectionModal isOpen={isEveningModalOpen} onClose={() => setIsEveningModalOpen(false)} onSealDay={(updatedCheckIn, updatedAssignments, newEvidenceLogs, updatedTaskProgressMap, updatedDsaProgressMap, updatedSkillStatesMap) => sealDayExecution(updatedCheckIn, updatedAssignments, newEvidenceLogs, updatedTaskProgressMap, updatedDsaProgressMap, updatedSkillStatesMap)} />
+      <SessionModals
+        activePracticeSession={activePracticeSession}
+        setActivePracticeSession={setActivePracticeSession}
+        nextBestActionTask={nextBestActionTask}
+        isFocusModalOpen={isFocusModalOpen}
+        setIsFocusModalOpen={setIsFocusModalOpen}
+        isMorningModalOpen={isMorningModalOpen}
+        setIsMorningModalOpen={setIsMorningModalOpen}
+        isEveningModalOpen={isEveningModalOpen}
+        setIsEveningModalOpen={setIsEveningModalOpen}
+        selectedCompanyId={selectedCompanyId}
+        todayDate={todayDate}
+        domains={domains}
+        recordPracticeAttempt={recordPracticeAttempt}
+        handleUpdateTaskStateWithToast={handleUpdateTaskStateWithToast}
+        commitDailyPlan={commitDailyPlan}
+        sealDayExecution={sealDayExecution}
+      />
     </div>
+    </SessionProvider>
   );
 };

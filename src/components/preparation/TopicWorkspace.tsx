@@ -7,6 +7,7 @@ import {
   selectPreparationStage,
   resolveInitialStage,
   evaluatePrerequisiteStatus,
+  evaluateTopicProgression,
 } from '../../engine/preparationEngine';
 import { summarizePracticeAnswers } from '../../engine/practiceEngine';
 import { PHASES } from '../../data/seedData';
@@ -65,15 +66,29 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
     evidenceStrength: 0,
   };
 
-  // Availability comes from the persisted prerequisite chain only.
+  // Availability comes from the demonstrated prerequisite chain and canonical evidence.
   const prerequisiteStatus = evaluatePrerequisiteStatus(
     topic,
     getPreparationTopic,
-    preparationTopicProgress
+    preparationTopicProgress,
+    {
+      skillStates,
+      attempts: practiceAttempts,
+    }
   );
   const unmetPrerequisiteTopics = prerequisiteStatus.unmetPrerequisiteIds
     .map((id) => getPreparationTopic(id))
     .filter((t): t is PreparationTopic => Boolean(t));
+
+  const progression = evaluateTopicProgression(
+    topic,
+    getPreparationTopic,
+    preparationTopicProgress,
+    {
+      skillStates,
+      attempts: practiceAttempts,
+    }
+  );
 
   // Reusable preparedness model (coverage / application / assessment / evidence)
   const preparedness = evaluateTopicPreparedness({
@@ -206,6 +221,16 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
               <span className="px-2 py-0.5 text-[11px] font-mono rounded border uppercase font-medium bg-[#E5A93C]/15 text-[#E5A93C] border-[#E5A93C]/30">
                 {preparedness.readiness.replace('_', ' ')}
               </span>
+              {progression.state === 'learned_unproven' && (
+                <span className="px-2 py-0.5 text-[11px] font-mono rounded border uppercase font-medium bg-[#F59E0B]/15 text-[#F59E0B] border-[#F59E0B]/30">
+                  Proof Needed
+                </span>
+              )}
+              {progression.state === 'ready_to_progress' && (
+                <span className="px-2 py-0.5 text-[11px] font-mono rounded border uppercase font-medium bg-[#10B981]/15 text-[#10B981] border-[#10B981]/30">
+                  Evidenced
+                </span>
+              )}
               <span className={`px-2 py-0.5 text-[11px] font-mono rounded border uppercase font-medium ${getFreshnessBadgeClass(topicSkill.freshness)}`}>
                 {topicSkill.freshness}
               </span>
@@ -285,6 +310,8 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
             <span className="text-[#F1F5F9] font-medium">
               {prerequisiteStatus.isLocked
                 ? `Complete ${unmetPrerequisiteTopics.map((t) => t.title).join(', ')} first to unlock this topic`
+                : progression.state === 'learned_unproven'
+                ? `Demonstrate competence: attempt a practice session for ${topic.title}`
                 : preparedness.nextAction}
             </span>
           </div>
@@ -293,7 +320,7 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
               onClick={() => onStartSession(matchingSessions[0]?.id)}
               className="flex items-center justify-center gap-2 px-4 py-2 rounded-[4px] bg-[#E5A93C] hover:bg-[#F5B84C] text-[#0D0F12] font-semibold text-xs transition-all shadow-sm shrink-0"
             >
-              <span>Start Assessment Drill</span>
+              <span>{progression.state === 'learned_unproven' ? 'Prove Readiness (Drill)' : 'Start Assessment Drill'}</span>
               <ArrowRight className="size-3.5" />
             </button>
           )}
@@ -313,7 +340,7 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
               <span>Prerequisite Required</span>
             </h3>
             <p className="text-xs text-[#8E98A8] leading-relaxed">
-              Complete every stage of the prerequisite topic{unmetPrerequisiteTopics.length > 1 ? 's' : ''}{' '}
+              Complete curriculum coverage and demonstrate evidence in the prerequisite topic{unmetPrerequisiteTopics.length > 1 ? 's' : ''}{' '}
               below to unlock {topic.title}.
             </p>
           </div>
@@ -323,6 +350,7 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
               const prereqProgress = preparationTopicProgress[prereq.id];
               const doneStages = prereqProgress?.completedStages ?? [];
               const doneCount = prereq.stages.filter((s) => doneStages.includes(s)).length;
+              const isEvidenceUnmet = prerequisiteStatus.unmetEvidencePrerequisiteIds?.includes(prereq.id);
               return (
                 <li
                   key={prereq.id}
@@ -331,8 +359,9 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
                   <div className="space-y-0.5">
                     <span className="text-xs font-semibold text-[#F1F5F9] block">{prereq.title}</span>
                     <span className="text-[11px] text-[#8E98A8] font-mono block">
-                      {doneCount} of {prereq.stages.length} stages complete — required before{' '}
-                      {topic.title}
+                      {isEvidenceUnmet
+                        ? `Curriculum complete (${doneCount}/${prereq.stages.length} stages) — demonstrated practice or assessment evidence required before unlocking ${topic.title}`
+                        : `${doneCount} of ${prereq.stages.length} stages complete — required before ${topic.title}`}
                     </span>
                   </div>
                   <button
@@ -340,7 +369,7 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
                     onClick={() => setRoute('preparation', prereq.id)}
                     className="px-3 py-1.5 rounded-[4px] bg-[#14171D] border border-[#3B4556] text-xs font-medium text-[#E5A93C] hover:border-[#E5A93C] transition-all shrink-0 flex items-center gap-1.5"
                   >
-                    <span>Open {prereq.title}</span>
+                    <span>{isEvidenceUnmet ? `Practice ${prereq.title}` : `Open ${prereq.title}`}</span>
                     <ArrowRight className="size-3" />
                   </button>
                 </li>

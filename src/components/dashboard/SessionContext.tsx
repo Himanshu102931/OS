@@ -1,0 +1,26 @@
+import { createContext, useContext } from 'react';
+import type { SessionState } from '../../engine/sessionComposer';
+
+interface SessionContextValue {
+  sessionState: SessionState | null;
+  composeSession: (availableMinutes: number) => void;
+  advanceActivity: (outcome: 'completed' | 'skipped' | 'failed' | 'postponed') => void;
+  recoverActivity: (availableMinutes: number) => void;
+  clearSession: () => void;
+  currentActivity: SessionState['plan']['activities'][0] | null;
+  remainingTime: number;
+  sessionProgress: { completed: number; total: number; percent: number };
+  isSessionActive: boolean;
+}
+
+const SessionContext = createContext<SessionContextValue | null>(null);
+
+export const useSession = (): SessionContextValue => {
+  const context = useContext(SessionContext);
+  if (!context) {
+    throw new Error('useSession must be used within a SessionProvider');
+  }
+  return context;
+};
+
+export { SessionContext };

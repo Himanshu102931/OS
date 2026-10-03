@@ -40,6 +40,7 @@ function createMockState(overrides: Partial<{
   todayAssignments: DailyTaskAssignment[];
   analyticsReviewPrompts: ReviewPrompt[];
   practiceAttempts: PracticeAttempt[];
+  targetCompanyId?: string;
 }> = {}) {
   return {
     tasks: overrides.tasks ?? TASK_DEFINITIONS,
@@ -56,6 +57,7 @@ function createMockState(overrides: Partial<{
     todayAssignments: overrides.todayAssignments ?? [],
     analyticsReviewPrompts: overrides.analyticsReviewPrompts ?? [],
     practiceAttempts: overrides.practiceAttempts,
+    targetCompanyId: overrides.targetCompanyId,
   };
 }
 
@@ -799,6 +801,111 @@ describe('Review Scheduler — Adaptive Review Scheduler', () => {
       if (progressionCandidate) {
         const idxProg = result.candidates.indexOf(progressionCandidate);
         expect(idxWeakness).toBeLessThan(idxProg);
+      }
+    });
+
+    it('places company_gap below routed_weakness but above stale evidence and normal progression', () => {
+      const todayStr = '2026-10-15';
+      const prob1 = DSA_PROBLEMS[0]; // remediation
+      const prob2 = DSA_PROBLEMS[1]; // overdue
+      const prob3 = DSA_PROBLEMS[2]; // normal
+
+      const company: CompanyOverlay = {
+        id: 'comp-alpha',
+        companyName: 'Alpha Corp',
+        targetRole: 'SDE',
+        applicationStatus: 'target',
+        requiredDomains: ['dbms'],
+        requiredTopics: ['prep-sys-01'],
+        requiredLanguages: [],
+      };
+
+      const sysTopic: Topic = {
+        id: 'prep-sys-01',
+        moduleId: 'mod-dbms-01',
+        domainId: 'dbms',
+        name: 'Scaling Systems',
+        description: 'System scaling concepts',
+        importance: 8,
+      };
+
+      const sysTask: TaskDefinition = {
+        id: 'task-sys-01',
+        title: 'Study System Scaling',
+        description: 'Prepare scaling architectures',
+        topicId: 'prep-sys-01',
+        domainId: 'dbms',
+        phaseId: 'phase-1',
+        estimatedMinutes: 60,
+        importance: 8,
+        taskType: 'learning',
+        createdAt: '2026-09-01T00:00:00Z',
+      };
+
+      const state = createMockState({
+        tasks: [...TASK_DEFINITIONS, sysTask],
+        topics: [...TOPICS, sysTopic],
+        domains: DOMAINS,
+        dsaProblems: [prob1, prob2, prob3],
+        dsaProgressMap: {
+          [prob1.id]: createDSACandidate(prob1.id, { remediationRequired: true }),
+          [prob2.id]: createDSACandidate(prob2.id, { nextReviewAt: '2026-10-10' }),
+        },
+        companyOverlays: [company],
+        practiceAttempts: [
+          {
+            id: 'att-weak-sql',
+            sessionId: 'practice-sql-01',
+            sessionTitle: 'SQL Practice',
+            category: 'coding',
+            domainId: 'sql',
+            topicId: 'prep-sql',
+            date: todayStr,
+            completedAt: `${todayStr}T10:00:00Z`,
+            totalTimeSeconds: 600,
+            scorePct: 30,
+            accuracyPct: 30,
+            correctCount: 1,
+            totalQuestions: 5,
+            passed: false,
+            userAnswers: [],
+            evidenceLogId: 'ev-w',
+          },
+        ],
+        todayStr,
+        targetCompanyId: 'comp-alpha',
+      });
+
+      const result = generateReviewCandidates(state);
+
+      expect(result.hasRemediation).toBe(true);
+      expect(result.hasOverdueReviews).toBe(true);
+      expect(result.hasRoutedWeakness).toBe(true);
+      expect(result.hasCompanyFocusGaps).toBe(true);
+
+      const remCandidate = result.candidates.find(c => c.priority === 'remediation');
+      const overdueCandidate = result.candidates.find(c => c.priority === 'overdue_review');
+      const weaknessCandidate = result.candidates.find(c => c.priority === 'routed_weakness');
+      const companyCandidate = result.candidates.find(c => c.priority === 'company_gap');
+      const progressionCandidate = result.candidates.find(c => c.priority === 'normal_progression');
+
+      expect(remCandidate).toBeDefined();
+      expect(overdueCandidate).toBeDefined();
+      expect(weaknessCandidate).toBeDefined();
+      expect(companyCandidate).toBeDefined();
+
+      const idxRem = result.candidates.indexOf(remCandidate!);
+      const idxOverdue = result.candidates.indexOf(overdueCandidate!);
+      const idxWeakness = result.candidates.indexOf(weaknessCandidate!);
+      const idxCompany = result.candidates.indexOf(companyCandidate!);
+
+      expect(idxRem).toBeLessThan(idxOverdue);
+      expect(idxOverdue).toBeLessThan(idxWeakness);
+      expect(idxWeakness).toBeLessThan(idxCompany);
+
+      if (progressionCandidate) {
+        const idxProg = result.candidates.indexOf(progressionCandidate);
+        expect(idxCompany).toBeLessThan(idxProg);
       }
     });
   });
