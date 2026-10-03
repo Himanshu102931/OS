@@ -11,6 +11,9 @@ import { generateReviewCandidates } from '../../engine/reviewScheduler';
 import { evaluateAnalyticsTelemetry } from '../../engine/analyticsEngine';
 import { captureCompletionRestore, captureDeferRestore, type TaskStateRestore } from '../../engine/taskStateEngine';
 import { getRecommendedPracticeSession } from '../../engine/practiceEngine';
+import { buildReviewCandidateTrace } from '../../engine/evidenceTrace';
+import { EvidenceTracePanel } from '../evidence/EvidenceTracePanel';
+import { useEvidenceCatalog } from '../evidence/useEvidenceCatalog';
 import {
   getTaskLearningRoute,
   getLearningDestinationLabel,
@@ -47,6 +50,7 @@ export const DashboardView: React.FC = () => {
     recordPracticeAttempt, evidenceLogs, pendingSundayObligation,
     preparationTopicProgress, assessmentProfileReadout,
   } = usePlacement();
+  const evidenceCatalog = useEvidenceCatalog();
 
   const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
   const [isEveningModalOpen, setIsEveningModalOpen] = useState(false);
@@ -216,6 +220,18 @@ export const DashboardView: React.FC = () => {
   const reviewCandidates = reviewSchedule.candidates;
   const hasRemediation = reviewSchedule.hasRemediation;
   const hasOverdueReviews = reviewSchedule.hasOverdueReviews;
+
+  /** SIGNAL → WHY → EVIDENCE → SOURCE for each Today review candidate. */
+  const candidateTraces = useMemo(
+    () =>
+      Object.fromEntries(
+        reviewCandidates.map((candidate) => [
+          candidate.id,
+          buildReviewCandidateTrace(candidate, evidenceCatalog),
+        ])
+      ),
+    [reviewCandidates, evidenceCatalog]
+  );
 
   const completedCount = Object.values(taskProgress).filter((tp) => tp.state === 'completed').length;
   const totalTasks = taskDefinitions.length;
@@ -846,6 +862,13 @@ export const DashboardView: React.FC = () => {
                       </Button>
                     </div>
                   </div>
+
+                  <EvidenceTracePanel
+                    trace={candidateTraces[candidate.id]}
+                    catalog={evidenceCatalog}
+                    idPrefix={`candidate-${candidate.id}`}
+                    title="Evidence trace"
+                  />
                 </div>
               ))}
               {reviewCandidates.length > 5 && (

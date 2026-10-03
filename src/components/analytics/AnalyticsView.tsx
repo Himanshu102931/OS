@@ -4,6 +4,9 @@ import {
   evaluateAnalyticsTelemetry,
   type TimeWindow,
 } from '../../engine/analyticsEngine';
+import { buildAnalyticsPromptTrace } from '../../engine/evidenceTrace';
+import { EvidenceTracePanel } from '../evidence/EvidenceTracePanel';
+import { useEvidenceCatalog } from '../evidence/useEvidenceCatalog';
 import { TelemetryTraceabilityModal } from './TelemetryTraceabilityModal';
 import { GuideTrigger } from '../guide/GuideTrigger';
 import {
@@ -37,6 +40,7 @@ export const AnalyticsView: React.FC = () => {
 
   const [timeWindow, setTimeWindow] = useState<TimeWindow>('30d');
   const [isTraceabilityModalOpen, setIsTraceabilityModalOpen] = useState(false);
+  const catalog = useEvidenceCatalog();
 
   // Compute telemetry summary dynamically via analyticsEngine
   const summary = useMemo(() => {
@@ -76,6 +80,12 @@ export const AnalyticsView: React.FC = () => {
   const handlePromptAction = (route: 'dsa' | 'roadmap' | 'skills', targetId?: string) => {
     setRoute(route, targetId);
   };
+
+  /** SIGNAL → evidence/source trace for each review recommendation. */
+  const promptTraces = useMemo(
+    () => summary.reviewPrompts.map((p) => buildAnalyticsPromptTrace(p, catalog)),
+    [summary.reviewPrompts, catalog]
+  );
 
   return (
     <div className="space-y-6 max-w-7xl xl:max-w-[1400px] mx-auto font-sans">
@@ -172,7 +182,7 @@ export const AnalyticsView: React.FC = () => {
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 list-stagger">
-            {summary.reviewPrompts.map((p) => (
+            {summary.reviewPrompts.map((p, index) => (
               <div
                 key={p.id}
                 className="p-4 rounded-xl border bg-[#14171D] border-[#262D38] space-y-3 flex flex-col justify-between hover-lift"
@@ -191,10 +201,18 @@ export const AnalyticsView: React.FC = () => {
                   <p className="text-xs text-[#8E98A8] leading-relaxed">{p.description}</p>
                 </div>
 
+                <EvidenceTracePanel
+                  trace={promptTraces[index]}
+                  catalog={catalog}
+                  idPrefix={p.id}
+                  title="Evidence trace"
+                />
+
                 <div className="pt-2 border-t border-[#262D38] flex justify-end">
                   <Button
                     size="xs"
                     onClick={() => handlePromptAction(p.route, p.targetId)}
+                    data-testid={`${p.id}-action`}
                     className="h-7 text-xs bg-[#E5A93C] hover:bg-[#FFC665] text-[#432C00] rounded-md font-semibold"
                   >
                     {p.actionLabel} <ArrowRight className="size-3 ml-1" />

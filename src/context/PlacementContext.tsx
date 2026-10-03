@@ -65,7 +65,7 @@ import {
   FULL_REASSESSMENT_DEFINITION,
 } from '../data/assessment/definitions';
 
-export type RoutePath = 'dashboard' | 'roadmap' | 'dsa' | 'skills' | 'practice' | 'preparation' | 'project' | 'companies' | 'analytics' | 'settings' | 'assessment';
+export type RoutePath = 'dashboard' | 'roadmap' | 'dsa' | 'skills' | 'practice' | 'preparation' | 'project' | 'companies' | 'analytics' | 'settings' | 'assessment' | 'interview';
 
 /** Optional target identifier for route-specific deep links.
  *  - preparation: topicId (existing)
@@ -302,7 +302,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const parts = hash.split('/');
       const route = parts[0] as RoutePath;
       
-      if (['dashboard', 'roadmap', 'dsa', 'skills', 'practice', 'preparation', 'project', 'companies', 'analytics', 'settings', 'assessment'].includes(route)) {
+      if (['dashboard', 'roadmap', 'dsa', 'skills', 'practice', 'preparation', 'project', 'companies', 'analytics', 'settings', 'assessment', 'interview'].includes(route)) {
         const targetId = parts[1];
         setRouteState({ route, targetId });
       } else {

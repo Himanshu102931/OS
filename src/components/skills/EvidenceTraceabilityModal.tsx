@@ -2,6 +2,12 @@ import React from 'react';
 import type { TopicReadiness } from '../../engine/skillsEngine';
 import { usePlacement } from '../../context/PlacementContext';
 import {
+  resolveSkillEvidenceItem,
+  resolveSourceDestination,
+  resolveTraceDestination,
+} from '../../engine/evidenceTrace';
+import { useEvidenceCatalog } from '../evidence/useEvidenceCatalog';
+import {
   X,
   ShieldCheck,
   AlertTriangle,
@@ -14,6 +20,8 @@ import {
   FileCode,
   FileText,
   Code,
+  Link2,
+  Unlink,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 
@@ -31,16 +39,20 @@ export const EvidenceTraceabilityModal: React.FC<EvidenceTraceabilityModalProps>
   onOpenOverride,
 }) => {
   const { setRoute } = usePlacement();
+  const catalog = useEvidenceCatalog();
 
   if (!isOpen || !readiness) return null;
 
   const handleActionClick = () => {
     onClose();
-    if (readiness.recommendedAction.route === 'dsa') {
-      setRoute('dsa');
-    } else if (readiness.recommendedAction.route === 'roadmap') {
-      setRoute('roadmap');
-    }
+    // Only forwards a targetId the destination view actually reads, so the
+    // action can never claim to open a record it will not open.
+    const destination = resolveTraceDestination(
+      readiness.recommendedAction.route,
+      readiness.recommendedAction.targetId,
+      catalog
+    );
+    setRoute(destination.route, destination.targetId);
   };
 
   const getStatusBadge = () => {
@@ -202,13 +214,17 @@ export const EvidenceTraceabilityModal: React.FC<EvidenceTraceabilityModalProps>
               No recorded practice evidence for this topic yet. Complete a task or DSA problem to generate evidence.
             </div>
           ) : (
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-              {readiness.supportingEvidence.map((ev) => (
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-1" data-testid="topic-evidence-list">
+              {readiness.supportingEvidence.map((ev, index) => {
+                const source = resolveSkillEvidenceItem(ev, catalog);
+                const destination = resolveSourceDestination(source, catalog);
+                return (
                 <div
                   key={ev.id}
-                  className="p-3 bg-[#1B2028] border border-[#262D38] rounded-[4px] flex items-center justify-between text-xs font-mono"
+                  data-testid={`topic-evidence-row-${index}`}
+                  className="p-3 bg-[#1B2028] border border-[#262D38] rounded-[4px] flex items-center justify-between text-xs font-mono gap-2"
                 >
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
                     {ev.sourceType === 'dsa_problem' || ev.sourceType === 'dsa_attempt' ? (
                       <Code className="size-4 text-[#4EAE79]" />
                     ) : ev.sourceType === 'task' ? (
@@ -218,22 +234,60 @@ export const EvidenceTraceabilityModal: React.FC<EvidenceTraceabilityModalProps>
                     ) : (
                       <FileText className="size-4 text-[#8E98A8]" />
                     )}
-                    <div>
-                      <span className="font-semibold text-[#F1F5F9] block">{ev.title}</span>
+                    <div className="min-w-0">
+                      <span className="font-semibold text-[#F1F5F9] block truncate">{ev.title}</span>
                       <span className="text-[11px] text-[#8E98A8] block">{ev.details}</span>
+                      <span className="flex items-center gap-2 text-[10px] text-[#5C6675] mt-0.5">
+                        <span data-testid={`topic-evidence-kind-${index}`}>{source.kind.replace(/_/g, ' ')}</span>
+                        <span
+                          data-testid={`topic-evidence-status-${index}`}
+                          className={
+                            source.availability === 'missing'
+                              ? 'px-1.5 py-0.5 rounded-[3px] border border-[#E55353]/40 text-[#E55353]'
+                              : 'px-1.5 py-0.5 rounded-[3px] border border-[#4EAE79]/40 text-[#4EAE79]'
+                          }
+                        >
+                          {source.availability === 'missing' ? 'source unavailable' : 'source found'}
+                        </span>
+                      </span>
                     </div>
                   </div>
 
-                  <div className="text-right">
+                  <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
                     <span className="font-bold text-[#FFC665] text-xs">+{ev.scoreContribution}%</span>
                     {ev.timestamp && (
-                      <span className="text-[10px] text-[#8E98A8] block mt-0.5">
+                      <span className="text-[10px] text-[#8E98A8] block">
                         {ev.timestamp.slice(0, 10)}
+                      </span>
+                    )}
+                    {destination ? (
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        onClick={() => setRoute(destination.route, destination.targetId)}
+                        data-testid={`topic-evidence-go-${index}`}
+                        title={destination.deepLink ? destination.label : `${destination.label} — page only, no deep link`}
+                        className="h-6 px-2 text-[10px] border-[#262D38] bg-[#14171D] text-[#F1F5F9] hover:bg-[#222833] rounded-[4px]"
+                      >
+                        {destination.deepLink ? (
+                          <Link2 className="size-3 mr-1" aria-hidden="true" />
+                        ) : (
+                          <Unlink className="size-3 mr-1" aria-hidden="true" />
+                        )}
+                        {destination.label}
+                      </Button>
+                    ) : (
+                      <span
+                        data-testid={`topic-evidence-nogo-${index}`}
+                        className="text-[10px] text-[#5C6675]"
+                      >
+                        {source.kind === 'derived' ? 'aggregated' : 'no source'}
                       </span>
                     )}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

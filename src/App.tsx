@@ -12,6 +12,7 @@ import { AnalyticsView } from './components/analytics/AnalyticsView';
 import { SettingsView } from './components/settings/SettingsView';
 import { PracticeView } from './components/practice/PracticeView';
 import { AssessmentRunnerView } from './components/assessment/AssessmentRunnerView';
+import { InterviewReadinessView } from './components/interview/InterviewReadinessView';
 import { GuideOverlay } from './components/guide/GuideOverlay';
 import { GuideProvider } from './components/guide/GuideContext';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
@@ -42,6 +43,8 @@ const MainContent: React.FC = () => {
       return <AnalyticsView />;
     case 'settings':
       return <SettingsView />;
+    case 'interview':
+      return <InterviewReadinessView />;
     default:
       return <DashboardView />;
   }

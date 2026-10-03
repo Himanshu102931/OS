@@ -1,6 +1,9 @@
 import React from 'react';
 import type { CompanyRequirementMapping } from '../../engine/companyEngine';
 import { usePlacement } from '../../context/PlacementContext';
+import { buildCompanyGapTrace } from '../../engine/evidenceTrace';
+import { EvidenceTracePanel } from '../evidence/EvidenceTracePanel';
+import { useEvidenceCatalog } from '../evidence/useEvidenceCatalog';
 import {
   X,
   ShieldCheck,
@@ -26,8 +29,11 @@ export const CompanyRequirementDetailModal: React.FC<CompanyRequirementDetailMod
   onClose,
 }) => {
   const { setRoute } = usePlacement();
+  const catalog = useEvidenceCatalog();
 
   if (!isOpen || !requirement) return null;
+
+  const requirementTrace = buildCompanyGapTrace(requirement, catalog);
 
   const handleActionClick = () => {
     onClose();
@@ -142,6 +148,13 @@ export const CompanyRequirementDetailModal: React.FC<CompanyRequirementDetailMod
               <span className="font-bold text-[#F1F5F9]">{requirement.supportingEvidenceCount} items recorded</span>
             </div>
           </div>
+
+          <EvidenceTracePanel
+            trace={requirementTrace}
+            catalog={catalog}
+            idPrefix={`req-${requirement.requirementId}`}
+            title="Evidence trace"
+          />
         </div>
 
         {/* Gap Explanation & Action */}

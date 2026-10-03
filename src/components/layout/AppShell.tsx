@@ -16,6 +16,7 @@ import {
   GraduationCap,
   Dumbbell,
   ClipboardCheck,
+  UserCheck,
 } from 'lucide-react';
 
 
@@ -37,6 +38,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
     { id: 'project', label: 'Project Lab', icon: Terminal },
     { id: 'companies', label: 'Companies', icon: Building2 },
     { id: 'analytics', label: 'Review', icon: BarChart3 },
+    { id: 'interview', label: 'Interview', icon: UserCheck },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -53,6 +55,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       case 'companies': return 'Target Companies & Overlays';
       case 'analytics': return 'Analytics & Review';
       case 'settings': return 'System Settings & Storage';
+      case 'interview': return 'Interview Readiness Scorecard';
       default: return 'PlacementOS';
     }
   };
