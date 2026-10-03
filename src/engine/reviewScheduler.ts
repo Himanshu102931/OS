@@ -9,14 +9,24 @@ import type {
   DailyTaskAssignment,
   Topic,
   DomainDefinition,
+  Phase,
+  PracticeAttempt,
+  PracticeSessionDefinition,
+  PreparationTopic,
+  PreparationTopicProgress,
+  DomainAssessmentResult,
+  WeaknessSignal,
 } from '../types';
 import { getEvaluatedCandidates } from './adaptiveEngine';
 import { evaluateTaskPrerequisites } from './taskStateEngine';
 import { type ReviewPrompt } from './analyticsEngine';
+import type { AssessmentProfileReadout } from './assessmentEngine';
+import { routeWeaknessSignals } from './weaknessRouter';
 
 export type ReviewPriority =
   | 'remediation'      // Active remediation required (highest)
   | 'overdue_review'   // Due/overdue Leitner reviews
+  | 'routed_weakness'  // Routed weakness signals (practice, assessment, DSA concept, skills)
   | 'stale_evidence'   // Stale or weakening evidence (>14 days)
   | 'weak_topic'       // High-value weak topics/patterns
   | 'retention'        // Retention reviews approaching due date
@@ -61,6 +71,15 @@ export interface ReviewSchedulerOptions {
   // These are produced by analyticsEngine.evaluateAnalyticsTelemetry()
   // The scheduler uses them as validation/boost signals, not as a second scheduling definition
   analyticsReviewPrompts?: ReviewPrompt[];
+  // Optional weakness routing inputs
+  practiceAttempts?: PracticeAttempt[];
+  practiceSessions?: PracticeSessionDefinition[];
+  preparationTopics?: PreparationTopic[];
+  preparationTopicProgress?: Record<string, PreparationTopicProgress>;
+  domainResults?: DomainAssessmentResult[];
+  weaknessSignals?: WeaknessSignal[];
+  assessmentProfileReadout?: AssessmentProfileReadout;
+  activePhase?: Phase | number;
 }
 
 export interface ReviewSchedulerResult {
@@ -68,9 +87,11 @@ export interface ReviewSchedulerResult {
   totalReviewObligations: number;
   hasRemediation: boolean;
   hasOverdueReviews: boolean;
+  hasRoutedWeakness: boolean;
   debugInfo?: {
     remediationCount: number;
     overdueReviewCount: number;
+    routedWeaknessCount: number;
     staleTopicCount: number;
     weakTopicCount: number;
     retentionCount: number;
@@ -124,27 +145,49 @@ export function generateReviewCandidates(options: ReviewSchedulerOptions): Revie
   );
   candidates.push(...overdueReviewCandidates);
 
-  // --- 3. STALE/WEAKENING EVIDENCE ---
+  // --- 3. ROUTED WEAKNESS SIGNALS ---
+  const routedWeaknessCandidates = routeWeaknessSignals({
+    practiceAttempts: options.practiceAttempts,
+    practiceSessions: options.practiceSessions,
+    dsaProblems,
+    dsaProgressMap,
+    tasks,
+    taskProgressMap,
+    topics,
+    domains,
+    skillStates,
+    preparationTopics: options.preparationTopics,
+    preparationTopicProgress: options.preparationTopicProgress,
+    domainResults: options.domainResults,
+    weaknessSignals: options.weaknessSignals,
+    assessmentProfileReadout: options.assessmentProfileReadout,
+    activePhase: options.activePhase,
+    todayStr,
+    committedTargetIds: todayAssignmentsSet,
+  });
+  candidates.push(...routedWeaknessCandidates);
+
+  // --- 4. STALE/WEAKENING EVIDENCE ---
   const staleEvidenceCandidates = generateStaleEvidenceCandidates(
     topics, domains, skillStates, dsaProblems, dsaProgressMap,
     tasks, taskProgressMap
   );
   candidates.push(...staleEvidenceCandidates);
 
-  // --- 4. HIGH-VALUE WEAK TOPICS/PATTERNS ---
+  // --- 5. HIGH-VALUE WEAK TOPICS/PATTERNS ---
   const weakTopicCandidates = generateWeakTopicCandidates(
     topics, domains, skillStates, dsaProblems, dsaProgressMap,
     tasks, taskProgressMap, companyOverlays
   );
   candidates.push(...weakTopicCandidates);
 
-  // --- 5. RETENTION REVIEWS APPROACHING DUE DATE ---
+  // --- 6. RETENTION REVIEWS APPROACHING DUE DATE ---
   const retentionCandidates = generateRetentionCandidates(
     dsaProblems, dsaProgressMap, topics, domains, todayStr
   );
   candidates.push(...retentionCandidates);
 
-  // --- 6. NORMAL PROGRESSION (via existing adaptive engine) ---
+  // --- 7. NORMAL PROGRESSION (via existing adaptive engine) ---
   const progressionCandidates = generateNormalProgressionCandidates(
     tasks, taskProgressMap, dsaProblems, dsaProgressMap,
     skillStates, companyOverlays, currentMode, todayStr, todayAssignmentsSet
@@ -174,6 +217,7 @@ export function generateReviewCandidates(options: ReviewSchedulerOptions): Revie
   const priorityOrder: ReviewPriority[] = [
     'remediation',
     'overdue_review',
+    'routed_weakness',
     'stale_evidence',
     'weak_topic',
     'retention',
@@ -205,9 +249,11 @@ export function generateReviewCandidates(options: ReviewSchedulerOptions): Revie
     ).length,
     hasRemediation: remediationCandidates.length > 0,
     hasOverdueReviews: overdueReviewCandidates.length > 0,
+    hasRoutedWeakness: routedWeaknessCandidates.length > 0,
     debugInfo: {
       remediationCount: remediationCandidates.length,
       overdueReviewCount: overdueReviewCandidates.length,
+      routedWeaknessCount: routedWeaknessCandidates.length,
       staleTopicCount: staleEvidenceCandidates.length,
       weakTopicCount: weakTopicCandidates.length,
       retentionCount: retentionCandidates.length,

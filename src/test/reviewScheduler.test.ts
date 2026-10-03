@@ -21,6 +21,7 @@ import type {
   DailyTaskAssignment,
   Topic,
   DomainDefinition,
+  PracticeAttempt,
 } from '../types';
 import { type ReviewPrompt } from '../engine/analyticsEngine';
 
@@ -38,6 +39,7 @@ function createMockState(overrides: Partial<{
   todayStr: string;
   todayAssignments: DailyTaskAssignment[];
   analyticsReviewPrompts: ReviewPrompt[];
+  practiceAttempts: PracticeAttempt[];
 }> = {}) {
   return {
     tasks: overrides.tasks ?? TASK_DEFINITIONS,
@@ -53,6 +55,7 @@ function createMockState(overrides: Partial<{
     todayStr: overrides.todayStr ?? '2026-10-15',
     todayAssignments: overrides.todayAssignments ?? [],
     analyticsReviewPrompts: overrides.analyticsReviewPrompts ?? [],
+    practiceAttempts: overrides.practiceAttempts,
   };
 }
 
@@ -735,6 +738,67 @@ describe('Review Scheduler — Adaptive Review Scheduler', () => {
       // nextReviewAt === today should be due today (daysOverdue = 0)
       if (dueToday) {
         expect(dueToday.reason).toContain('Due spaced repetition');
+      }
+    });
+
+    it('enforces tier priority: remediation > overdue_review > routed_weakness > normal_progression', () => {
+      const todayStr = '2026-10-15';
+      const prob1 = DSA_PROBLEMS[0]; // remediation
+      const prob2 = DSA_PROBLEMS[1]; // overdue review
+
+      const state = createMockState({
+        dsaProblems: [prob1, prob2],
+        dsaProgressMap: {
+          [prob1.id]: createDSACandidate(prob1.id, { remediationRequired: true }),
+          [prob2.id]: createDSACandidate(prob2.id, { nextReviewAt: '2026-10-10' }),
+        },
+        practiceAttempts: [
+          {
+            id: 'att-weak',
+            sessionId: 'practice-sql-01',
+            sessionTitle: 'SQL Practice',
+            category: 'coding',
+            domainId: 'sql',
+            topicId: 'prep-sql',
+            date: todayStr,
+            completedAt: `${todayStr}T10:00:00Z`,
+            totalTimeSeconds: 600,
+            scorePct: 30,
+            accuracyPct: 30,
+            correctCount: 1,
+            totalQuestions: 5,
+            passed: false,
+            userAnswers: [],
+            evidenceLogId: 'ev-w',
+          },
+        ],
+        todayStr,
+      });
+
+      const result = generateReviewCandidates(state);
+      expect(result.hasRemediation).toBe(true);
+      expect(result.hasOverdueReviews).toBe(true);
+      expect(result.hasRoutedWeakness).toBe(true);
+
+      const remediationCandidate = result.candidates.find(c => c.priority === 'remediation');
+      const overdueCandidate = result.candidates.find(c => c.priority === 'overdue_review');
+      const weaknessCandidate = result.candidates.find(c => c.priority === 'routed_weakness');
+      const progressionCandidate = result.candidates.find(c => c.priority === 'normal_progression');
+
+      expect(remediationCandidate).toBeDefined();
+      expect(overdueCandidate).toBeDefined();
+      expect(weaknessCandidate).toBeDefined();
+
+      const idxRem = result.candidates.indexOf(remediationCandidate!);
+      const idxOverdue = result.candidates.indexOf(overdueCandidate!);
+      const idxWeakness = result.candidates.indexOf(weaknessCandidate!);
+
+      expect(idxRem).toBeLessThan(idxOverdue);
+      expect(idxOverdue).toBeLessThan(idxWeakness);
+
+      if (progressionCandidate) {
+        const idxProg = result.candidates.indexOf(progressionCandidate);
+        expect(idxWeakness).toBeLessThan(idxProg);
       }
     });
   });

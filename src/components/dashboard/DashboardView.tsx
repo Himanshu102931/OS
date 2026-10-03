@@ -45,6 +45,7 @@ export const DashboardView: React.FC = () => {
     dailyTaskAssignments, commitDailyPlan, sealDayExecution,
     decomposeTask, practiceSessions, practiceAttempts,
     recordPracticeAttempt, evidenceLogs, pendingSundayObligation,
+    preparationTopicProgress, assessmentProfileReadout,
   } = usePlacement();
 
   const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
@@ -184,8 +185,13 @@ export const DashboardView: React.FC = () => {
       todayStr: todayDate,
       todayAssignments,
       analyticsReviewPrompts: analyticsTelemetry.reviewPrompts,
+      practiceAttempts,
+      practiceSessions,
+      preparationTopicProgress,
+      assessmentProfileReadout,
+      activePhase,
     }),
-    [taskDefinitions, taskProgress, dsaProblems, dsaProgress, topics, domains, skillStates, companyOverlays, currentMode, todayDate, todayAssignments, analyticsTelemetry]
+    [taskDefinitions, taskProgress, dsaProblems, dsaProgress, topics, domains, skillStates, companyOverlays, currentMode, todayDate, todayAssignments, analyticsTelemetry, practiceAttempts, practiceSessions, preparationTopicProgress, assessmentProfileReadout, activePhase]
   );
 
   const reviewCandidates = reviewSchedule.candidates;
@@ -655,13 +661,16 @@ export const DashboardView: React.FC = () => {
               </span>
             </div>
 
-            {(hasRemediation || hasOverdueReviews) && (
+            {(hasRemediation || hasOverdueReviews || reviewSchedule.hasRoutedWeakness) && (
               <div className="flex flex-wrap gap-1.5">
                 {hasRemediation && (
                   <span className="px-2 py-0.5 text-[10px] font-mono uppercase rounded bg-[#F59E0B]/10 text-[#F59E0B] border border-[#F59E0B]/30">Remediation Required</span>
                 )}
                 {hasOverdueReviews && (
                   <span className="px-2 py-0.5 text-[10px] font-mono uppercase rounded bg-[#F59E0B]/10 text-[#F59E0B] border border-[#F59E0B]/30">Overdue Reviews</span>
+                )}
+                {reviewSchedule.hasRoutedWeakness && (
+                  <span className="px-2 py-0.5 text-[10px] font-mono uppercase rounded bg-[#E5A93C]/10 text-[#FFC665] border border-[#E5A93C]/30">Weakness Actions</span>
                 )}
               </div>
             )}
@@ -673,6 +682,7 @@ export const DashboardView: React.FC = () => {
                   className={`p-3 bg-[#0D0F12] border rounded-lg space-y-2 transition-colors ${
                     candidate.priority === 'remediation' ? 'border-[#F59E0B]/40' :
                     candidate.priority === 'overdue_review' ? 'border-[#F59E0B]/40' :
+                    candidate.priority === 'routed_weakness' ? 'border-[#E5A93C]/40' :
                     candidate.priority === 'stale_evidence' ? 'border-[#F59E0B]/40' :
                     candidate.priority === 'weak_topic' ? 'border-[#E5A93C]/40' :
                     candidate.priority === 'retention' ? 'border-[#10B981]/40' :
@@ -686,18 +696,22 @@ export const DashboardView: React.FC = () => {
                         <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium capitalize ${
                           candidate.priority === 'remediation' ? 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30' :
                           candidate.priority === 'overdue_review' ? 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30' :
+                          candidate.priority === 'routed_weakness' ? 'bg-[#E5A93C]/10 text-[#FFC665] border-[#E5A93C]/30' :
                           candidate.priority === 'stale_evidence' ? 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30' :
                           candidate.priority === 'weak_topic' ? 'bg-[#E5A93C]/10 text-[#E5A93C] border-[#E5A93C]/30' :
                           candidate.priority === 'retention' ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/30' :
                           'bg-[#1B2028] text-[#8E98A8] border-[#262D38]'
                         }`}>
-                          {candidate.priority.replace('_', ' ')}
+                          {candidate.priority === 'routed_weakness' ? 'Weakness Action' : candidate.priority.replace('_', ' ')}
                         </span>
                         {getDomain(candidate.domainId) && (
                           <span className="text-[10px] px-2 py-0.5 rounded bg-[#1B2028] text-[#FFC665] border border-[#262D38] font-medium">
                             {getDomain(candidate.domainId)?.shortName}
                           </span>
                         )}
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-[#14171D] text-[#8E98A8] border border-[#262D38] font-mono capitalize">
+                          {candidate.route}
+                        </span>
                       </div>
                       <h4 className="text-xs font-semibold text-[#F1F5F9] mt-1 truncate">{candidate.title}</h4>
                       <p className="text-[11px] text-[#8E98A8] mt-0.5 line-clamp-1">{candidate.reason}</p>
