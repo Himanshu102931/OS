@@ -1,15 +1,15 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { SessionContext } from './SessionContext';
 import {
-  composeSessionPlan,
+  composeAdaptiveSession,
   createSessionState,
   advanceSession,
   recoverSession,
   getCurrentActivity,
   getRemainingTime,
-  getSessionProgress
+  getSessionProgress,
 } from '../../engine/sessionComposer';
-import type { SessionState } from '../../engine/sessionComposer';
+import type { SessionState, SessionComposerMode, EnergyLevel } from '../../engine/sessionComposer';
 import type { PlacementMode } from '../../types';
 
 interface SessionProviderProps {
@@ -18,6 +18,7 @@ interface SessionProviderProps {
   todayStr: string;
   mode: PlacementMode;
   selectedCompanyId?: string;
+  energyLevel?: EnergyLevel;
   tasks: unknown[];
   taskProgressMap: Record<string, unknown>;
   dsaProblems: unknown[];
@@ -45,6 +46,7 @@ export function SessionProvider({
   todayStr,
   mode,
   selectedCompanyId,
+  energyLevel = 'medium',
   tasks,
   taskProgressMap,
   dsaProblems,
@@ -65,14 +67,18 @@ export function SessionProvider({
   dsaAttempts,
   evidenceLogs,
 }: SessionProviderProps) {
-  const [sessionState, setSessionState] = useState<SessionState | null>(null);
-  const initializedRef = useRef(false);
+  const [userDuration, setUserDuration] = useState<number | null>(null);
+  const selectedDuration = userDuration ?? (availableMinutes > 0 ? availableMinutes : 60);
+  const [sessionMode, setSessionModeState] = useState<SessionComposerMode>('balanced');
 
-  const composeSession = useCallback((minutes: number) => {
-    const plan = composeSessionPlan({
-      availableMinutes: minutes,
+  const [sessionState, setSessionState] = useState<SessionState | null>(() => {
+    const initDuration = availableMinutes > 0 ? availableMinutes : 60;
+    const initialPlan = composeAdaptiveSession({
+      availableMinutes: initDuration,
       todayStr,
       mode,
+      sessionMode: 'balanced',
+      energyLevel,
       selectedCompanyId,
       tasks,
       taskProgressMap,
@@ -94,23 +100,124 @@ export function SessionProvider({
       dsaAttempts,
       evidenceLogs,
     });
-    setSessionState(createSessionState(plan));
-  }, [
-    todayStr, mode, selectedCompanyId, tasks, taskProgressMap, dsaProblems,
-    dsaProgressMap, topics, domains, skillStates, companyOverlays,
-    practiceSessions, practiceAttempts, preparationTopics, preparationTopicProgress,
-    domainResults, weaknessSignals, assessmentProfileReadout, activePhase,
-    todayAssignments, dsaAttempts, evidenceLogs
-  ]);
+    return createSessionState(initialPlan);
+  });
 
-  useEffect(() => {
-    if (availableMinutes > 0 && !initializedRef.current) {
-      initializedRef.current = true;
-      composeSession(availableMinutes);
-    } else if (availableMinutes > 0 && initializedRef.current) {
-      composeSession(availableMinutes);
+  // Re-compose when availableMinutes changes externally and user hasn't overridden
+  const [prevAvailableMinutes, setPrevAvailableMinutes] = useState(availableMinutes);
+  if (availableMinutes !== prevAvailableMinutes) {
+    setPrevAvailableMinutes(availableMinutes);
+    if (availableMinutes > 0 && userDuration === null) {
+      const plan = composeAdaptiveSession({
+        availableMinutes,
+        todayStr,
+        mode,
+        sessionMode,
+        energyLevel,
+        selectedCompanyId,
+        tasks,
+        taskProgressMap,
+        dsaProblems,
+        dsaProgressMap,
+        topics,
+        domains,
+        skillStates,
+        companyOverlays,
+        practiceSessions,
+        practiceAttempts,
+        preparationTopics,
+        preparationTopicProgress,
+        domainResults,
+        weaknessSignals,
+        assessmentProfileReadout,
+        activePhase,
+        todayAssignments,
+        dsaAttempts,
+        evidenceLogs,
+      });
+      setSessionState(createSessionState(plan));
     }
-  }, [availableMinutes, composeSession]);
+  }
+
+  const composeSession = useCallback(
+    (minutes?: number, modeOverride?: SessionComposerMode) => {
+      const durationToUse = minutes ?? selectedDuration;
+      const modeToUse = modeOverride ?? sessionMode;
+
+      const plan = composeAdaptiveSession({
+        availableMinutes: durationToUse,
+        todayStr,
+        mode,
+        sessionMode: modeToUse,
+        energyLevel,
+        selectedCompanyId,
+        tasks,
+        taskProgressMap,
+        dsaProblems,
+        dsaProgressMap,
+        topics,
+        domains,
+        skillStates,
+        companyOverlays,
+        practiceSessions,
+        practiceAttempts,
+        preparationTopics,
+        preparationTopicProgress,
+        domainResults,
+        weaknessSignals,
+        assessmentProfileReadout,
+        activePhase,
+        todayAssignments,
+        dsaAttempts,
+        evidenceLogs,
+      });
+
+      setSessionState(createSessionState(plan));
+    },
+    [
+      selectedDuration,
+      sessionMode,
+      todayStr,
+      mode,
+      energyLevel,
+      selectedCompanyId,
+      tasks,
+      taskProgressMap,
+      dsaProblems,
+      dsaProgressMap,
+      topics,
+      domains,
+      skillStates,
+      companyOverlays,
+      practiceSessions,
+      practiceAttempts,
+      preparationTopics,
+      preparationTopicProgress,
+      domainResults,
+      weaknessSignals,
+      assessmentProfileReadout,
+      activePhase,
+      todayAssignments,
+      dsaAttempts,
+      evidenceLogs,
+    ]
+  );
+
+  const setSelectedDuration = useCallback(
+    (duration: number) => {
+      setUserDuration(duration);
+      composeSession(duration, sessionMode);
+    },
+    [composeSession, sessionMode]
+  );
+
+  const setSessionMode = useCallback(
+    (newMode: SessionComposerMode) => {
+      setSessionModeState(newMode);
+      composeSession(selectedDuration, newMode);
+    },
+    [composeSession, selectedDuration]
+  );
 
   const advanceActivity = useCallback((outcome: 'completed' | 'skipped' | 'failed' | 'postponed') => {
     setSessionState((prev) => {
@@ -120,10 +227,10 @@ export function SessionProvider({
     });
   }, []);
 
-  const recoverActivity = useCallback((availableMinutes: number) => {
+  const recoverActivity = useCallback((minutes: number) => {
     setSessionState((prev) => {
       if (!prev) return prev;
-      const { newState } = recoverSession(prev, availableMinutes);
+      const { newState } = recoverSession(prev, minutes);
       return newState;
     });
   }, []);
@@ -132,10 +239,27 @@ export function SessionProvider({
     setSessionState(null);
   }, []);
 
-  const currentActivity = useMemo(() => sessionState ? getCurrentActivity(sessionState) : null, [sessionState]);
-  const remainingTime = useMemo(() => sessionState ? getRemainingTime(sessionState) : 0, [sessionState]);
-  const sessionProgress = useMemo(() => sessionState ? getSessionProgress(sessionState) : { completed: 0, total: 0, percent: 0 }, [sessionState]);
-  const isSessionActive = useMemo(() => sessionState !== null && sessionState.currentActivityIndex < sessionState.plan.activities.length, [sessionState]);
+  const currentActivity = useMemo(
+    () => (sessionState ? getCurrentActivity(sessionState) : null),
+    [sessionState]
+  );
+  const remainingTime = useMemo(
+    () => (sessionState ? getRemainingTime(sessionState) : 0),
+    [sessionState]
+  );
+  const sessionProgress = useMemo(
+    () =>
+      sessionState
+        ? getSessionProgress(sessionState)
+        : { completed: 0, total: 0, percent: 0 },
+    [sessionState]
+  );
+  const isSessionActive = useMemo(
+    () =>
+      sessionState !== null &&
+      sessionState.currentActivityIndex < sessionState.plan.activities.length,
+    [sessionState]
+  );
 
   const value = {
     sessionState,
@@ -147,11 +271,11 @@ export function SessionProvider({
     remainingTime,
     sessionProgress,
     isSessionActive,
+    selectedDuration,
+    setSelectedDuration,
+    sessionMode,
+    setSessionMode,
   };
 
-  return (
-    <SessionContext.Provider value={value}>
-      {children}
-    </SessionContext.Provider>
-  );
+  return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

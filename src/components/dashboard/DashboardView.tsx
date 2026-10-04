@@ -21,6 +21,7 @@ import {
 } from '../../engine/taskFlowEngine';
 import type { TaskProgress, TaskDefinition, PracticeSessionDefinition } from '../../types';
 import type { SessionActivity } from '../../engine/sessionComposer';
+import { PREPARATION_TOPICS } from '../../data/preparationDataset';
 import { SessionProvider } from './SessionProvider';
 import { SessionDisplay } from './SessionDisplay';
 import { SessionModals } from './SessionModals';
@@ -38,7 +39,7 @@ import { Button } from '../ui/button';
  * IntersectionObserver cannot be created, all of them are revealed immediately
  * so no section can stay permanently invisible.
  */
-const REVEAL_IDS = ['hero', 'journey', 'signals', 'practice', 'review', 'plan', 'progress', 'telemetry'];
+const REVEAL_IDS = ['hero', 'journey', 'signals', 'practice', 'review', 'session', 'plan', 'progress', 'telemetry'];
 
 export const DashboardView: React.FC = () => {
   const {
@@ -348,9 +349,15 @@ export const DashboardView: React.FC = () => {
       case 'preparation':
         setRoute('preparation', activity.targetId);
         break;
-      case 'practice':
-        setRoute('practice');
+      case 'practice': {
+        const session = practiceSessions.find((s) => s.id === activity.targetId);
+        if (session) {
+          setActivePracticeSession(session);
+        } else {
+          setRoute('practice', activity.targetId);
+        }
         break;
+      }
       case 'dashboard':
       default:
         // For dashboard activities (like tasks), use the existing task learning route
@@ -408,6 +415,7 @@ export const DashboardView: React.FC = () => {
       todayStr={todayDate}
       mode={currentMode}
       selectedCompanyId={selectedCompanyId || undefined}
+      energyLevel={todayCheckIn?.energyLevel || 'medium'}
       tasks={taskDefinitions}
       taskProgressMap={taskProgress}
       dsaProblems={dsaProblems}
@@ -418,7 +426,7 @@ export const DashboardView: React.FC = () => {
       companyOverlays={companyOverlays}
       practiceSessions={practiceSessions}
       practiceAttempts={practiceAttempts}
-      preparationTopics={[]}
+      preparationTopics={PREPARATION_TOPICS}
       preparationTopicProgress={preparationTopicProgress}
       domainResults={[]}
       weaknessSignals={[]}
@@ -885,7 +893,9 @@ export const DashboardView: React.FC = () => {
       )}
 
       {/* 5b. CHAINED PRACTICE SESSION — Deterministic session from available time */}
-      <SessionDisplay onStartActivity={handleStartSessionActivity} />
+      <section ref={setScrollRef('session')} className={`scroll-reveal ${revealedSections.has('session') ? 'visible' : ''}`} data-reveal="session">
+        <SessionDisplay onStartActivity={handleStartSessionActivity} />
+      </section>
 
       {/* 6. UP NEXT / TODAY'S PLAN */}
       <section ref={setScrollRef('plan')} className={`scroll-reveal ${revealedSections.has('plan') ? 'visible' : ''}`} data-reveal="plan" data-guide-target="today-plan-list">

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   composeSessionPlan,
+  composeAdaptiveSession,
   createSessionState,
   advanceSession,
   recoverSession,
@@ -9,6 +10,19 @@ import {
   getSessionProgress,
 } from '../engine/sessionComposer';
 import type { SessionPlan, SessionState } from '../engine/sessionComposer';
+import { DSA_PROBLEMS } from '../data/dsaDataset';
+import { TOPICS, DOMAINS, TASK_DEFINITIONS } from '../data/seedData';
+import { PRACTICE_SESSIONS } from '../data/practiceDataset';
+import { PREPARATION_TOPICS } from '../data/preparationDataset';
+import type {
+  DomainId,
+  DSAProblem,
+  DSAProgress,
+  TaskDefinition,
+  TopicSkillState,
+  CompanyOverlay,
+  PracticeAttempt,
+} from '../types';
 
 describe('SessionComposer - Core Engine', () => {
   const todayStr = '2026-10-03';
@@ -504,5 +518,572 @@ describe('SessionComposer - Core Engine', () => {
       expect(progress.percent).toBe(100);
       expect(progress.completed).toBe(plan.activities.length);
     });
+  });
+});
+
+describe('Adaptive Session Composer - Production Integration Milestone', () => {
+  const todayStr = '2026-10-15';
+
+  // Helper to create a DSA problem in overdue Leitner review status (Box 1, 30min problem -> 15min review)
+  const createOverdueProblem = (
+    id: string,
+    domainId: DomainId = 'dsa',
+    topicId = 'topic-dsa-arrays'
+  ): DSAProblem =>
+    ({
+      id,
+      title: `Binary Search Drill: ${id}`,
+      domainId,
+      topicId,
+      difficulty: 'easy',
+      box: 1,
+      pattern: 'Binary Search',
+      isRemediation: false,
+      estimatedTimeMinutes: 30, // 30 / 2 = 15 min review duration
+      prerequisites: [],
+    } as unknown as DSAProblem);
+
+  const createOverdueProgress = (probId: string): DSAProgress => ({
+    problemId: probId,
+    currentBox: 1,
+    nextReviewAt: '2026-10-10', // Overdue (today is 2026-10-15)
+    attemptCount: 1,
+    passedIndependently: true,
+    consecutiveAssistedPasses: 0,
+    assistedProvisional: false,
+    consecutiveFailures: 0,
+    remediationRequired: false,
+    patternLessonViewed: false,
+    patternLessonCompleted: false,
+    remediationSelfCheckPassed: false,
+    evidenceStrength: 40,
+    createdAt: '2026-09-25T00:00:00.000Z',
+    updatedAt: '2026-10-10T00:00:00.000Z',
+  });
+
+  it('15-minute session - packs within 15 min budget and picks focused single activity', () => {
+    const prob = createOverdueProblem('dsa-ov-1');
+    const prog = createOverdueProgress('dsa-ov-1');
+
+    const plan = composeAdaptiveSession({
+      availableMinutes: 15,
+      todayStr,
+      strictBudget: true,
+      dsaProblems: [prob],
+      dsaProgressMap: { [prob.id]: prog },
+      topics: TOPICS,
+      domains: DOMAINS,
+    });
+
+    expect(plan.totalEstimatedMinutes).toBeLessThanOrEqual(15);
+    expect(plan.timeBudgetMinutes).toBe(15);
+    expect(plan.remainingMinutes).toBe(15 - plan.totalEstimatedMinutes);
+    expect(plan.activities.length).toBe(1);
+    expect(plan.activities[0].estimatedMinutes).toBe(15);
+    expect(plan.activities[0].type).toBe('dsa_review');
+  });
+
+  it('30-minute session - packs within 30 min budget', () => {
+    const prob = createOverdueProblem('dsa-ov-30');
+    const prog = createOverdueProgress('dsa-ov-30');
+
+    const plan = composeAdaptiveSession({
+      availableMinutes: 30,
+      todayStr,
+      strictBudget: true,
+      dsaProblems: [prob],
+      dsaProgressMap: { [prob.id]: prog },
+      topics: TOPICS,
+      domains: DOMAINS,
+    });
+
+    expect(plan.totalEstimatedMinutes).toBeLessThanOrEqual(30);
+    expect(plan.timeBudgetMinutes).toBe(30);
+    expect(plan.remainingMinutes).toBe(30 - plan.totalEstimatedMinutes);
+  });
+
+  it('60-minute session - composes balanced session with overdue review, weakness prep, and paired practice', () => {
+    // Canonical user story from requirements:
+    // User has 60 minutes, SQL weakness, 1 overdue review, upcoming company deadline, 1 blocked roadmap topic.
+    // Composes:
+    // 1. 15 min — overdue review
+    // 2. 25 min — targeted SQL preparation (current weakness)
+    // 3. 20 min — SQL practice (reinforce today's preparation)
+    // Total: 60 minutes.
+
+    const overdueProb = createOverdueProblem('dsa-ov-60');
+    const overdueProg = createOverdueProgress('dsa-ov-60');
+
+    // Blocked task (prerequisite not completed)
+    const blockedTask: TaskDefinition = {
+      id: 'task-blocked',
+      module: 'mod-sql-2',
+      phaseId: 'phase-2',
+      domainId: 'sql',
+      topicId: 'topic-sql-advanced',
+      title: 'Advanced Window Functions',
+      description: 'Prerequisite blocked topic',
+      importance: 8,
+      durationMinutes: 30,
+      prerequisites: ['task-unmet-prereq'],
+    } as unknown as TaskDefinition;
+
+    // Practice attempt indicating SQL weakness
+    const practiceAttempt: PracticeAttempt = {
+      id: 'att-sql-weak',
+      sessionId: 'practice-sql-01',
+      date: '2026-10-14',
+      category: 'core_cs',
+      domainId: 'sql',
+      passed: false,
+      accuracyPct: 40, // < 50% triggers conceptual weakness routing
+      timeSpentSeconds: 900,
+      completedAt: '2026-10-14T12:00:00.000Z',
+    } as unknown as PracticeAttempt;
+
+    const sqlSkill: TopicSkillState = {
+      topicId: 'prep-sql',
+      domainId: 'sql',
+      freshness: 'stale',
+      evidenceStrength: 20,
+    };
+
+    const plan = composeAdaptiveSession({
+      availableMinutes: 60,
+      todayStr,
+      sessionMode: 'balanced',
+      strictBudget: true,
+      dsaProblems: [overdueProb],
+      dsaProgressMap: { [overdueProb.id]: overdueProg },
+      tasks: [blockedTask],
+      taskProgressMap: {},
+      topics: TOPICS,
+      domains: DOMAINS,
+      skillStates: { 'prep-sql': sqlSkill },
+      practiceAttempts: [practiceAttempt],
+      practiceSessions: PRACTICE_SESSIONS,
+      preparationTopics: PREPARATION_TOPICS,
+    });
+
+    expect(plan.totalEstimatedMinutes).toBeLessThanOrEqual(60);
+    expect(plan.timeBudgetMinutes).toBe(60);
+
+    // Overdue review must be included
+    const hasReview = plan.activities.some((a) => a.type === 'dsa_review');
+    expect(hasReview).toBe(true);
+
+    // SQL preparation must be included
+    const hasPrep = plan.activities.some(
+      (a) => a.type === 'preparation_lesson' && a.domainId === 'sql'
+    );
+    expect(hasPrep).toBe(true);
+
+    // SQL practice reinforcing preparation must be included
+    const hasPractice = plan.activities.some(
+      (a) => a.type === 'practice_session' && a.domainId === 'sql'
+    );
+    expect(hasPractice).toBe(true);
+
+    // Prerequisite-blocked task must NOT be included
+    const hasBlocked = plan.activities.some((a) => a.targetId === 'task-blocked');
+    expect(hasBlocked).toBe(false);
+
+    // Verify explainable reason on paired practice
+    const practiceAct = plan.activities.find(
+      (a) => a.type === 'practice_session' && a.domainId === 'sql'
+    );
+    expect(practiceAct?.reason).toContain("reinforce today's preparation");
+  });
+
+  it('120-minute session - packs multi-phase study blocks without exceeding budget', () => {
+    const overdueProb = createOverdueProblem('dsa-ov-120');
+    const overdueProg = createOverdueProgress('dsa-ov-120');
+
+    const plan = composeAdaptiveSession({
+      availableMinutes: 120,
+      todayStr,
+      strictBudget: true,
+      dsaProblems: [overdueProb, ...DSA_PROBLEMS],
+      dsaProgressMap: { [overdueProb.id]: overdueProg },
+      tasks: TASK_DEFINITIONS,
+      topics: TOPICS,
+      domains: DOMAINS,
+      practiceSessions: PRACTICE_SESSIONS,
+      preparationTopics: PREPARATION_TOPICS,
+    });
+
+    expect(plan.totalEstimatedMinutes).toBeLessThanOrEqual(120);
+    expect(plan.activities.length).toBeGreaterThan(1);
+    expect(plan.remainingMinutes).toBe(120 - plan.totalEstimatedMinutes);
+  });
+
+  it('no eligible work - returns empty plan with 0 activities', () => {
+    const plan = composeAdaptiveSession({
+      availableMinutes: 60,
+      todayStr,
+      strictBudget: true,
+      tasks: [],
+      dsaProblems: [],
+      topics: [],
+      domains: [],
+    });
+
+    expect(plan.activities).toHaveLength(0);
+    expect(plan.totalEstimatedMinutes).toBe(0);
+    expect(plan.remainingMinutes).toBe(60);
+  });
+
+  it('overdue review priority - overdue Leitner review appears ahead of normal progression', () => {
+    const overdueProb = createOverdueProblem('dsa-overdue-first');
+    const overdueProg = createOverdueProgress('dsa-overdue-first');
+
+    const normalTask: TaskDefinition = {
+      id: 'task-normal-progression',
+      module: 'mod-py-1',
+      phaseId: 'phase-1',
+      domainId: 'python',
+      topicId: 'topic-py-basics',
+      title: 'Python Variables & Types',
+      description: 'Standard roadmap progression task',
+      importance: 5,
+      durationMinutes: 30,
+      prerequisites: [],
+    } as unknown as TaskDefinition;
+
+    const plan = composeAdaptiveSession({
+      availableMinutes: 60,
+      todayStr,
+      strictBudget: true,
+      dsaProblems: [overdueProb],
+      dsaProgressMap: { [overdueProb.id]: overdueProg },
+      tasks: [normalTask],
+      topics: TOPICS,
+      domains: DOMAINS,
+    });
+
+    expect(plan.activities.length).toBeGreaterThanOrEqual(1);
+    expect(plan.activities[0].type).toBe('dsa_review');
+    expect(plan.activities[0].priority).toBe('overdue_review');
+    expect(plan.activities[0].reason.toLowerCase()).toContain('review');
+  });
+
+  it('company deadline pressure - company requirement receives deadline priority boost', () => {
+    const company: CompanyOverlay = {
+      id: 'comp-urgent',
+      companyName: 'Acme Corp',
+      eventDate: '2026-10-22', // 7 days from todayStr 2026-10-15 (urgent)
+      targetRole: 'SDE',
+      tier: 'dream',
+      difficulty: 'hard',
+      status: 'applied',
+      roundCount: 4,
+      requiredDomains: ['sql'],
+      requiredTopics: ['topic-sql-queries'],
+      requirements: [],
+    } as unknown as CompanyOverlay;
+
+    const plan = composeAdaptiveSession({
+      availableMinutes: 60,
+      todayStr,
+      selectedCompanyId: 'comp-urgent',
+      companyOverlays: [company],
+      topics: TOPICS,
+      domains: DOMAINS,
+      preparationTopics: PREPARATION_TOPICS,
+      practiceSessions: PRACTICE_SESSIONS,
+      strictBudget: true,
+    });
+
+    const companyGap = plan.activities.find((a) => a.priority === 'company_gap');
+    expect(companyGap).toBeDefined();
+    expect(companyGap?.reason.toLowerCase()).toMatch(/acme corp|company/);
+  });
+
+  it('evidence-backed weakness - low evidence topic scheduled with explanation', () => {
+    const weakSkill: TopicSkillState = {
+      topicId: 'prep-sql',
+      domainId: 'sql',
+      freshness: 'stale',
+      evidenceStrength: 15, // High weakness
+    };
+
+    const plan = composeAdaptiveSession({
+      availableMinutes: 60,
+      todayStr,
+      skillStates: { 'prep-sql': weakSkill },
+      topics: TOPICS,
+      domains: DOMAINS,
+      preparationTopics: PREPARATION_TOPICS,
+      strictBudget: true,
+    });
+
+    const weakActivity = plan.activities.find((a) => a.domainId === 'sql');
+    expect(weakActivity).toBeDefined();
+    expect(weakActivity?.reason.toLowerCase()).toMatch(/evidence|stale|weak/);
+  });
+
+  it('prerequisite blocking - blocked tasks are never scheduled', () => {
+    const blockedTask: TaskDefinition = {
+      id: 'task-strictly-blocked',
+      module: 'mod-py-1',
+      phaseId: 'phase-1',
+      domainId: 'python',
+      topicId: 'topic-py-basics',
+      title: 'Advanced Python Metaclasses',
+      description: 'Requires basic Python first',
+      importance: 7,
+      durationMinutes: 30,
+      prerequisites: ['task-uncompleted-parent'],
+    } as unknown as TaskDefinition;
+
+    const plan = composeAdaptiveSession({
+      availableMinutes: 60,
+      todayStr,
+      tasks: [blockedTask],
+      taskProgressMap: {}, // parent is not completed
+      topics: TOPICS,
+      domains: DOMAINS,
+      strictBudget: true,
+    });
+
+    const isScheduled = plan.activities.some((a) => a.targetId === 'task-strictly-blocked');
+    expect(isScheduled).toBe(false);
+  });
+
+  it('already-completed activity exclusion - completed tasks/problems are not rescheduled', () => {
+    const completedTask: TaskDefinition = {
+      id: 'task-already-done',
+      module: 'mod-py-1',
+      phaseId: 'phase-1',
+      domainId: 'python',
+      topicId: 'topic-py-basics',
+      title: 'Python Basics',
+      description: 'Already finished',
+      importance: 5,
+      durationMinutes: 25,
+      prerequisites: [],
+    } as unknown as TaskDefinition;
+
+    const plan = composeAdaptiveSession({
+      availableMinutes: 60,
+      todayStr,
+      tasks: [completedTask],
+      taskProgressMap: {
+        'task-already-done': {
+          taskId: 'task-already-done',
+          state: 'completed',
+          updatedAt: todayStr,
+        },
+      },
+      topics: TOPICS,
+      domains: DOMAINS,
+      strictBudget: true,
+    });
+
+    const isScheduled = plan.activities.some((a) => a.targetId === 'task-already-done');
+    expect(isScheduled).toBe(false);
+  });
+
+  it('no budget overflow - strictBudget prevents exceeding availableMinutes', () => {
+    const testBudgets = [15, 30, 45, 60, 90, 120];
+
+    for (const budget of testBudgets) {
+      const plan = composeAdaptiveSession({
+        availableMinutes: budget,
+        todayStr,
+        strictBudget: true,
+        tasks: TASK_DEFINITIONS,
+        dsaProblems: DSA_PROBLEMS,
+        topics: TOPICS,
+        domains: DOMAINS,
+        practiceSessions: PRACTICE_SESSIONS,
+        preparationTopics: PREPARATION_TOPICS,
+      });
+
+      expect(plan.totalEstimatedMinutes).toBeLessThanOrEqual(budget);
+      expect(plan.remainingMinutes).toBe(budget - plan.totalEstimatedMinutes);
+      expect(plan.remainingMinutes).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('deterministic output - identical inputs yield identical activity lists and ordering', () => {
+    const options = {
+      availableMinutes: 60,
+      todayStr,
+      tasks: TASK_DEFINITIONS.slice(0, 10),
+      dsaProblems: DSA_PROBLEMS.slice(0, 5),
+      topics: TOPICS,
+      domains: DOMAINS,
+      practiceSessions: PRACTICE_SESSIONS.slice(0, 5),
+      preparationTopics: PREPARATION_TOPICS.slice(0, 5),
+    };
+
+    const plan1 = composeAdaptiveSession(options);
+    const plan2 = composeAdaptiveSession(options);
+
+    expect(plan1.activities.map((a) => a.id)).toEqual(plan2.activities.map((a) => a.id));
+    expect(plan1.totalEstimatedMinutes).toBe(plan2.totalEstimatedMinutes);
+    expect(plan1.remainingMinutes).toBe(plan2.remainingMinutes);
+  });
+
+  it('stable ordering - priority scores are non-increasing', () => {
+    const overdueProb = createOverdueProblem('dsa-ov-stable');
+    const overdueProg = createOverdueProgress('dsa-ov-stable');
+
+    const plan = composeAdaptiveSession({
+      availableMinutes: 120,
+      todayStr,
+      dsaProblems: [overdueProb, ...DSA_PROBLEMS.slice(0, 5)],
+      dsaProgressMap: { [overdueProb.id]: overdueProg },
+      tasks: TASK_DEFINITIONS.slice(0, 10),
+      topics: TOPICS,
+      domains: DOMAINS,
+      practiceSessions: PRACTICE_SESSIONS.slice(0, 5),
+      preparationTopics: PREPARATION_TOPICS.slice(0, 5),
+    });
+
+    for (let i = 1; i < plan.activities.length; i++) {
+      const prev = plan.activities[i - 1];
+      const curr = plan.activities[i];
+      expect(prev.priorityScore).toBeGreaterThanOrEqual(curr.priorityScore);
+    }
+  });
+
+  it('activity deep-link correctness - proper routes and target IDs', () => {
+    const overdueProb = createOverdueProblem('dsa-deep-1');
+    const overdueProg = createOverdueProgress('dsa-deep-1');
+
+    const plan = composeAdaptiveSession({
+      availableMinutes: 60,
+      todayStr,
+      dsaProblems: [overdueProb],
+      dsaProgressMap: { [overdueProb.id]: overdueProg },
+      topics: TOPICS,
+      domains: DOMAINS,
+    });
+
+    const dsaAct = plan.activities.find((a) => a.type === 'dsa_review');
+    expect(dsaAct).toBeDefined();
+    expect(dsaAct?.route).toBe('dsa');
+    expect(dsaAct?.targetId).toBe('dsa-deep-1');
+    expect(dsaAct?.deepLink).toEqual({ route: 'dsa', param: 'dsa-deep-1' });
+    expect(dsaAct?.sourceSubsystem).toBe('dsa');
+    expect(dsaAct?.producesEvidence).toBe(true);
+    expect(dsaAct?.evidenceExpectation).toBeDefined();
+  });
+
+  it('session modes - review_heavy prioritizes all review items before progression', () => {
+    const prob1 = createOverdueProblem('dsa-rh-1');
+    const prog1 = createOverdueProgress('dsa-rh-1');
+    const prob2 = createOverdueProblem('dsa-rh-2');
+    const prog2 = createOverdueProgress('dsa-rh-2');
+
+    const normalTask: TaskDefinition = {
+      id: 'task-rh-prog',
+      module: 'mod-py-1',
+      phaseId: 'phase-1',
+      domainId: 'python',
+      topicId: 'topic-py-basics',
+      title: 'Python Basics',
+      description: 'Progression task',
+      importance: 9,
+      durationMinutes: 30,
+      prerequisites: [],
+    } as unknown as TaskDefinition;
+
+    const plan = composeAdaptiveSession({
+      availableMinutes: 60,
+      todayStr,
+      sessionMode: 'review_heavy',
+      strictBudget: true,
+      dsaProblems: [prob1, prob2],
+      dsaProgressMap: { [prob1.id]: prog1, [prob2.id]: prog2 },
+      tasks: [normalTask],
+      topics: TOPICS,
+      domains: DOMAINS,
+    });
+
+    expect(plan.sessionMode).toBe('review_heavy');
+    // In review_heavy, reviews are placed first
+    const reviewIndices = plan.activities
+      .map((a, i) => (a.type === 'dsa_review' ? i : -1))
+      .filter((i) => i >= 0);
+    const taskIndices = plan.activities
+      .map((a, i) => (a.type === 'roadmap_task' ? i : -1))
+      .filter((i) => i >= 0);
+
+    if (reviewIndices.length > 0 && taskIndices.length > 0) {
+      expect(Math.max(...reviewIndices)).toBeLessThan(Math.min(...taskIndices));
+    }
+  });
+
+  it('session modes - focused concentrates on top priority domain', () => {
+    const company: CompanyOverlay = {
+      id: 'comp-focused',
+      companyName: 'TargetCorp',
+      eventDate: '2026-10-22',
+      targetRole: 'SDE',
+      tier: 'dream',
+      difficulty: 'hard',
+      status: 'applied',
+      roundCount: 3,
+      requiredDomains: ['sql'],
+      requiredTopics: ['topic-sql-queries'],
+      requirements: [],
+    } as unknown as CompanyOverlay;
+
+    const plan = composeAdaptiveSession({
+      availableMinutes: 60,
+      todayStr,
+      sessionMode: 'focused',
+      selectedCompanyId: 'comp-focused',
+      companyOverlays: [company],
+      topics: TOPICS,
+      domains: DOMAINS,
+      preparationTopics: PREPARATION_TOPICS,
+      practiceSessions: PRACTICE_SESSIONS,
+      strictBudget: true,
+    });
+
+    expect(plan.sessionMode).toBe('focused');
+    // Focused mode should prioritize the primary focus domain (sql)
+    const sqlActivities = plan.activities.filter((a) => a.domainId === 'sql');
+    expect(sqlActivities.length).toBeGreaterThan(0);
+  });
+
+  it('energy level - low energy deprioritizes long tasks in favor of shorter activities', () => {
+    const longTask: TaskDefinition = {
+      id: 'task-long-marathon',
+      module: 'mod-py-1',
+      phaseId: 'phase-1',
+      domainId: 'python',
+      topicId: 'topic-py-basics',
+      title: 'Python Marathon Project',
+      description: 'Heavy 45-minute task',
+      importance: 8,
+      durationMinutes: 45,
+      prerequisites: [],
+    } as unknown as TaskDefinition;
+
+    const shortProb = createOverdueProblem('dsa-short-15');
+    const shortProg = createOverdueProgress('dsa-short-15');
+
+    const planLow = composeAdaptiveSession({
+      availableMinutes: 60,
+      todayStr,
+      energyLevel: 'low',
+      tasks: [longTask],
+      dsaProblems: [shortProb],
+      dsaProgressMap: { [shortProb.id]: shortProg },
+      topics: TOPICS,
+      domains: DOMAINS,
+      strictBudget: true,
+    });
+
+    expect(planLow.energyLevel).toBe('low');
+    // Short review should be scheduled
+    expect(planLow.activities.some((a) => a.id.includes('dsa-short-15'))).toBe(true);
+    // Marathon task (>30m) is skipped when shorter items are present in low energy
+    expect(planLow.activities.some((a) => a.id === 'task-long-marathon')).toBe(false);
   });
 });

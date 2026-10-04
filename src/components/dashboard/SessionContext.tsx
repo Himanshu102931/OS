@@ -1,9 +1,9 @@
 import { createContext, useContext } from 'react';
-import type { SessionState } from '../../engine/sessionComposer';
+import type { SessionState, SessionComposerMode } from '../../engine/sessionComposer';
 
-interface SessionContextValue {
+export interface SessionContextValue {
   sessionState: SessionState | null;
-  composeSession: (availableMinutes: number) => void;
+  composeSession: (availableMinutes?: number, sessionMode?: SessionComposerMode) => void;
   advanceActivity: (outcome: 'completed' | 'skipped' | 'failed' | 'postponed') => void;
   recoverActivity: (availableMinutes: number) => void;
   clearSession: () => void;
@@ -11,6 +11,10 @@ interface SessionContextValue {
   remainingTime: number;
   sessionProgress: { completed: number; total: number; percent: number };
   isSessionActive: boolean;
+  selectedDuration: number;
+  setSelectedDuration: (minutes: number) => void;
+  sessionMode: SessionComposerMode;
+  setSessionMode: (mode: SessionComposerMode) => void;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);

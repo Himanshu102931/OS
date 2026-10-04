@@ -1,12 +1,28 @@
 import React from 'react';
 import { useSession } from './SessionContext';
-import { Play, SkipForward, Clock, CheckCircle2, ChevronRight, HelpCircle } from 'lucide-react';
+import {
+  Play,
+  SkipForward,
+  Clock,
+  CheckCircle2,
+  HelpCircle,
+  RotateCcw,
+  Sparkles,
+} from 'lucide-react';
 import { Button } from '../ui/button';
-import type { SessionActivity } from '../../engine/sessionComposer';
+import type { SessionActivity, SessionComposerMode } from '../../engine/sessionComposer';
 
 interface SessionDisplayProps {
   onStartActivity: (activity: SessionActivity) => void;
 }
+
+const DURATION_PRESETS = [15, 30, 45, 60, 90, 120];
+
+const MODE_OPTIONS: { id: SessionComposerMode; label: string }[] = [
+  { id: 'balanced', label: 'Balanced' },
+  { id: 'focused', label: 'Focused' },
+  { id: 'review_heavy', label: 'Review-Heavy' },
+];
 
 export const SessionDisplay: React.FC<SessionDisplayProps> = ({ onStartActivity }) => {
   const {
@@ -14,176 +30,268 @@ export const SessionDisplay: React.FC<SessionDisplayProps> = ({ onStartActivity 
     currentActivity,
     remainingTime,
     sessionProgress,
-    isSessionActive,
     advanceActivity,
-    clearSession,
+    selectedDuration,
+    setSelectedDuration,
+    sessionMode,
+    setSessionMode,
+    composeSession,
   } = useSession();
 
-  if (!sessionState || !isSessionActive) {
+  if (!sessionState) {
     return null;
   }
 
-  const nextActivity = sessionState.plan.activities[sessionState.currentActivityIndex + 1] || null;
+  const { activities, totalEstimatedMinutes, timeBudgetMinutes, remainingMinutes } =
+    sessionState.plan;
 
-  const getPriorityColor = (priority: SessionActivity['priority']) => {
-    switch (priority) {
-      case 'remediation':
-      case 'overdue_review':
-        return 'text-[#F59E0B] border-[#F59E0B]/30 bg-[#F59E0B]/10';
-      case 'routed_weakness':
-      case 'weak_topic':
-        return 'text-[#E5A93C] border-[#E5A93C]/30 bg-[#E5A93C]/10';
-      case 'company_gap':
-        return 'text-[#3B82F6] border-[#3B82F6]/30 bg-[#3B82F6]/10';
-      case 'stale_evidence':
-        return 'text-[#F59E0B] border-[#F59E0B]/30 bg-[#F59E0B]/10';
-      case 'retention':
-        return 'text-[#10B981] border-[#10B981]/30 bg-[#10B981]/10';
+  const getActivityTypeBadge = (activity: SessionActivity) => {
+    switch (activity.type) {
+      case 'dsa_review':
+        return { label: 'DSA Review', color: 'text-[#F59E0B] border-[#F59E0B]/30 bg-[#F59E0B]/10' };
+      case 'dsa_remediation':
+        return { label: 'DSA Remediation', color: 'text-[#EF4444] border-[#EF4444]/30 bg-[#EF4444]/10' };
+      case 'dsa_new':
+        return { label: 'DSA Problem', color: 'text-[#3B82F6] border-[#3B82F6]/30 bg-[#3B82F6]/10' };
+      case 'preparation_lesson':
+        return { label: 'Preparation', color: 'text-[#E5A93C] border-[#E5A93C]/30 bg-[#E5A93C]/10' };
+      case 'practice_session':
+        return { label: 'Practice', color: 'text-[#38BDF8] border-[#38BDF8]/30 bg-[#38BDF8]/10' };
+      case 'roadmap_task':
       default:
-        return 'text-[#8E98A8] border-[#262D38] bg-[#1B2028]';
-    }
-  };
-
-  const getPriorityLabel = (priority: SessionActivity['priority']) => {
-    switch (priority) {
-      case 'routed_weakness': return 'Weakness Action';
-      case 'company_gap': return 'Company Target';
-      case 'overdue_review': return 'Overdue Review';
-      case 'stale_evidence': return 'Evidence Aging';
-      case 'weak_topic': return 'Weak Topic';
-      default: return priority.replace('_', ' ');
+        return { label: 'Roadmap Task', color: 'text-[#94A3B8] border-[#262D38] bg-[#1B2028]' };
     }
   };
 
   return (
-    <section
-      ref={(el) => el?.setAttribute('data-reveal', 'session')}
-      className="scroll-reveal"
-      data-reveal="session"
+    <div
       data-guide-target="today-session"
+      data-testid="today-session"
     >
       <div className="bg-[#14171D] border border-[#E5A93C]/30 rounded-xl p-5 space-y-4">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        {/* Header: Title + Budget + Controls */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-[#262D38]/80 pb-3">
+          <div className="flex items-center gap-2.5">
             <div className="size-2 rounded-full bg-[#E5A93C] animate-pulse" />
-            <span className="text-xs font-bold text-[#FFC665] uppercase tracking-wider">Active Session</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] px-2 py-0.5 rounded bg-[#1B2028] text-[#FFC665] border border-[#E5A93C]/30 font-mono">
-              {sessionProgress.completed} / {sessionProgress.total} ({sessionProgress.percent}%)
+            <h3 className="text-sm font-bold text-[#F1F5F9] uppercase tracking-wider flex items-center gap-1.5">
+              Today's Session
+            </h3>
+            <span className="text-[11px] px-2 py-0.5 rounded bg-[#1B2028] text-[#FFC665] border border-[#E5A93C]/30 font-mono">
+              {totalEstimatedMinutes} / {timeBudgetMinutes} min
             </span>
           </div>
+
+          {/* Duration & Mode Selectors */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Duration Chips */}
+            <div className="flex items-center bg-[#0D0F12] border border-[#262D38] rounded-md p-0.5">
+              {DURATION_PRESETS.map((mins) => {
+                const isActive = selectedDuration === mins;
+                return (
+                  <button
+                    key={mins}
+                    type="button"
+                    onClick={() => {
+                      setSelectedDuration(mins);
+                      composeSession(mins, sessionMode);
+                    }}
+                    className={`px-2 py-0.5 text-[11px] font-mono rounded transition-colors ${
+                      isActive
+                        ? 'bg-[#E5A93C] text-[#432C00] font-bold shadow-xs'
+                        : 'text-[#8E98A8] hover:text-[#F1F5F9]'
+                    }`}
+                  >
+                    {mins}m
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Mode Chips */}
+            <div className="flex items-center bg-[#0D0F12] border border-[#262D38] rounded-md p-0.5">
+              {MODE_OPTIONS.map((m) => {
+                const isActive = sessionMode === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => {
+                      setSessionMode(m.id);
+                      composeSession(selectedDuration, m.id);
+                    }}
+                    className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                      isActive
+                        ? 'bg-[#1B2028] text-[#FFC665] border border-[#E5A93C]/30 font-bold'
+                        : 'text-[#8E98A8] hover:text-[#F1F5F9]'
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
-        {/* Progress Bar */}
-        <div className="space-y-1">
-          <div className="flex items-center justify-between text-[10px]">
-            <span className="text-[#5C6675] font-mono">SESSION PROGRESS</span>
-            <span className="text-[#E5A93C] font-mono font-bold">{sessionProgress.percent}%</span>
+        {/* Progress Bar (if in progress) */}
+        {sessionProgress.total > 0 && (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-[10px]">
+              <span className="text-[#5C6675] font-mono">
+                PROGRESS: {sessionProgress.completed} / {sessionProgress.total} ACTIVITIES
+              </span>
+              <span className="text-[#E5A93C] font-mono font-bold">
+                {sessionProgress.percent}%
+              </span>
+            </div>
+            <div className="w-full bg-[#0D0F12] rounded-full h-1.5 overflow-hidden border border-[#262D38]">
+              <div
+                className="bg-gradient-to-r from-[#E5A93C] to-[#FFC665] h-full rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${sessionProgress.percent}%` }}
+              />
+            </div>
           </div>
-          <div className="w-full bg-[#0D0F12] rounded-full h-2 overflow-hidden border border-[#262D38]">
-            <div
-              className="bg-gradient-to-r from-[#E5A93C] to-[#FFC665] h-full rounded-full transition-all duration-500 ease-out"
-              style={{ width: `${sessionProgress.percent}%` }}
-            />
-          </div>
-          <div className="flex items-center justify-between text-[10px] text-[#8E98A8]">
-            <span>Elapsed: {sessionState.plan.totalEstimatedMinutes - remainingTime} min</span>
-            <span>Remaining: {remainingTime} min</span>
-          </div>
-        </div>
+        )}
 
-        {/* Current Activity */}
-        {currentActivity && (
-          <div className="p-4 bg-[#0D0F12] border border-[#E5A93C]/40 rounded-lg space-y-3">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`text-[10px] px-2 py-1 rounded border font-medium capitalize ${getPriorityColor(currentActivity.priority)}`}>
-                    {getPriorityLabel(currentActivity.priority)}
-                  </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-[#1B2028] text-[#FFC665] border border-[#262D38] font-mono capitalize">
-                    {currentActivity.route}
-                  </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-[#14171D] text-[#8E98A8] border border-[#262D38] font-mono">
-                    {currentActivity.estimatedMinutes} min
-                  </span>
-                </div>
-                <h4 className="text-sm font-semibold text-[#F1F5F9] mt-1 truncate">{currentActivity.title}</h4>
-                <p className="text-[11px] text-[#8E98A8] mt-0.5 line-clamp-1">{currentActivity.description}</p>
+        {/* Composed Activities List */}
+        {activities.length === 0 ? (
+          <div className="p-4 bg-[#0D0F12] border border-[#262D38] rounded-lg text-center space-y-2">
+            <Sparkles className="size-5 text-[#8E98A8] mx-auto" />
+            <p className="text-xs text-[#8E98A8]">
+              No eligible activities found for this time window. All active reviews and roadmap
+              milestones are up to date.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {activities.map((activity, index) => {
+              const isCurrent = currentActivity?.id === activity.id;
+              const isCompleted = sessionState.completedActivityIds.includes(activity.id);
+              const isSkipped = sessionState.skippedActivityIds.includes(activity.id);
+              const badge = getActivityTypeBadge(activity);
 
-                {/* Reason */}
-                <div className="pt-2 border-t border-[#262D38]/80 flex items-start gap-2 text-[11px]">
-                  <HelpCircle className="size-3.5 text-[#E5A93C] shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-semibold text-[#FFC665]">Why this? </span>
-                    <span className="text-[#8E98A8]">{currentActivity.reason}</span>
+              return (
+                <div
+                  key={activity.id}
+                  className={`p-3.5 rounded-lg border transition-all ${
+                    isCurrent
+                      ? 'bg-[#0D0F12] border-[#E5A93C]/50 shadow-sm'
+                      : isCompleted
+                      ? 'bg-[#14171D]/60 border-[#10B981]/30 opacity-75'
+                      : isSkipped
+                      ? 'bg-[#14171D]/40 border-[#262D38] opacity-50'
+                      : 'bg-[#0D0F12] border-[#262D38]'
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    {/* Activity Info */}
+                    <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                      <span className="font-mono text-xs font-bold text-[#E5A93C] mt-0.5">
+                        {index + 1}.
+                      </span>
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded border font-medium ${badge.color}`}
+                          >
+                            {badge.label}
+                          </span>
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-[#1B2028] text-[#8E98A8] border border-[#262D38] font-mono flex items-center gap-1">
+                            <Clock className="size-2.5" /> {activity.estimatedMinutes} min
+                          </span>
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-[#14171D] text-[#8E98A8] border border-[#262D38] font-mono capitalize">
+                            {activity.route}
+                          </span>
+                        </div>
+
+                        <h4 className="text-xs font-semibold text-[#F1F5F9] truncate">
+                          {activity.title}
+                        </h4>
+
+                        {/* Explainable Why */}
+                        <div className="flex items-start gap-1.5 text-[11px] text-[#8E98A8]">
+                          <HelpCircle className="size-3 text-[#E5A93C] shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-semibold text-[#FFC665]">Why: </span>
+                            <span>{activity.reason}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Operational Action Button */}
+                    <div className="flex items-center gap-2 shrink-0 sm:self-center">
+                      {isCompleted ? (
+                        <span className="text-xs text-[#10B981] flex items-center gap-1 font-medium font-mono px-2 py-1 rounded bg-[#10B981]/10 border border-[#10B981]/20">
+                          <CheckCircle2 className="size-3.5" /> Completed
+                        </span>
+                      ) : isSkipped ? (
+                        <span className="text-[11px] text-[#8E98A8] font-mono px-2 py-1 rounded bg-[#1B2028] border border-[#262D38]">
+                          Skipped
+                        </span>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            size="sm"
+                            onClick={() => onStartActivity(activity)}
+                            className={`h-8 px-3 text-xs font-bold rounded-md ${
+                              isCurrent
+                                ? 'bg-[#E5A93C] hover:bg-[#FFC665] text-[#432C00] shadow-sm'
+                                : 'bg-[#1B2028] hover:bg-[#222833] text-[#F1F5F9] border border-[#262D38]'
+                            }`}
+                          >
+                            <Play className="size-3 mr-1" /> Start
+                          </Button>
+                          {isCurrent && (
+                            <>
+                              <Button
+                                size="xs"
+                                variant="ghost"
+                                onClick={() => advanceActivity('skipped')}
+                                className="h-7 text-[11px] font-medium text-[#8E98A8] hover:text-[#F59E0B] hover:bg-[#1B2028] rounded-[4px] px-1.5"
+                                title="Skip activity"
+                              >
+                                <SkipForward className="size-3 mr-1" /> Skip
+                              </Button>
+                              <Button
+                                size="xs"
+                                variant="ghost"
+                                onClick={() => advanceActivity('postponed')}
+                                className="h-7 text-[11px] font-medium text-[#8E98A8] hover:text-[#F59E0B] hover:bg-[#1B2028] rounded-[4px] px-1.5"
+                                title="Defer activity"
+                              >
+                                <Clock className="size-3 mr-1" /> Defer
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[#262D38]/80">
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => onStartActivity(currentActivity)}
-                  className="h-9 px-4 font-bold text-xs bg-[#E5A93C] hover:bg-[#FFC665] text-[#432C00] rounded-md shadow-md"
-                >
-                  <Play className="size-3.5 mr-1.5" /> Start Activity
-                </Button>
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => advanceActivity('skipped')}
-                  className="h-7 text-[11px] font-medium text-[#8E98A8] hover:text-[#F59E0B] hover:bg-[#1B2028] rounded-[4px] px-2"
-                >
-                  <SkipForward className="size-3 mr-1" /> Skip
-                </Button>
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => advanceActivity('postponed')}
-                  className="h-7 text-[11px] font-medium text-[#8E98A8] hover:text-[#F59E0B] hover:bg-[#1B2028] rounded-[4px] px-2"
-                >
-                  <Clock className="size-3 mr-1" /> Postpone
-                </Button>
-              </div>
-            </div>
+              );
+            })}
           </div>
         )}
 
-        {/* Next Activity Preview */}
-        {nextActivity && (
-          <div className="p-3 bg-[#0D0F12] border border-[#262D38] rounded-lg">
-            <div className="flex items-center justify-between text-[10px] mb-2">
-              <span className="text-[#5C6675] font-mono uppercase tracking-wider">NEXT UP</span>
-              <ChevronRight className="size-3.5 text-[#5C6675]" />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium capitalize ${getPriorityColor(nextActivity.priority)}`}>
-                {getPriorityLabel(nextActivity.priority)}
-              </span>
-              <span className="text-xs font-medium text-[#F1F5F9] truncate flex-1">{nextActivity.title}</span>
-              <span className="text-[10px] text-[#8E98A8] font-mono">{nextActivity.estimatedMinutes} min</span>
-            </div>
+        {/* Footer / Summary Info */}
+        <div className="flex items-center justify-between text-[11px] text-[#8E98A8] pt-2 border-t border-[#262D38]/80">
+          <div className="flex items-center gap-2 font-mono">
+            <span>Planned: {totalEstimatedMinutes} min</span>
+            {remainingMinutes > 0 && (
+              <span className="text-[#5C6675]">({remainingMinutes} min unallocated)</span>
+            )}
+            {remainingTime > 0 && <span>• {remainingTime} min remaining</span>}
           </div>
-        )}
-
-        {/* Queue exhausted */}
-        {!currentActivity && sessionState.plan.activities.length > 0 && (
-          <div className="p-4 bg-[#10B981]/10 border border-[#10B981]/30 rounded-lg text-center space-y-3">
-            <CheckCircle2 className="size-8 text-[#10B981] mx-auto" />
-            <h4 className="text-sm font-semibold text-[#10B981]">Session Complete</h4>
-            <p className="text-xs text-[#8E98A8]">All planned activities completed. Great work!</p>
-            <Button size="sm" variant="outline" onClick={clearSession} className="w-auto mx-auto">
-              Clear Session
-            </Button>
-          </div>
-        )}
+          <button
+            type="button"
+            onClick={() => composeSession(selectedDuration, sessionMode)}
+            className="flex items-center gap-1 text-[11px] text-[#8E98A8] hover:text-[#FFC665] transition-colors"
+          >
+            <RotateCcw className="size-3" /> Recompose
+          </button>
+        </div>
       </div>
-    </section>
+    </div>
   );
 };
