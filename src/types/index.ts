@@ -886,4 +886,40 @@ export type ProjectLabSectionId =
   | 'defense'
   | 'evidence';
 
+// --- Remediation Router Types ---
+
+export type RemediationSourceType =
+  | 'assessment_weakness'
+  | 'practice_weakness'
+  | 'dsa_failure'
+  | 'preparation_continuation'
+  | 'project_defense_weakness'
+  | 'skill_weakness';
+
+export interface RemediationRoute {
+  id: string;
+  sourceType: RemediationSourceType;
+  sourceId: string;
+  domainId: DomainId | string;
+  topicId?: string;
+  targetId: string;
+  route: 'preparation' | 'practice' | 'dsa' | 'roadmap';
+  priority: 'remediation' | 'overdue_review' | 'routed_weakness' | 'company_gap' | 'stale_evidence' | 'weak_topic' | 'retention' | 'normal_progression';
+  priorityScore: number;
+  reason: string;
+  confidence?: 'none' | 'low' | 'medium' | 'high';
+  isBlocked: boolean;
+  blockingReason?: string;
+  title: string;
+  description: string;
+  type: 'preparation_lesson' | 'practice_session' | 'dsa_review' | 'dsa_remediation' | 'roadmap_task';
+  estimatedMinutes: number;
+  patternId?: string;
+  patternName?: string;
+  sourceProblemId?: string;
+  sourceTaskId?: string;
+  sourceTopicId?: string;
+  sourceSkillState?: TopicSkillState;
+}
+
 

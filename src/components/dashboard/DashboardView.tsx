@@ -9,8 +9,13 @@ import { GuideTrigger } from '../guide/GuideTrigger';
 import { getEvaluatedCandidates, evaluatePracticeSignals } from '../../engine/adaptiveEngine';
 import { generateReviewCandidates } from '../../engine/reviewScheduler';
 import { evaluateAnalyticsTelemetry } from '../../engine/analyticsEngine';
+import { buildReviewPromptDatasets, filterNavigablePrompts, isPromptDue } from '../../engine/reviewPromptAdapter';
 import { captureCompletionRestore, captureDeferRestore, type TaskStateRestore } from '../../engine/taskStateEngine';
 import { getRecommendedPracticeSession } from '../../engine/practiceEngine';
+import {
+  mapCompanyRequirementTargets,
+  buildCompanyFocusSummary,
+} from '../../engine/companyPlanEngine';
 import { buildReviewCandidateTrace } from '../../engine/evidenceTrace';
 import { EvidenceTracePanel } from '../evidence/EvidenceTracePanel';
 import { useEvidenceCatalog } from '../evidence/useEvidenceCatalog';
@@ -191,6 +196,43 @@ export const DashboardView: React.FC = () => {
     [todayDate, taskDefinitions, taskProgress, dsaProblems, dsaProgress, dsaAttempts, topics, domains, skillStates, dailyCheckIns, companyOverlays, activePhase, evidenceLogs]
   );
 
+  // Build datasets for review prompt validation (canonical datasets, no I/O)
+  const reviewPromptDatasets = useMemo(() =>
+    buildReviewPromptDatasets({
+      dsaProblems,
+      tasks: taskDefinitions,
+      topics,
+      domains,
+      skillStates,
+      preparationTopics: PREPARATION_TOPICS,
+      practiceSessions,
+    }),
+    [dsaProblems, taskDefinitions, topics, domains, skillStates]
+  );
+
+  // Validate review prompts against canonical datasets
+  // Invalid prompts remain informational; valid ones produce deep-links
+  const validatedReviewPrompts = useMemo(() =>
+    filterNavigablePrompts(analyticsTelemetry.reviewPrompts, reviewPromptDatasets),
+    [analyticsTelemetry.reviewPrompts, reviewPromptDatasets]
+  );
+
+  // Deep-link for the first navigable + due review prompt (for CTA)
+  const primaryReviewPromptDeepLink = useMemo(() => {
+    const navigable = validatedReviewPrompts.find(v =>
+      v.navigable &&
+      v.targetId &&
+      isPromptDue(v.prompt, {
+        dsaProgressMap: dsaProgress,
+        taskProgressMap: taskProgress,
+        skillStates,
+        todayStr: todayDate,
+      })
+    );
+    if (!navigable || !navigable.targetId) return null;
+    return { route: navigable.route, targetId: navigable.targetId! };
+  }, [validatedReviewPrompts, dsaProgress, taskProgress, skillStates, todayDate]);
+
   // Adaptive Review Scheduler — deterministic review candidates from existing state
   const reviewSchedule = useMemo(() =>
     generateReviewCandidates({
@@ -234,6 +276,70 @@ export const DashboardView: React.FC = () => {
         ])
       ),
     [reviewCandidates, evidenceCatalog]
+  );
+
+  // ---- Company Focus (§5 / §8) -------------------------------------------
+  // TargetIds already served by an existing route. Company mode reuses these
+  // rather than proposing a competing route (§9) — the canonical scheduler
+  // already dedupes them, this only surfaces the reuse for the panel.
+  const reusedRouteTargetIds = useMemo(
+    () =>
+      new Set(
+        reviewCandidates
+          .filter((c) => c.priority === 'remediation' || c.priority === 'routed_weakness' || c.priority === 'overdue_review')
+          .map((c) => c.targetId)
+      ),
+    [reviewCandidates]
+  );
+
+  // Explicit requirement → target mapping (§5). Same resolver the scheduler
+  // uses, so the panel and the plan can never disagree. Unmapped requirements
+  // are preserved with a reason instead of being dropped or fabricated.
+  const companyMappings = useMemo(
+    () =>
+      selectedCompany
+        ? mapCompanyRequirementTargets({
+            targetCompany: selectedCompany,
+            domains,
+            topics,
+            tasks: taskDefinitions,
+            taskProgressMap: taskProgress,
+            dsaProblems,
+            dsaProgressMap: dsaProgress,
+            dsaAttempts,
+            evidenceLogs,
+            skillStates,
+            preparationTopics: PREPARATION_TOPICS,
+            preparationTopicProgress,
+            practiceSessions,
+            todayStr: todayDate,
+            activePhase,
+            reusedRouteTargetIds,
+          })
+        : [],
+    [
+      selectedCompany, domains, topics, taskDefinitions, taskProgress, dsaProblems, dsaProgress,
+      dsaAttempts, evidenceLogs, skillStates, preparationTopicProgress, practiceSessions,
+      todayDate, activePhase, reusedRouteTargetIds,
+    ]
+  );
+
+  // Plain-language Company Focus summary (§8, §14) — no weights, no mastery
+  // claims, urgency wording only when the company has a real event date.
+  const companyFocus = useMemo(
+    () =>
+      selectedCompany
+        ? buildCompanyFocusSummary({
+            targetCompany: selectedCompany,
+            todayStr: todayDate,
+            mappings: companyMappings,
+            candidates: reviewCandidates,
+            baselineTask: nextBestActionTask
+              ? { title: nextBestActionTask.title, targetId: nextBestActionTask.id, route: 'roadmap' }
+              : null,
+          })
+        : null,
+    [selectedCompany, todayDate, companyMappings, reviewCandidates, nextBestActionTask]
   );
 
   const completedCount = Object.values(taskProgress).filter((tp) => tp.state === 'completed').length;
@@ -546,6 +652,132 @@ export const DashboardView: React.FC = () => {
         </div>
       </div>
 
+      {/* 1b. COMPANY FOCUS (§8) — plain-language view of how the selected
+          company is shaping today. Not a scroll-reveal section: it must be
+          visible immediately and adds no new reveal id. */}
+      {companyFocus && (
+        <section
+          data-testid="company-focus-summary"
+          aria-label={`Company Focus: ${companyFocus.companyName}`}
+          className="bg-[#14171D] border border-[#3B82F6]/40 rounded-xl p-5 space-y-3"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs font-semibold text-[#93C5FD] uppercase tracking-wider">
+              <Building2 className="size-3.5 text-[#3B82F6]" />
+              Company Focus
+              <span className="text-[#F1F5F9] normal-case tracking-normal">— {companyFocus.companyName}</span>
+            </div>
+            {companyFocus.urgencyLabel && (
+              <span
+                className="text-xs font-medium text-[#F1F5F9] bg-[#3B82F6]/15 border border-[#3B82F6]/40 rounded px-2 py-0.5"
+                data-testid="company-focus-urgency"
+              >
+                {companyFocus.urgencyLabel}
+              </span>
+            )}
+          </div>
+
+          <p className="text-sm text-[#8E98A8] leading-relaxed" data-testid="company-focus-reason">
+            {companyFocus.priorityReason}
+          </p>
+
+          {companyFocus.focusItems.length > 0 && (
+            <ol className="space-y-1.5" data-testid="company-focus-items">
+              {companyFocus.focusItems.map((item, index) => (
+                <li key={`${item.kind}-${item.targetId ?? index}`} className="flex items-start gap-2 text-xs">
+                  <span className="font-mono text-[#5C6675] shrink-0 w-4 text-right">{index + 1}.</span>
+                  <span className="text-[#F1F5F9]">{item.title}</span>
+                  <span className="text-[#8E98A8]">— {item.reason}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 border-t border-[#262D38] text-xs text-[#8E98A8]">
+            <span data-testid="company-focus-counts">
+              {companyFocus.gapCount} of {companyFocus.totalRequirements} requirements need evidence
+            </span>
+            {companyFocus.unmappedCount > 0 && (
+              <span className="text-[#F59E0B]" data-testid="company-focus-unmapped">
+                {companyFocus.unmappedCount} requirement{companyFocus.unmappedCount === 1 ? '' : 's'} not mapped to a task yet
+              </span>
+            )}
+            {companyFocus.blockedCount > 0 && (
+              <span className="text-[#8E98A8]" data-testid="company-focus-blocked">
+                {companyFocus.blockedCount} waiting on prerequisites
+              </span>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* 1c. REVIEW PROMPTS — actionable review signals from analytics.
+          Not a scroll-reveal section; visible immediately. */}
+      {validatedReviewPrompts.length > 0 && (
+        <section
+          data-testid="review-prompts-summary"
+          aria-label="Review Prompts"
+          className="bg-[#14171D] border border-[#10B981]/40 rounded-xl p-5 space-y-3"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs font-semibold text-[#6EE7B7] uppercase tracking-wider">
+              <AlertCircle className="size-3.5 text-[#10B981]" />
+              Review Prompts
+              <span className="text-[#F1F5F9] normal-case tracking-normal">
+                — {validatedReviewPrompts.filter(v => v.navigable).length} actionable
+              </span>
+            </div>
+            {validatedReviewPrompts.some(v => !v.navigable) && (
+              <span className="text-xs font-medium text-[#F1F5F9] bg-[#F59E0B]/15 border border-[#F59E0B]/40 rounded px-2 py-0.5">
+                {validatedReviewPrompts.filter(v => !v.navigable).length} informational
+              </span>
+            )}
+          </div>
+
+          <p className="text-sm text-[#8E98A8] leading-relaxed">
+            {validatedReviewPrompts.filter(v => v.navigable).length > 0
+              ? 'Your analytics telemetry produced actionable review signals. Each has a validated target you can open directly.'
+              : 'All review prompts are informational — no valid targets to act on right now.'}
+          </p>
+
+          {validatedReviewPrompts.filter(v => v.navigable).length > 0 && (
+            <ol className="space-y-1.5" data-testid="review-prompts-items">
+              {validatedReviewPrompts
+                .filter(v => v.navigable)
+                .map((v, index) => (
+                  <li key={`${v.prompt.id}`} className="flex items-start gap-2 text-xs">
+                    <span className="font-mono text-[#5C6675] shrink-0 w-4 text-right">{index + 1}.</span>
+                    <span className="text-[#F1F5F9]">{v.prompt.title}</span>
+                    <span className="text-[#8E98A8] flex-1">— {v.prompt.description}</span>
+                    <Button
+                      size="xs"
+                      onClick={() => {
+                        if (v.targetId) {
+                          setRoute(v.route, v.targetId);
+                        }
+                      }}
+                      className="h-7 px-2.5 text-[11px] font-semibold bg-[#10B981] hover:bg-[#34D399] text-[#0D0F12] rounded-md shrink-0"
+                    >
+                      Open
+                    </Button>
+                  </li>
+                ))}
+            </ol>
+          )}
+
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 border-t border-[#262D38] text-xs text-[#8E98A8]">
+            <span data-testid="review-prompts-counts">
+              {validatedReviewPrompts.filter(v => v.navigable).length} of {validatedReviewPrompts.length} prompts actionable
+            </span>
+            {validatedReviewPrompts.some(v => !v.navigable) && (
+              <span className="text-[#F59E0B]" data-testid="review-prompts-unmapped">
+                {validatedReviewPrompts.filter(v => !v.navigable).length} prompt{validatedReviewPrompts.filter(v => !v.navigable).length === 1 ? '' : 's'} informational only
+              </span>
+            )}
+          </div>
+        </section>
+      )}
+
       {/* 2. HERO COMPOSITION — LEFT CONTENT + RIGHT VISUAL SCENE */}
       {nextBestActionTask ? (
         <section
@@ -776,6 +1008,36 @@ export const DashboardView: React.FC = () => {
                 <Play className="size-3 mr-1" /> Start Drill
               </Button>
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* Primary Review Prompt CTA — navigates to the first actionable review prompt */}
+      {primaryReviewPromptDeepLink && (
+        <section className="bg-[#14171D] border border-[#10B981]/40 rounded-xl p-5 space-y-3" data-testid="primary-review-prompt-cta">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-xs font-semibold text-[#6EE7B7] uppercase tracking-wider">
+                <AlertCircle className="size-3.5 text-[#10B981]" />
+                Review Prompt
+              </div>
+              <p className="text-xs text-[#8E98A8] leading-relaxed max-w-2xl">
+                {validatedReviewPrompts.find(v => v.navigable && v.targetId)?.prompt?.description || 'Your analytics telemetry produced an actionable review signal.'}
+              </p>
+            </div>
+
+            <Button
+              size="sm"
+              onClick={() => {
+                if (primaryReviewPromptDeepLink) {
+                  setRoute(primaryReviewPromptDeepLink.route, primaryReviewPromptDeepLink.targetId);
+                }
+              }}
+              className="text-xs font-semibold bg-[#10B981] hover:bg-[#34D399] text-[#0D0F12] rounded-md h-9 px-3.5 flex items-center gap-1.5 shrink-0"
+            >
+              <ArrowRight className="size-3.5" />
+              Open Review
+            </Button>
           </div>
         </section>
       )}

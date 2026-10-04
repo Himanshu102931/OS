@@ -6,11 +6,18 @@ import {
   isAttemptExpired,
   deriveWeeklyAssessmentReadout,
 } from '../../engine/assessmentEngine';
+import {
+  resolveAssessmentLearningTargets,
+  getPrimaryAssessmentAction,
+  getAssessmentTargetDeepLink,
+  type AssessmentLearningTarget,
+} from '../../engine/assessmentIntegration';
 import type {
   AssessmentConfidence,
   AssessmentItem,
   AssessmentExecutionResult,
 } from '../../types';
+import type { RoutePath } from '../../context/PlacementContext';
 import {
   Clock,
   AlertTriangle,
@@ -32,6 +39,7 @@ import {
   Briefcase,
   Code2,
 } from 'lucide-react';
+import { Button } from '../ui/button';
 
 /**
  * Editable draft for the active item, derived from its recorded response.
@@ -69,6 +77,19 @@ export const AssessmentRunnerView: React.FC = () => {
     selectedCompanyOverlayId,
     setSelectedCompanyOverlayId,
     companyAssessmentOverlayResult,
+    skillStates,
+    practiceSessions: allPracticeSessions,
+    practiceAttempts,
+    dsaProblems,
+    dsaProgress,
+    taskDefinitions,
+    taskProgress,
+    topics,
+    domains,
+    preparationTopics,
+    preparationTopicProgress,
+    activePhase,
+    todayDate,
   } = usePlacement();
 
   // Active question index
@@ -208,6 +229,103 @@ export const AssessmentRunnerView: React.FC = () => {
       BASELINE_ASSESSMENT_ITEMS
     );
   }, [activeWeeklyAttempt, assessmentState]);
+
+  // Assessment-derived learning targets (§7) — computed from canonical assessment signals
+  // Reuses Task 4's remediationRouter via assessmentIntegration adapter
+  const assessmentTargets = useMemo(() => {
+    if (!assessmentProfileReadout?.isAssessed) return { targets: [] as AssessmentLearningTarget[], summary: 'Assessment not yet completed.' };
+    return resolveAssessmentLearningTargets({
+      domainResults: assessmentState?.domainResults || [],
+      weaknessSignals: assessmentState?.weaknessSignals || [],
+      assessmentProfileReadout,
+      companyOverlays,
+      skillStates,
+      practiceSessions: allPracticeSessions,
+      practiceAttempts,
+      dsaProblems,
+      dsaProgressMap: dsaProgress,
+      tasks: taskDefinitions,
+      taskProgressMap: taskProgress,
+      topics,
+      domains,
+      preparationTopics,
+      preparationTopicProgress,
+      activePhase,
+      todayStr: todayDate,
+      selectedCompanyId: selectedCompanyOverlayId ?? undefined,
+    });
+  }, [
+    assessmentProfileReadout,
+    assessmentState,
+    companyOverlays,
+    skillStates,
+    allPracticeSessions,
+    practiceAttempts,
+    dsaProblems,
+    dsaProgress,
+    taskDefinitions,
+    taskProgress,
+    topics,
+    domains,
+    preparationTopics,
+    preparationTopicProgress,
+    activePhase,
+    todayDate,
+    selectedCompanyOverlayId,
+  ]);
+
+  // Primary assessment action for CTA
+  const primaryAssessmentAction = useMemo(() => {
+    if (!assessmentProfileReadout?.isAssessed) return null;
+    return getPrimaryAssessmentAction({
+      domainResults: assessmentState?.domainResults || [],
+      weaknessSignals: assessmentState?.weaknessSignals || [],
+      assessmentProfileReadout,
+      companyOverlays,
+      skillStates,
+      practiceSessions: allPracticeSessions,
+      practiceAttempts,
+      dsaProblems,
+      dsaProgressMap: dsaProgress,
+      tasks: taskDefinitions,
+      taskProgressMap: taskProgress,
+      topics,
+      domains,
+      preparationTopics,
+      preparationTopicProgress,
+      activePhase,
+      todayStr: todayDate,
+      selectedCompanyId: selectedCompanyOverlayId ?? undefined,
+    }, 60);
+  }, [
+    assessmentProfileReadout,
+    assessmentState,
+    companyOverlays,
+    skillStates,
+    allPracticeSessions,
+    practiceAttempts,
+    dsaProblems,
+    dsaProgress,
+    taskDefinitions,
+    taskProgress,
+    topics,
+    domains,
+    preparationTopics,
+    preparationTopicProgress,
+    activePhase,
+    todayDate,
+    selectedCompanyOverlayId,
+  ]);
+
+  const primaryActionDeepLink = useMemo(() => {
+    if (!primaryAssessmentAction) return null;
+    return getAssessmentTargetDeepLink(primaryAssessmentAction, {
+      preparationTopics,
+      practiceSessions: allPracticeSessions,
+      dsaProblems,
+      tasks: taskDefinitions,
+    });
+  }, [primaryAssessmentAction, preparationTopics, allPracticeSessions, dsaProblems, taskDefinitions]);
 
   // ---------------------------------------------------------------------------
   // View 1: Active Assessment Runner
@@ -780,6 +898,71 @@ export const AssessmentRunnerView: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Assessment-Derived Learning Targets (§7) — Plain-language view of how assessment is shaping the learning plan */}
+            {assessmentTargets.targets.length > 0 && (
+              <section
+                aria-label="Assessment Learning Targets"
+                className="bg-[#14171D] border border-[#38BDF8]/40 rounded-xl p-5 space-y-3"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-[#93C5FD] uppercase tracking-wider">
+                    <Activity className="size-3.5 text-[#38BDF8]" />
+                    Assessment Learning Targets
+                  </div>
+                </div>
+
+                <p className="text-sm text-[#8E98A8] leading-relaxed">
+                  {assessmentTargets.summary}
+                </p>
+
+                {assessmentTargets.targets.length > 0 && (
+                  <ol className="space-y-1.5">
+                    {assessmentTargets.targets.slice(0, 3).map((target, index) => (
+                      <li key={`${target.kind}-${target.targetId}`} className="flex items-start gap-2 text-xs">
+                        <span className="font-mono text-[#5C6675] shrink-0 w-4 text-right">{index + 1}.</span>
+                        <span className="text-[#F1F5F9]">{target.title}</span>
+                        <span className="text-[#8E98A8]">— {target.reason}</span>
+                        <span className="text-[#5C6675] ml-auto font-mono">{target.estimatedMinutes} min</span>
+                      </li>
+                    ))}
+                    {assessmentTargets.targets.length > 3 && (
+                      <li className="text-xs text-[#5C6675] flex items-start gap-2">
+                        <span className="font-mono shrink-0 w-4 text-right">+</span>
+                        <span>{assessmentTargets.targets.length - 3} more target{assessmentTargets.targets.length - 3 > 1 ? 's' : ''} available in Today's Session</span>
+                      </li>
+                    )}
+                  </ol>
+                )}
+              </section>
+            )}
+
+            {/* Assessment CTA — navigates to first available assessment-derived target */}
+            {primaryActionDeepLink && (
+              <div className="bg-[#14171D] border border-[#E5A93C]/40 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-[#FFC665] uppercase tracking-wider">
+                    <ArrowRight className="size-3.5 text-[#E5A93C]" />
+                    Next Assessment Action
+                  </div>
+                  <p className="text-xs text-[#8E98A8] max-w-2xl leading-relaxed">
+                    {primaryAssessmentAction?.reason || 'Continue learning based on your assessment results.'}
+                  </p>
+                </div>
+
+                <Button
+                    onClick={() => {
+                      if (primaryActionDeepLink) {
+                        setRoute(primaryActionDeepLink.route as RoutePath, primaryActionDeepLink.targetId);
+                      }
+                    }}
+                    className="px-5 py-2.5 rounded text-xs font-semibold bg-[#E5A93C] text-[#0D0F12] hover:bg-[#FFC665] transition-colors whitespace-nowrap shadow-sm shrink-0 flex items-center gap-1.5"
+                  >
+                    <span>Start Next Action</span>
+                    <ArrowRight className="size-3.5" />
+                  </Button>
+              </div>
+            )}
 
             {/* Sunday Mini Test Integration Card (§15, §18) */}
             <div className="bg-[#14171D] border border-[#262D38] rounded-lg p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">

@@ -6,6 +6,9 @@ import type {
   EvidenceLog,
 } from '../../types';
 import { evaluatePracticeAttempt } from '../../engine/practiceEngine';
+import { resolvePracticeContinuation } from '../../engine/practiceContinuation';
+import { usePlacement } from '../../context/PlacementContext';
+import type { RoutePath } from '../../context/PlacementContext';
 import {
   Clock,
   CheckCircle2,
@@ -14,6 +17,7 @@ import {
   HelpCircle,
   ArrowRight,
   Award,
+  Zap,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 
@@ -23,6 +27,7 @@ interface PracticeRunnerModalProps {
   todayISO: string;
   onClose: () => void;
   onCompleteSession: (attempt: PracticeAttempt, evidenceLog: EvidenceLog) => void;
+  onContinuationAction?: (target: { route: RoutePath; targetId: string }) => void;
 }
 
 export const PracticeRunnerModal: React.FC<PracticeRunnerModalProps> = ({
@@ -31,6 +36,7 @@ export const PracticeRunnerModal: React.FC<PracticeRunnerModalProps> = ({
   todayISO,
   onClose,
   onCompleteSession,
+  onContinuationAction,
 }) => {
   if (!isOpen || !session) return null;
 
@@ -41,6 +47,7 @@ export const PracticeRunnerModal: React.FC<PracticeRunnerModalProps> = ({
       todayISO={todayISO}
       onClose={onClose}
       onCompleteSession={onCompleteSession}
+      onContinuationAction={onContinuationAction}
     />
   );
 };
@@ -50,6 +57,7 @@ interface InnerContentProps {
   todayISO: string;
   onClose: () => void;
   onCompleteSession: (attempt: PracticeAttempt, evidenceLog: EvidenceLog) => void;
+  onContinuationAction?: (target: { route: RoutePath; targetId: string }) => void;
 }
 
 const PracticeRunnerModalContent: React.FC<InnerContentProps> = ({
@@ -57,12 +65,30 @@ const PracticeRunnerModalContent: React.FC<InnerContentProps> = ({
   todayISO,
   onClose,
   onCompleteSession,
+  onContinuationAction,
 }) => {
+  const {
+    practiceAttempts,
+    practiceSessions: allPracticeSessions,
+    skillStates,
+    companyOverlays,
+    dsaProblems,
+    dsaProgress,
+    taskDefinitions,
+    taskProgress,
+    topics,
+    domains,
+    preparationTopics,
+    preparationTopicProgress,
+    activePhase,
+  } = usePlacement();
+
   const [currentIdx, setCurrentIdx] = useState(0);
   const [userAnswers, setUserAnswers] = useState<Record<string, PracticeUserAnswer>>({});
   const [secondsElapsed, setSecondsElapsed] = useState(0);
   const [showHint, setShowHint] = useState<Record<string, boolean>>({});
   const [resultSummary, setResultSummary] = useState<{ attempt: PracticeAttempt; evidenceLog: EvidenceLog } | null>(null);
+  const [continuation, setContinuation] = useState<ReturnType<typeof resolvePracticeContinuation> | null>(null);
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -148,6 +174,27 @@ const PracticeRunnerModalContent: React.FC<InnerContentProps> = ({
     const evaluated = evaluatePracticeAttempt(session, answersArray, secondsElapsed, todayISO);
     setResultSummary(evaluated);
     onCompleteSession(evaluated.attempt, evaluated.evidenceLog);
+
+    // Resolve practice continuation (pure, deterministic)
+    const contResult = resolvePracticeContinuation({
+      completedAttempt: evaluated.attempt,
+      completedSession: session,
+      practiceAttempts,
+      practiceSessions: allPracticeSessions,
+      skillStates,
+      companyOverlays,
+      dsaProblems,
+      dsaProgressMap: dsaProgress,
+      tasks: taskDefinitions,
+      taskProgressMap: taskProgress,
+      topics,
+      domains,
+      preparationTopics,
+      preparationTopicProgress,
+      activePhase,
+      todayStr: todayISO,
+    });
+    setContinuation(contResult);
   };
 
   return (
@@ -217,6 +264,59 @@ const PracticeRunnerModalContent: React.FC<InnerContentProps> = ({
                 Recorded {resultSummary.evidenceLog.score}% score evidence in Skills Matrix for <strong>{resultSummary.evidenceLog.topicId}</strong>.
               </p>
             </div>
+
+            {/* CONTINUATION CARD */}
+            {continuation?.continuation && !continuation.continuation.isBlocked && (
+              <div className="bg-gradient-to-r from-[#1B2028] to-[#14171D] border border-[#3B82F6]/40 rounded-xl p-4 space-y-3 animate-slide-in">
+                <div className="flex items-center gap-2 text-xs font-semibold text-[#93C5FD]">
+                  <Zap className="size-3.5 text-[#3B82F6]" />
+                  <span className="uppercase tracking-wider">
+                    {continuation.continuation.kind === 'remediation'
+                      ? 'Remediation Recommended'
+                      : continuation.continuation.kind === 'retrieval'
+                      ? 'Retrieval Practice Available'
+                      : 'Next Practice Available'}
+                  </span>
+                </div>
+
+                <p className="text-sm text-[#F1F5F9] leading-relaxed">{continuation.summary}</p>
+
+                <div className="flex items-center justify-between gap-3 pt-2 border-t border-[#262D38] text-xs">
+                  <div className="flex items-center gap-2 text-[#8E98A8]">
+                    <span className="font-mono text-[#E5A93C]">{continuation.continuation.estimatedMinutes} min</span>
+                    <span>•</span>
+                    <span className="capitalize">{continuation.continuation.domainId}</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      onContinuationAction?.({
+                        route: continuation.continuation!.route,
+                        targetId: continuation.continuation!.targetId,
+                      });
+                      onClose();
+                    }}
+                    className="h-9 px-4 font-bold text-xs bg-[#3B82F6] hover:bg-[#60A5FA] text-[#0D0F12] rounded-md shrink-0"
+                  >
+                    <ArrowRight className="size-3.5 mr-1.5" />
+                    Continue
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* BLOCKED CONTINUATION NOTICE */}
+            {continuation?.continuation && continuation.continuation.isBlocked && (
+              <div className="bg-[#1B2028] border border-[#F59E0B]/40 rounded-lg p-3 text-xs text-[#F59E0B]">
+                <div className="flex items-center gap-1.5 font-semibold text-[#F59E0B]">
+                  <HelpCircle className="size-3.5" />
+                  Next step is blocked
+                </div>
+                <p className="mt-1">
+                  {continuation.continuation.blockingReason || 'Prerequisites not yet satisfied.'}
+                </p>
+              </div>
+            )}
 
             <div className="flex items-center justify-end gap-3 pt-2">
               <Button

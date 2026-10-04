@@ -35,6 +35,7 @@ import {
   DSA_PROBLEMS,
 } from '../data/seedData';
 import { PRACTICE_SESSIONS } from '../data/practiceDataset';
+import { PREPARATION_TOPICS } from '../data/preparationDataset';
 import { StorageAdapter, DEFAULT_USER_SETTINGS, type AppStorageState } from '../storage/storageAdapter';
 import { getPreparationTopicIdByRoadmapId } from '../data/preparationDataset';
 import { applyTaskStateUpdate, applyTaskStateRestore, type TaskStateAction, type TaskStateRestore } from '../engine/taskStateEngine';
@@ -118,6 +119,7 @@ interface PlacementContextType {
   evidenceLogs: EvidenceLog[];
   practiceSessions: PracticeSessionDefinition[];
   practiceAttempts: PracticeAttempt[];
+  preparationTopics: PreparationTopic[];
   preparationTopicProgress: Record<string, PreparationTopicProgress>;
   activePhase: Phase;
   updateTaskState: (taskId: string, newState: TaskProgress['state'], action?: TaskStateAction) => void;
@@ -1078,6 +1080,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         evidenceLogs: appState.evidenceLogs || [],
         practiceSessions: PRACTICE_SESSIONS,
         practiceAttempts: appState.practiceAttempts || [],
+        preparationTopics: PREPARATION_TOPICS,
         preparationTopicProgress: appState.preparationTopicProgress || {},
         assessmentState: appState.assessmentState,
         activePhase,

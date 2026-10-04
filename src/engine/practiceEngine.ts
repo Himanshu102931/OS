@@ -198,8 +198,9 @@ export function summarizePracticeAnswers(
   session: PracticeSessionDefinition,
   attempt: PracticeAttempt
 ): PracticeAnswerSummary {
+  const userAnswers = attempt.userAnswers || [];
   const unansweredQuestionIds = session.questions
-    .filter((q) => !hasSubstantiveAnswer(attempt.userAnswers.find((a) => a.questionId === q.id)))
+    .filter((q) => !hasSubstantiveAnswer(userAnswers.find((a) => a.questionId === q.id)))
     .map((q) => q.id);
 
   return {

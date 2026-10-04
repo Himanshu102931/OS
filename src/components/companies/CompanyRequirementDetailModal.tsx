@@ -1,5 +1,7 @@
 import React from 'react';
 import type { CompanyRequirementMapping } from '../../engine/companyEngine';
+import { validateCompanyRecommendedAction } from '../../engine/companyPlanEngine';
+import { PREPARATION_TOPICS } from '../../data/preparationDataset';
 import { usePlacement } from '../../context/PlacementContext';
 import { buildCompanyGapTrace } from '../../engine/evidenceTrace';
 import { EvidenceTracePanel } from '../evidence/EvidenceTracePanel';
@@ -28,17 +30,28 @@ export const CompanyRequirementDetailModal: React.FC<CompanyRequirementDetailMod
   isOpen,
   onClose,
 }) => {
-  const { setRoute } = usePlacement();
+  const { setRoute, dsaProblems, taskDefinitions, topics, practiceSessions } = usePlacement();
   const catalog = useEvidenceCatalog();
 
   if (!isOpen || !requirement) return null;
 
   const requirementTrace = buildCompanyGapTrace(requirement, catalog);
 
+  // §7/§13 — validate the recommended action against the canonical datasets
+  // BEFORE navigating. An unresolvable targetId keeps the action informational
+  // instead of deep-linking to something that does not exist.
+  const actionCheck = validateCompanyRecommendedAction(requirement.recommendedAction, {
+    dsaProblems,
+    tasks: taskDefinitions,
+    topics,
+    preparationTopics: PREPARATION_TOPICS,
+    practiceSessions,
+  });
+
   const handleActionClick = () => {
+    if (!actionCheck.navigable) return;
     onClose();
-    const { route, targetId } = requirement.recommendedAction;
-    setRoute(route, targetId);
+    setRoute(actionCheck.route, actionCheck.targetId);
   };
 
   const getStatusBadge = () => {
@@ -171,15 +184,27 @@ export const CompanyRequirementDetailModal: React.FC<CompanyRequirementDetailMod
             <div className="text-xs">
               <span className="text-[#8E98A8]">Recommended Next Action: </span>
               <span className="font-bold text-[#FFC665]">{requirement.recommendedAction.label}</span>
+              {!actionCheck.navigable && (
+                <span className="block text-[11px] text-[#8E98A8] mt-1" data-testid="company-action-unavailable">
+                  {actionCheck.reason}
+                </span>
+              )}
             </div>
 
-            <Button
-              size="sm"
-              onClick={handleActionClick}
-              className="text-xs bg-[#E5A93C] hover:bg-[#FFC665] text-[#0D0F12] font-bold rounded-[4px] w-full sm:w-auto"
-            >
-              Execute Preparation Action <ArrowRight className="size-3.5 ml-1" />
-            </Button>
+            {actionCheck.navigable ? (
+              <Button
+                size="sm"
+                onClick={handleActionClick}
+                data-testid="company-action-execute"
+                className="text-xs bg-[#E5A93C] hover:bg-[#FFC665] text-[#0D0F12] font-bold rounded-[4px] w-full sm:w-auto"
+              >
+                Execute Preparation Action <ArrowRight className="size-3.5 ml-1" />
+              </Button>
+            ) : (
+              <span className="text-xs text-[#8E98A8] border border-[#262D38] bg-[#1B2028] px-2.5 py-1 rounded-[4px] w-full sm:w-auto text-center">
+                No linked workspace
+              </span>
+            )}
           </div>
         </div>
       </div>

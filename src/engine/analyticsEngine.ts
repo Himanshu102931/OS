@@ -34,10 +34,23 @@ interface ActivityTelemetry {
   dsaPassedCount: number;
   dsaIndependentPassedCount: number;
   dsaAssistedPassedCount: number;
+  /**
+   * Total study minutes in window (from sealed check-ins and task progress).
+   * INTENTIONALLY UNUSED for priority/scoring — this is informational telemetry
+   * only. The adaptive engine is the canonical priority authority and does not
+   * consume studyMinutes. Connecting it would require a new priority factor
+   * or behavior engine, which is out of scope.
+   */
   studyMinutes: number;
   studyHours: string;
   sealedDaysCount: number;
   totalDaysInWindow: number;
+  /**
+   * Percentage of days in window with a sealed check-in.
+   * INTENTIONALLY UNUSED for priority/scoring — informational telemetry only.
+   * The adaptive engine does not consume consistencyRate. Connecting it would
+   * require a new priority factor or behavior engine, which is out of scope.
+   */
   consistencyRate: number; // 0 - 100%
 }
 
@@ -424,6 +437,12 @@ export function evaluateAnalyticsTelemetry(
     });
   }
 
+  // low_independence is intentionally informational (no targetId).
+  // This signal is an aggregate across ALL DSA attempts in the window — it does
+  // not identify a specific problem, topic, or canonical target. Deriving a
+  // targetId would require either fuzzy matching (forbidden) or fabricating an
+  // arbitrary practice session (forbidden). The prompt remains visible as a
+  // gap indicator; the user navigates to the DSA workspace to act on it.
   if (windowAttempts.length >= 3 && independentSolveRatio < 50) {
     reviewPrompts.push({
       id: 'prompt-low-independence',

@@ -6,6 +6,7 @@ import { getRecommendedPracticeSession, getPracticeCategoryStats } from '../../e
 import { PracticeRunnerModal } from './PracticeRunnerModal';
 import { GuideTrigger } from '../guide/GuideTrigger';
 import type { PracticeSessionDefinition, PracticeCategory } from '../../types';
+import type { RoutePath } from '../../context/PlacementContext';
 import {
   Sparkles,
   Award,
@@ -226,6 +227,13 @@ export const PracticeView: React.FC = () => {
             session?.advanceActivity('completed');
             setRoute('dashboard');
           }
+        }}
+        onContinuationAction={({ route, targetId }: { route: RoutePath; targetId: string }) => {
+          setActiveSession(null);
+          if (deepLinkedSession) {
+            setDismissedTargetId(routeState.targetId ?? null);
+          }
+          setRoute(route, targetId);
         }}
       />
     </div>
