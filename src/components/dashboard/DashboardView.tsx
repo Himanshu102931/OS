@@ -49,7 +49,7 @@ export const DashboardView: React.FC = () => {
     dailyTaskAssignments, commitDailyPlan, sealDayExecution,
     decomposeTask, practiceSessions, practiceAttempts,
     recordPracticeAttempt, evidenceLogs, pendingSundayObligation,
-    preparationTopicProgress, assessmentProfileReadout,
+    preparationTopicProgress, assessmentProfileReadout, assessmentState,
   } = usePlacement();
   const evidenceCatalog = useEvidenceCatalog();
 
@@ -214,8 +214,10 @@ export const DashboardView: React.FC = () => {
       targetCompanyId: selectedCompanyId || undefined,
       dsaAttempts,
       evidenceLogs,
+      domainResults: assessmentState?.domainResults ?? [],
+      weaknessSignals: assessmentState?.weaknessSignals ?? [],
     }),
-    [taskDefinitions, taskProgress, dsaProblems, dsaProgress, topics, domains, skillStates, companyOverlays, currentMode, todayDate, todayAssignments, analyticsTelemetry, practiceAttempts, practiceSessions, preparationTopicProgress, assessmentProfileReadout, activePhase, selectedCompanyId, dsaAttempts, evidenceLogs]
+    [taskDefinitions, taskProgress, dsaProblems, dsaProgress, topics, domains, skillStates, companyOverlays, currentMode, todayDate, todayAssignments, analyticsTelemetry, practiceAttempts, practiceSessions, preparationTopicProgress, assessmentProfileReadout, activePhase, selectedCompanyId, dsaAttempts, evidenceLogs, assessmentState]
   );
 
   const reviewCandidates = reviewSchedule.candidates;
@@ -344,7 +346,7 @@ export const DashboardView: React.FC = () => {
         setRoute('dsa', activity.targetId);
         break;
       case 'roadmap':
-        setRoute('roadmap');
+        setRoute('roadmap', activity.targetId);
         break;
       case 'preparation':
         setRoute('preparation', activity.targetId);
@@ -428,8 +430,8 @@ export const DashboardView: React.FC = () => {
       practiceAttempts={practiceAttempts}
       preparationTopics={PREPARATION_TOPICS}
       preparationTopicProgress={preparationTopicProgress}
-      domainResults={[]}
-      weaknessSignals={[]}
+      domainResults={assessmentState?.domainResults ?? []}
+      weaknessSignals={assessmentState?.weaknessSignals ?? []}
       assessmentProfileReadout={assessmentProfileReadout}
       activePhase={activePhase.order}
       todayAssignments={todayAssignments}

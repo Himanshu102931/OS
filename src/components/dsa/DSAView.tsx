@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePlacement } from '../../context/PlacementContext';
+import { useSession } from '../dashboard/SessionContext';
 import { DSAAttemptModal } from './DSAAttemptModal';
 import { TaskLearningWorkspaceDrawer } from '../common/TaskLearningWorkspaceDrawer';
 import type { DSAProblem, DSAAttempt, DSAProgress } from '../../types';
@@ -18,10 +19,28 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/button';
 
-export const DSAView: React.FC = () => {
-  const { dsaProblems, dsaProgress, logDSAAttempt, activePhase, updateDSAProgress, todayDate } =
-    usePlacement();
+function useSafeSession() {
+  try {
+    return useSession();
+  } catch {
+    return null;
+  }
+}
 
+export const DSAView: React.FC = () => {
+  const {
+    dsaProblems,
+    dsaProgress,
+    logDSAAttempt,
+    activePhase,
+    updateDSAProgress,
+    todayDate,
+    routeState,
+    setRoute,
+  } = usePlacement();
+  const session = useSafeSession();
+
+  const [dismissedTargetId, setDismissedTargetId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'journey' | 'bank' | 'patterns'>('journey');
   const [selectedProblemForAttempt, setSelectedProblemForAttempt] = useState<DSAProblem | null>(
     null
@@ -30,6 +49,28 @@ export const DSAView: React.FC = () => {
     useState<DSAProblem | null>(null);
   const [isAttemptModalOpen, setIsAttemptModalOpen] = useState<boolean>(false);
   const [isWorkspaceOpen, setIsWorkspaceOpen] = useState<boolean>(false);
+
+  // Derive deep-linked problem directly from canonical route state
+  const isDeepLinked =
+    routeState.route === 'dsa' &&
+    Boolean(routeState.targetId) &&
+    routeState.targetId !== dismissedTargetId;
+
+  const deepLinkedProblem = isDeepLinked
+    ? dsaProblems.find((p) => p.id === routeState.targetId) ?? null
+    : null;
+
+  const isDeepLinkedRemediation = Boolean(
+    deepLinkedProblem && dsaProgress[deepLinkedProblem.id]?.remediationRequired
+  );
+
+  const effectiveAttemptProblem =
+    selectedProblemForAttempt ?? (deepLinkedProblem && !isDeepLinkedRemediation ? deepLinkedProblem : null);
+  const isAttemptVisible = isAttemptModalOpen || Boolean(deepLinkedProblem && !isDeepLinkedRemediation);
+
+  const effectiveWorkspaceProblem =
+    selectedProblemForWorkspace ?? (deepLinkedProblem && isDeepLinkedRemediation ? deepLinkedProblem : null);
+  const isWorkspaceVisible = isWorkspaceOpen || Boolean(deepLinkedProblem && isDeepLinkedRemediation);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -100,6 +141,11 @@ export const DSAView: React.FC = () => {
     evidenceScore: number
   ) => {
     logDSAAttempt(attempt, updatedProgress, evidenceScore);
+    if (deepLinkedProblem) {
+      setDismissedTargetId(routeState.targetId ?? null);
+      session?.advanceActivity('completed');
+      setRoute('dashboard');
+    }
   };
 
   return (
@@ -420,26 +466,40 @@ export const DSAView: React.FC = () => {
       )}
 
       {/* Modals & Drawers */}
-      {selectedProblemForAttempt && (
+      {effectiveAttemptProblem && (
         <DSAAttemptModal
-          problem={selectedProblemForAttempt}
-          progress={dsaProgress[selectedProblemForAttempt.id]}
-          isOpen={isAttemptModalOpen}
+          problem={effectiveAttemptProblem}
+          progress={dsaProgress[effectiveAttemptProblem.id]}
+          isOpen={isAttemptVisible}
           onClose={() => {
             setIsAttemptModalOpen(false);
             setSelectedProblemForAttempt(null);
+            if (deepLinkedProblem) {
+              setDismissedTargetId(routeState.targetId ?? null);
+              setRoute('dashboard');
+            }
           }}
           onSubmitAttempt={handleSubmitAttempt}
         />
       )}
 
       <TaskLearningWorkspaceDrawer
-        dsaProblem={selectedProblemForWorkspace || undefined}
-        dsaProgress={selectedProblemForWorkspace ? dsaProgress[selectedProblemForWorkspace.id] : undefined}
-        isOpen={isWorkspaceOpen}
+        dsaProblem={effectiveWorkspaceProblem || undefined}
+        dsaProgress={effectiveWorkspaceProblem ? dsaProgress[effectiveWorkspaceProblem.id] : undefined}
+        isOpen={isWorkspaceVisible}
         onClose={() => {
           setIsWorkspaceOpen(false);
           setSelectedProblemForWorkspace(null);
+          if (deepLinkedProblem) {
+            setDismissedTargetId(routeState.targetId ?? null);
+            setRoute('dashboard');
+          }
+        }}
+        onOpenAttemptModal={(problem) => {
+          setIsWorkspaceOpen(false);
+          setSelectedProblemForWorkspace(null);
+          setSelectedProblemForAttempt(problem);
+          setIsAttemptModalOpen(true);
         }}
         onUpdateDSAProgress={updateDSAProgress}
       />

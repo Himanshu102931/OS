@@ -57,7 +57,6 @@ export const SessionModals: React.FC<SessionModalsProps> = ({
         todayISO={todayDate}
         onClose={() => {
           setActivePracticeSession(null);
-          advanceActivity('completed');
         }}
         onCompleteSession={(attempt, evidenceLog) => {
           recordPracticeAttempt(attempt, evidenceLog);
@@ -70,7 +69,6 @@ export const SessionModals: React.FC<SessionModalsProps> = ({
         isOpen={isFocusModalOpen}
         onClose={() => {
           setIsFocusModalOpen(false);
-          advanceActivity('completed');
         }}
         onComplete={() => {
           if (nextBestActionTask) handleUpdateTaskStateWithToast(nextBestActionTask.id, 'completed');

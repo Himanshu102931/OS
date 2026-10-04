@@ -316,7 +316,14 @@ export interface EvidenceLog {
   score: number; // 0 - 100
   confidence: 1 | 2 | 3 | 4 | 5;
   timestamp: string; // ISO timestamp
-  sourceType: 'daily_assignment' | 'dsa_attempt' | 'test' | 'mock_interview' | 'project_feature' | 'practice_session';
+  sourceType:
+    | 'daily_assignment'
+    | 'dsa_attempt'
+    | 'test'
+    | 'mock_interview'
+    | 'project_feature'
+    | 'practice_session'
+    | 'preparation_lesson';
   sourceId: string;
   details?: string;
 }

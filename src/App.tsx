@@ -16,6 +16,7 @@ import { InterviewReadinessView } from './components/interview/InterviewReadines
 import { GuideOverlay } from './components/guide/GuideOverlay';
 import { GuideProvider } from './components/guide/GuideContext';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
+import { SessionProvider } from './components/dashboard/SessionProvider';
 
 const MainContent: React.FC = () => {
   const { currentRoute } = usePlacement();
@@ -55,10 +56,12 @@ function App() {
     <PlacementProvider>
       <GuideProvider>
         <ErrorBoundary>
-          <AppShell>
-            <MainContent />
-            <GuideOverlay />
-          </AppShell>
+          <SessionProvider>
+            <AppShell>
+              <MainContent />
+              <GuideOverlay />
+            </AppShell>
+          </SessionProvider>
         </ErrorBoundary>
       </GuideProvider>
     </PlacementProvider>

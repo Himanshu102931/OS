@@ -740,10 +740,11 @@ export const AssessmentRunnerView: React.FC = () => {
 
                 <div className="flex items-center gap-3">
                   <button
+                    data-testid="continue-to-today-btn"
                     onClick={() => setRoute('dashboard')}
                     className="px-4 py-2 rounded text-xs font-medium bg-[#E5A93C] text-[#0D0F12] font-semibold hover:bg-[#D4982B] flex items-center gap-1.5 transition-colors"
                   >
-                    <span>View Today Plan</span>
+                    <span>Continue to Today's Session</span>
                     <ArrowRight className="size-3.5" />
                   </button>
                 </div>
@@ -1482,22 +1483,32 @@ export const AssessmentRunnerView: React.FC = () => {
                 <span>Weekly Calibration Report</span>
               </h3>
 
-              {completedWeeklyAttempts.length > 1 && (
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="text-[#8E98A8]">Test Date:</span>
-                  <select
-                    value={activeWeeklyAttempt?.id}
-                    onChange={(e) => setSelectedWeeklyAttemptId(e.target.value)}
-                    className="bg-[#1B2028] border border-[#262D38] text-[#F1F5F9] rounded px-2.5 py-1 text-xs"
-                  >
-                    {completedWeeklyAttempts.map((a, idx) => (
-                      <option key={a.id} value={a.id}>
-                        Sunday Test #{idx + 1} — {new Date(a.endedAt || a.startedAt).toLocaleDateString()}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <div className="flex items-center gap-3">
+                {completedWeeklyAttempts.length > 1 && (
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-[#8E98A8]">Test Date:</span>
+                    <select
+                      value={activeWeeklyAttempt?.id}
+                      onChange={(e) => setSelectedWeeklyAttemptId(e.target.value)}
+                      className="bg-[#1B2028] border border-[#262D38] text-[#F1F5F9] rounded px-2.5 py-1 text-xs"
+                    >
+                      {completedWeeklyAttempts.map((a, idx) => (
+                        <option key={a.id} value={a.id}>
+                          Sunday Test #{idx + 1} — {new Date(a.endedAt || a.startedAt).toLocaleDateString()}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <button
+                  data-testid="continue-to-today-btn"
+                  onClick={() => setRoute('dashboard')}
+                  className="px-4 py-2 rounded text-xs font-medium bg-[#E5A93C] text-[#0D0F12] font-semibold hover:bg-[#D4982B] flex items-center gap-1.5 transition-colors"
+                >
+                  <span>Continue to Today's Session</span>
+                  <ArrowRight className="size-3.5" />
+                </button>
+              </div>
             </div>
 
             {/* Report Summary Cards */}

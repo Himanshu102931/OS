@@ -18,7 +18,9 @@ import type {
   UserSettings,
   PracticeSessionDefinition,
   PracticeAttempt,
+  PreparationTopic,
   PreparationTopicProgress,
+  TopicStageId,
   AssessmentState,
   AssessmentAttempt,
   AssessmentResponse,
@@ -37,6 +39,7 @@ import { StorageAdapter, DEFAULT_USER_SETTINGS, type AppStorageState } from '../
 import { getPreparationTopicIdByRoadmapId } from '../data/preparationDataset';
 import { applyTaskStateUpdate, applyTaskStateRestore, type TaskStateAction, type TaskStateRestore } from '../engine/taskStateEngine';
 import { applyPracticeAttempt } from '../engine/practiceEngine';
+import { applyPreparationStageCompletion } from '../engine/preparationEngine';
 import {
   buildBaselineAttempt,
   buildSundayMiniTestAttempt,
@@ -147,6 +150,7 @@ interface PlacementContextType {
   updateDSAProgress: (updatedProgress: DSAProgress) => void;
   updateSkillState: (updatedSkillState: TopicSkillState) => void;
   updatePreparationTopicProgress: (updatedProgress: PreparationTopicProgress) => void;
+  completePreparationStage: (topic: PreparationTopic, stage: TopicStageId) => void;
   saveCompanyOverlay: (company: CompanyOverlay) => void;
   deleteCompanyOverlay: (companyId: string) => void;
   decomposeTask: (parentTask: TaskDefinition, subtasks: TaskDefinition[]) => void;
@@ -585,6 +589,43 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         [updatedProgress.topicId]: updatedProgress,
       },
     }));
+  };
+
+  const completePreparationStage = (topic: PreparationTopic, stage: TopicStageId) => {
+    setAppState((prev) => {
+      const existingProg = prev.preparationTopicProgress[topic.id];
+      const existingSkill = prev.skillStates[topic.id];
+      const nowISO = new Date().toISOString();
+
+      const { progress, evidence, skillUpdate } = applyPreparationStageCompletion({
+        topic,
+        stage,
+        existingProgress: existingProg,
+        existingSkill,
+        nowISO,
+      });
+
+      if (!evidence) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        preparationTopicProgress: {
+          ...prev.preparationTopicProgress,
+          [topic.id]: progress,
+        },
+        evidenceLogs: [...(prev.evidenceLogs || []), evidence],
+        ...(skillUpdate
+          ? {
+              skillStates: {
+                ...prev.skillStates,
+                [topic.id]: skillUpdate,
+              },
+            }
+          : {}),
+      };
+    });
   };
 
   const saveCompanyOverlay = (company: CompanyOverlay) => {
@@ -1049,6 +1090,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         updateDSAProgress,
         updateSkillState,
         updatePreparationTopicProgress,
+        completePreparationStage,
         saveCompanyOverlay,
         deleteCompanyOverlay,
         decomposeTask,

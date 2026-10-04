@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import type { PreparationTopic, TopicStageId } from '../../types';
 import { usePlacement } from '../../context/PlacementContext';
+import { useSession } from '../dashboard/SessionContext';
 import {
   evaluateTopicPreparedness,
-  applyStageCompletion,
   selectPreparationStage,
   resolveInitialStage,
   evaluatePrerequisiteStatus,
@@ -34,12 +34,21 @@ interface TopicWorkspaceProps {
   onStartSession?: (sessionId?: string) => void;
 }
 
+function useSafeSession() {
+  try {
+    return useSession();
+  } catch {
+    return null;
+  }
+}
+
 export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
   topic,
   onBackToHub,
   onStartSession,
 }) => {
   const {
+    routeState,
     setRoute,
     skillStates,
     practiceSessions,
@@ -47,7 +56,16 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
     evidenceLogs,
     preparationTopicProgress,
     updatePreparationTopicProgress,
+    completePreparationStage,
   } = usePlacement();
+  const session = useSafeSession();
+  const [dismissedTargetId, setDismissedTargetId] = useState<string | null>(null);
+
+  const isDeepLinked =
+    routeState.route === 'preparation' &&
+    Boolean(routeState.targetId) &&
+    routeState.targetId === topic.id &&
+    routeState.targetId !== dismissedTargetId;
 
   const topicProgress = preparationTopicProgress[topic.id];
 
@@ -112,17 +130,35 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
   };
 
   const handleMarkStageComplete = () => {
-    const updated = applyStageCompletion(
-      topic,
-      topicProgress,
-      activeStage,
-      new Date().toISOString()
-    );
-    updatePreparationTopicProgress(updated);
-    // Follow the persisted cursor so the open stage and the saved stage stay
-    // the same thing — reloading must not land somewhere else.
-    if (topic.stages.includes(updated.currentStage)) {
-      setActiveStage(updated.currentStage);
+    completePreparationStage(topic, activeStage);
+    if (isDeepLinked) {
+      setDismissedTargetId(routeState.targetId ?? null);
+      session?.advanceActivity('completed');
+      setRoute('dashboard');
+    } else {
+      const updatedStages = topicProgress?.completedStages.includes(activeStage)
+        ? topicProgress.completedStages
+        : [...(topicProgress?.completedStages ?? []), activeStage];
+      const nextStage = topic.stages.find((s) => !updatedStages.includes(s)) ?? activeStage;
+      if (topic.stages.includes(nextStage)) {
+        setActiveStage(nextStage);
+      }
+    }
+  };
+
+  const handleCompleteActivity = () => {
+    completePreparationStage(topic, activeStage);
+    setDismissedTargetId(routeState.targetId ?? null);
+    session?.advanceActivity('completed');
+    setRoute('dashboard');
+  };
+
+  const handleBack = () => {
+    if (isDeepLinked) {
+      setDismissedTargetId(routeState.targetId ?? null);
+      setRoute('dashboard');
+    } else if (onBackToHub) {
+      onBackToHub();
     }
   };
 
@@ -184,16 +220,53 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Active Session Deep Link Banner */}
+      {isDeepLinked && (
+        <div
+          data-testid="session-deep-link-banner"
+          className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-[#E5A93C]/10 border border-[#E5A93C]/30 rounded-[6px]"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="w-2 h-2 rounded-full bg-[#E5A93C] animate-pulse shrink-0" />
+            <div>
+              <div className="text-xs font-semibold text-[#F1F5F9]">
+                Active Adaptive Session Activity
+              </div>
+              <div className="text-[11px] text-[#8E98A8]">
+                Reviewing foundational concept for {topic.title}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setDismissedTargetId(routeState.targetId ?? null);
+                setRoute('dashboard');
+              }}
+              className="px-3 py-1.5 text-xs text-[#8E98A8] hover:text-[#F1F5F9] rounded border border-[#262D38] bg-[#14171D] transition-all"
+            >
+              Return to Session
+            </button>
+            <button
+              onClick={handleCompleteActivity}
+              className="px-3 py-1.5 text-xs font-semibold text-[#0B0D10] bg-[#E5A93C] hover:bg-[#F5B94C] rounded transition-all shadow-sm"
+            >
+              Complete Activity & Advance
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Navigation Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[#262D38]">
         <div className="flex items-center gap-3">
-          {onBackToHub && (
+          {(onBackToHub || isDeepLinked) && (
             <button
-              onClick={onBackToHub}
+              onClick={handleBack}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] bg-[#14171D] border border-[#262D38] text-xs text-[#8E98A8] hover:text-[#F1F5F9] hover:border-[#3B4556] transition-all"
             >
               <ArrowLeft className="size-3.5" />
-              <span>Preparation Hub</span>
+              <span>{isDeepLinked ? 'Back to Today' : 'Preparation Hub'}</span>
             </button>
           )}
           <div className="flex items-center gap-2 text-xs text-[#8E98A8]">

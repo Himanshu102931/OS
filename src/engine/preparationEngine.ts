@@ -11,10 +11,11 @@ import type {
   TaskProgress,
   DomainAssessmentResult,
   AssessmentState,
+  EvidenceLog,
 } from '../types';
 
 /** Stages that establish curriculum coverage (the knowledge arc). */
-const COVERAGE_STAGES: TopicStageId[] = ['orient', 'learn'];
+export const COVERAGE_STAGES: TopicStageId[] = ['orient', 'learn'];
 
 /** Accuracy at or above this is considered proof of assessed coverage/competence. */
 const ASSESSMENT_PASS_PCT = 70;
@@ -268,6 +269,89 @@ export function applyStageCompletion(
     freshness: existing?.freshness ?? 'untested',
     createdAt: existing?.createdAt ?? nowISO,
     updatedAt: nowISO,
+  };
+}
+
+export interface PreparationCompletionParams {
+  topic: PreparationTopic;
+  stage: TopicStageId;
+  existingProgress?: PreparationTopicProgress;
+  existingSkill?: TopicSkillState;
+  nowISO?: string;
+}
+
+export interface PreparationCompletionResult {
+  progress: PreparationTopicProgress;
+  evidence: EvidenceLog | null;
+  skillUpdate: TopicSkillState | null;
+}
+
+/**
+ * Pure transition for genuine Preparation stage completion.
+ *
+ * Emits canonical EvidenceLog and updates TopicSkillState.
+ *
+ * Idempotency: If `stage` is already in `existingProgress.completedStages`,
+ * returns null evidence and null skillUpdate to guarantee no duplicate emission.
+ *
+ * Capability vs Evidence: Lesson completion contributes foundational conceptual
+ * evidence (+15 per stage, capped at 35) and sets freshness to 'fresh'. It never
+ * exceeds MIN_DEMONSTRATED_EVIDENCE_STRENGTH (40), preserving capability proof as
+ * strictly requiring practice drills or assessments.
+ */
+export function applyPreparationStageCompletion(
+  params: PreparationCompletionParams
+): PreparationCompletionResult {
+  const { topic, stage, existingProgress, existingSkill, nowISO = new Date().toISOString() } = params;
+
+  // Duplicate guard: already completed stages never emit duplicate evidence or skill updates
+  if (existingProgress?.completedStages.includes(stage)) {
+    return {
+      progress: existingProgress,
+      evidence: null,
+      skillUpdate: null,
+    };
+  }
+
+  const updatedProgress = applyStageCompletion(topic, existingProgress, stage, nowISO);
+
+  const evidence: EvidenceLog = {
+    id: `evidence-prep-${topic.id}-${stage}-${Date.parse(nowISO) || Date.now()}`,
+    topicId: topic.id,
+    domainId: topic.domainId,
+    score: 70,
+    confidence: 3,
+    timestamp: nowISO,
+    sourceType: 'preparation_lesson',
+    sourceId: `${topic.id}:${stage}`,
+    details: `Preparation stage "${stage}" completed for ${topic.title}`,
+  };
+
+  const oldStrength = existingSkill?.evidenceStrength ?? existingProgress?.evidenceStrength ?? 0;
+  // Conceptual evidence contribution capped at 35 so demonstrated competence (>= 40)
+  // strictly requires practice sessions or assessments.
+  const newStrength = Math.min(35, oldStrength + 15);
+
+  const skillUpdate: TopicSkillState = {
+    ...existingSkill,
+    topicId: topic.id,
+    domainId: topic.domainId,
+    lastPracticedAt: nowISO,
+    freshness: 'fresh',
+    evidenceStrength: newStrength,
+  };
+
+  const progressWithEvidence: PreparationTopicProgress = {
+    ...updatedProgress,
+    evidenceStrength: newStrength,
+    freshness: 'fresh',
+    updatedAt: nowISO,
+  };
+
+  return {
+    progress: progressWithEvidence,
+    evidence,
+    skillUpdate,
   };
 }
 

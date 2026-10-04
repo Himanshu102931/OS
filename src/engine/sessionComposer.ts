@@ -25,6 +25,7 @@ import { type ReviewPrompt } from './analyticsEngine';
 import type { AssessmentProfileReadout } from './assessmentEngine';
 import { PRACTICE_SESSIONS } from '../data/practiceDataset';
 import { PREPARATION_TOPICS } from '../data/preparationDataset';
+import { COVERAGE_STAGES } from './preparationEngine';
 
 /**
  * Session Composer Modes supported by PlacementOS.
@@ -380,6 +381,23 @@ export function composeAdaptiveSession(options: AdaptiveSessionOptions): Session
     if (todayCompletedTargets.has(targetId)) return true;
     const taskProg = (taskProgressMap as Record<string, TaskProgress>)[targetId];
     if (taskProg && (taskProg.state === 'completed' || taskProg.state === 'archived')) return true;
+
+    // Check preparation topic progress
+    const prepProg = (preparationTopicProgress as Record<string, PreparationTopicProgress>)[targetId];
+    if (prepProg) {
+      const hasCompletedToday = prepProg.completedStages?.some(
+        (s) => prepProg.stageProgress?.[s]?.completedAt?.startsWith(todayStr)
+      );
+      const hasCoverage = COVERAGE_STAGES.every((s) => prepProg.completedStages?.includes(s));
+      if (hasCompletedToday || hasCoverage) return true;
+    }
+
+    // Check today's canonical evidence logs for this topic
+    const hasEvidenceToday = (evidenceLogs as EvidenceLog[]).some(
+      (l) => l.topicId === targetId && l.timestamp?.startsWith(todayStr)
+    );
+    if (hasEvidenceToday) return true;
+
     return false;
   };
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePlacement } from '../../context/PlacementContext';
+import { useSession } from '../dashboard/SessionContext';
 import { PRACTICE_SESSIONS } from '../../data/practiceDataset';
 import { getRecommendedPracticeSession, getPracticeCategoryStats } from '../../engine/practiceEngine';
 import { PracticeRunnerModal } from './PracticeRunnerModal';
@@ -20,6 +21,14 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/button';
 
+function useSafeSession() {
+  try {
+    return useSession();
+  } catch {
+    return null;
+  }
+}
+
 export const PracticeView: React.FC = () => {
   const {
     practiceAttempts,
@@ -27,10 +36,26 @@ export const PracticeView: React.FC = () => {
     companyOverlays,
     todayDate,
     recordPracticeAttempt,
+    routeState,
+    setRoute,
   } = usePlacement();
+  const session = useSafeSession();
 
+  const [dismissedTargetId, setDismissedTargetId] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<PracticeCategory | 'all'>('all');
   const [activeSession, setActiveSession] = useState<PracticeSessionDefinition | null>(null);
+
+  // Derive deep-linked session directly from canonical route state
+  const isDeepLinked =
+    routeState.route === 'practice' &&
+    Boolean(routeState.targetId) &&
+    routeState.targetId !== dismissedTargetId;
+
+  const deepLinkedSession = isDeepLinked
+    ? PRACTICE_SESSIONS.find((s) => s.id === routeState.targetId) ?? null
+    : null;
+
+  const effectiveSession = activeSession ?? deepLinkedSession;
 
   // Recommendation engine call
   const recommendation = getRecommendedPracticeSession(
@@ -184,12 +209,23 @@ export const PracticeView: React.FC = () => {
 
       {/* Runner Modal */}
       <PracticeRunnerModal
-        session={activeSession}
-        isOpen={!!activeSession}
+        session={effectiveSession}
+        isOpen={!!effectiveSession}
         todayISO={todayDate}
-        onClose={() => setActiveSession(null)}
+        onClose={() => {
+          setActiveSession(null);
+          if (deepLinkedSession) {
+            setDismissedTargetId(routeState.targetId ?? null);
+            setRoute('dashboard');
+          }
+        }}
         onCompleteSession={(attempt, evidenceLog) => {
           recordPracticeAttempt(attempt, evidenceLog);
+          if (deepLinkedSession) {
+            setDismissedTargetId(routeState.targetId ?? null);
+            session?.advanceActivity('completed');
+            setRoute('dashboard');
+          }
         }}
       />
     </div>
