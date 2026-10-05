@@ -32,24 +32,24 @@ export interface TopicReadiness {
   domainId: DomainId;
   domainName: string;
   importance: number; // 1-10
-  
+
   // Scores & Levels
   evidenceStrength: number; // 0 - 100
   currentLevel: number; // 0 - 5 scale
   targetLevel: number; // 1 - 5 scale
-  
+
   freshness: SkillFreshnessState;
   lastPracticedAt?: string;
-  
+
   readinessStatus: ReadinessStatus;
   evidenceClassification: EvidenceClassification;
-  
+
   // Breakdown & Traceability
   supportingEvidence: EvidenceItemSummary[];
   taskEvidenceCount: { total: number; completed: number };
   dsaEvidenceCount: { total: number; attempted: number; mastered: number };
   manualOverrideApplied: boolean;
-  
+
   // Gap analysis
   gapExplanation: string;
   recommendedAction: {
@@ -434,6 +434,94 @@ export function calculateTopicReadiness(
 /**
  * Calculates aggregated domain readiness metrics across all domains.
  */
+export function explainSkillFreshness(
+  skillState: TopicSkillState,
+  todayStr: string
+): {
+  freshness: SkillFreshnessState;
+  explanation: string;
+  latestEvidence?: {
+    sourceType: string;
+    timestamp: string;
+    daysAgo: number;
+    details: string;
+  };
+  daysSinceLastPractice?: number;
+} {
+  const lastPracticedAt = skillState.lastPracticedAt;
+  const daysAgo = lastPracticedAt ? getDaysAgo(lastPracticedAt, todayStr) : undefined;
+
+  let freshness: SkillFreshnessState;
+  const explanationParts: string[] = [];
+  let latestEvidence:
+    | {
+        sourceType: string;
+        timestamp: string;
+        daysAgo: number;
+        details: string;
+      }
+    | undefined;
+
+  // Manual override takes precedence for freshness state
+  if (skillState.manualOverride && skillState.manualOverride.freshness !== 'untested') {
+    freshness = skillState.manualOverride.freshness;
+    explanationParts.push(
+      `Manual rating: ${skillState.manualOverride.freshness} (${skillState.manualOverride.evidenceStrength}% evidence)`
+    );
+    latestEvidence = {
+      sourceType: 'manual_override',
+      timestamp: skillState.manualOverride.updatedAt || lastPracticedAt || '',
+      daysAgo: daysAgo ?? 0,
+      details: `User-rated freshness: ${skillState.manualOverride.freshness}`
+    };
+  } else if (lastPracticedAt !== undefined) {
+    // Deterministic freshness from activity timestamp (same logic as calculateTopicReadiness)
+    if (daysAgo! <= 7) {
+      freshness = 'fresh';
+      explanationParts.push(
+        `Fresh because recent evidence demonstrates the skill. Last practiced ${lastPracticedAt}.`
+      );
+    } else if (daysAgo! <= 14) {
+      freshness = 'aging';
+      explanationParts.push(
+        `Aging because demonstrated evidence is becoming old. Last practiced ${lastPracticedAt}.`
+      );
+    } else {
+      freshness = 'stale';
+      explanationParts.push(
+        `Stale because no sufficiently recent evidence exists. Last practiced ${lastPracticedAt}.`
+      );
+    }
+    latestEvidence = {
+      sourceType: 'practice_attempt',
+      timestamp: lastPracticedAt,
+      daysAgo: daysAgo!,
+      details: `Last practiced ${daysAgo!.toString()} ${daysAgo!.toString() === '1' ? 'day' : 'days'} ago`
+    };
+  } else {
+    freshness = 'untested';
+    explanationParts.push(
+      `Untested because there is insufficient demonstrated evidence. No practice or assessment records found.`
+    );
+    latestEvidence = {
+      sourceType: 'none',
+      timestamp: '',
+      daysAgo: 0,
+      details: 'No practice or assessment records found'
+    };
+  }
+
+  const explanation = explanationParts.join(' ');
+  const daysSinceLastPractice = daysAgo !== undefined ? daysAgo! : undefined;
+
+  return {
+    freshness,
+    explanation,
+    latestEvidence,
+    daysSinceLastPractice,
+  };
+}
+
 export function calculateDomainReadinessList(
   domains: DomainDefinition[],
   topics: Topic[],

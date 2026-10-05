@@ -22,8 +22,10 @@ Unlike generic educational tools or consumer platforms, PlacementOS operates as 
   - **Phase 3** (Feb 1 – Mar 31, 2027): Intensive Mock Drills & Timed Assessments
   - **Phase 4** (Apr 1 – May 31, 2027): Placement Sprint & Final Drive Sweep
 - **11-Domain Skill Matrix**: Real-time strength calculation (0–100) and freshness tracking (`Fresh`, `Aging`, `Untested`) across DSA, SQL, Python, DBMS, OS, CN, OOP, Projects, Communication, Aptitude, and Mock Interviews.
+- **Skill Freshness Explanation**: Plain-language explanation of why a skill has its current freshness state (`fresh`, `aging`, `stale`, or `untested`), based on deterministic analysis of last practice/assessment evidence. Uses existing canonical evidence data — no new freshness calculation. Explains: "Fresh because recent evidence demonstrates the skill," "Aging because evidence is becoming old," "Stale because no sufficiently recent evidence exists," "Untested because no demonstrated evidence found."
 - **Company Target Overlays**: Priority boosting for active hiring drives (e.g., Amazon, TCS Digital).
 - **Daily Execution & Sealing Protocol**: Structured workflow featuring Morning Planning, Task Execution, Evidence Logging, Evening Reflection, and Day Sealing immutability.
+- **Daily Plan & Adaptive Session Convergence**: Unified "What should I do today?" execution loop directly connecting Morning Planning (`todayAssignments`) with the Adaptive Session Composer (`SessionDisplay`). Committed daily assignments seamlessly guide adaptive session composition (flagged with a `Plan Aligned` session indicator and `Daily Plan` activity badges), while completing mapped session activities deterministically synchronizes assignment completion back to the daily plan with strict day-sealing immutability, duplicate-candidate filtering, and zero duplicate evidence.
 
 ---
 

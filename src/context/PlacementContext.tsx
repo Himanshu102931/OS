@@ -180,6 +180,7 @@ interface PlacementContextType {
   companyAssessmentOverlayResult?: CompanyAssessmentOverlayResult;
   resetAssessmentProfileOnly: () => void;
   resetAssessmentHistoryOnly: () => void;
+  syncDailyAssignmentCompletion: (assignmentId: string, completed?: boolean) => void;
 }
 
 function getTodayISO(): string {
@@ -392,14 +393,35 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         todayISO: getTodayISO(),
       });
 
+      // Update daily task assignments if mapped to this task and day is unsealed
+      const todayISO = getTodayISO();
+      const todayCheckIn = prev.dailyCheckIns.find((c) => c.date === todayISO);
+      const isSealed = todayCheckIn?.isSealed ?? false;
+
+      let updatedAssignments = prev.dailyTaskAssignments;
+      if (!isSealed && newState === 'completed') {
+        let hasChanges = false;
+        const nextAssignments = prev.dailyTaskAssignments.map((a) => {
+          if (a.date === todayISO && a.referenceId === taskId && !a.completed) {
+            hasChanges = true;
+            return { ...a, completed: true };
+          }
+          return a;
+        });
+        if (hasChanges) {
+          updatedAssignments = nextAssignments;
+        }
+      }
+
       // One transaction: progress + the single evidence event + (on
-      // completion) the skill update derived from that same event.
+      // completion) the skill update derived from that same event + assignment synchronization.
       return {
         ...prev,
         taskProgress: {
           ...prev.taskProgress,
           [taskId]: progress,
         },
+        dailyTaskAssignments: updatedAssignments,
         evidenceLogs: evidence ? [...(prev.evidenceLogs || []), evidence] : prev.evidenceLogs || [],
         ...(skillUpdate
           ? { skillStates: { ...prev.skillStates, [skillUpdate.topicId]: skillUpdate } }
@@ -422,9 +444,29 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         evidenceLogs: prev.evidenceLogs || [],
       });
 
+      const todayISO = getTodayISO();
+      const todayCheckIn = prev.dailyCheckIns.find((c) => c.date === todayISO);
+      const isSealed = todayCheckIn?.isSealed ?? false;
+
+      let updatedAssignments = prev.dailyTaskAssignments;
+      if (!isSealed && restore.taskId) {
+        let hasChanges = false;
+        const nextAssignments = prev.dailyTaskAssignments.map((a) => {
+          if (a.date === todayISO && a.referenceId === restore.taskId && a.completed) {
+            hasChanges = true;
+            return { ...a, completed: false };
+          }
+          return a;
+        });
+        if (hasChanges) {
+          updatedAssignments = nextAssignments;
+        }
+      }
+
       return {
         ...prev,
         taskProgress: restored.taskProgress,
+        dailyTaskAssignments: updatedAssignments,
         skillStates: restored.skillStates,
         evidenceLogs: restored.evidenceLogs,
       };
@@ -510,9 +552,29 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         sourceId: attempt.id,
       };
 
+      const todayISO = getTodayISO();
+      const todayCheckIn = prev.dailyCheckIns.find((c) => c.date === todayISO);
+      const isSealed = todayCheckIn?.isSealed ?? false;
+
+      let updatedAssignments = prev.dailyTaskAssignments;
+      if (!isSealed) {
+        let hasChanges = false;
+        const nextAssignments = prev.dailyTaskAssignments.map((a) => {
+          if (a.date === todayISO && a.referenceId === attempt.problemId && !a.completed) {
+            hasChanges = true;
+            return { ...a, completed: true };
+          }
+          return a;
+        });
+        if (hasChanges) {
+          updatedAssignments = nextAssignments;
+        }
+      }
+
       return {
         ...prev,
         dsaAttempts: [attempt, ...(prev.dsaAttempts || [])],
+        dailyTaskAssignments: updatedAssignments,
         dsaProgress: {
           ...prev.dsaProgress,
           [attempt.problemId]: updatedProgress,
@@ -626,6 +688,23 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               },
             }
           : {}),
+      };
+    });
+  };
+
+  const syncDailyAssignmentCompletion = (assignmentId: string, completed: boolean = true) => {
+    setAppState((prev) => {
+      const targetAssign = prev.dailyTaskAssignments.find((a) => a.id === assignmentId);
+      if (!targetAssign) return prev;
+      const targetCheckIn = prev.dailyCheckIns.find((c) => c.date === targetAssign.date);
+      if (targetCheckIn?.isSealed) return prev; // IMMUTABILITY: Never mutate sealed day!
+      if (targetAssign.completed === completed) return prev;
+
+      return {
+        ...prev,
+        dailyTaskAssignments: prev.dailyTaskAssignments.map((a) =>
+          a.id === assignmentId ? { ...a, completed } : a
+        ),
       };
     });
   };
@@ -1115,6 +1194,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         companyAssessmentOverlayResult,
         resetAssessmentProfileOnly,
         resetAssessmentHistoryOnly,
+        syncDailyAssignmentCompletion,
       }}
     >
       {children}

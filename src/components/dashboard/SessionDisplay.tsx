@@ -14,6 +14,7 @@ import type { SessionActivity, SessionComposerMode } from '../../engine/sessionC
 
 interface SessionDisplayProps {
   onStartActivity: (activity: SessionActivity) => void;
+  onCompleteActivity?: (activity: SessionActivity) => void;
 }
 
 const DURATION_PRESETS = [15, 30, 45, 60, 90, 120];
@@ -24,7 +25,10 @@ const MODE_OPTIONS: { id: SessionComposerMode; label: string }[] = [
   { id: 'review_heavy', label: 'Review-Heavy' },
 ];
 
-export const SessionDisplay: React.FC<SessionDisplayProps> = ({ onStartActivity }) => {
+export const SessionDisplay: React.FC<SessionDisplayProps> = ({
+  onStartActivity,
+  onCompleteActivity,
+}) => {
   const {
     sessionState,
     currentActivity,
@@ -44,6 +48,8 @@ export const SessionDisplay: React.FC<SessionDisplayProps> = ({ onStartActivity 
 
   const { activities, totalEstimatedMinutes, timeBudgetMinutes, remainingMinutes } =
     sessionState.plan;
+
+  const committedCount = activities.filter((a) => a.isCommittedAssignment).length;
 
   const getActivityTypeBadge = (activity: SessionActivity) => {
     switch (activity.type) {
@@ -79,6 +85,15 @@ export const SessionDisplay: React.FC<SessionDisplayProps> = ({ onStartActivity 
             <span className="text-[11px] px-2 py-0.5 rounded bg-[#1B2028] text-[#FFC665] border border-[#E5A93C]/30 font-mono">
               {totalEstimatedMinutes} / {timeBudgetMinutes} min
             </span>
+            {committedCount > 0 && (
+              <span
+                className="text-[11px] px-2 py-0.5 rounded bg-[#E5A93C]/15 text-[#FFC665] border border-[#E5A93C]/30 font-medium flex items-center gap-1"
+                data-testid="session-committed-plan-badge"
+              >
+                <Sparkles className="size-3 text-[#E5A93C]" />
+                <span>Plan Aligned ({committedCount})</span>
+              </span>
+            )}
           </div>
 
           {/* Duration & Mode Selectors */}
@@ -196,6 +211,11 @@ export const SessionDisplay: React.FC<SessionDisplayProps> = ({ onStartActivity 
                           >
                             {badge.label}
                           </span>
+                          {activity.isCommittedAssignment && (
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-[#E5A93C]/15 text-[#E5A93C] border border-[#E5A93C]/30 font-medium font-mono">
+                              Daily Plan
+                            </span>
+                          )}
                           <span className="text-[10px] px-2 py-0.5 rounded bg-[#1B2028] text-[#8E98A8] border border-[#262D38] font-mono flex items-center gap-1">
                             <Clock className="size-2.5" /> {activity.estimatedMinutes} min
                           </span>
@@ -231,6 +251,21 @@ export const SessionDisplay: React.FC<SessionDisplayProps> = ({ onStartActivity 
                         </span>
                       ) : (
                         <div className="flex items-center gap-1.5">
+                          {isCurrent && (
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                if (onCompleteActivity) {
+                                  onCompleteActivity(activity);
+                                }
+                                advanceActivity('completed');
+                              }}
+                              className="h-8 px-2.5 text-xs font-bold bg-[#10B981]/20 hover:bg-[#10B981]/30 text-[#10B981] border border-[#10B981]/40 rounded-md shadow-xs"
+                              title="Complete activity and sync daily plan"
+                            >
+                              <CheckCircle2 className="size-3 mr-1" /> Complete
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             onClick={() => onStartActivity(activity)}

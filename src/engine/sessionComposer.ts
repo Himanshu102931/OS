@@ -23,6 +23,7 @@ import { generateReviewCandidates } from './reviewScheduler';
 import type { ReviewCandidate, ReviewPriority } from './reviewScheduler';
 import { type ReviewPrompt } from './analyticsEngine';
 import type { AssessmentProfileReadout } from './assessmentEngine';
+import { evaluateTaskPrerequisites } from './taskStateEngine';
 import { PRACTICE_SESSIONS } from '../data/practiceDataset';
 import { PREPARATION_TOPICS } from '../data/preparationDataset';
 import { COVERAGE_STAGES } from './preparationEngine';
@@ -101,6 +102,8 @@ export interface SessionActivity {
   sourceTaskId?: string;
   sourceTopicId?: string;
   sourceSkillState?: unknown;
+  sourceAssignmentId?: string;
+  isCommittedAssignment?: boolean;
   isBlocked: boolean;
   blockingReason?: string;
 }
@@ -273,6 +276,8 @@ function buildSessionActivityFromCandidate(
     sourceTaskId: candidate.sourceTaskId,
     sourceTopicId: candidate.sourceTopicId,
     sourceSkillState: candidate.sourceSkillState,
+    sourceAssignmentId: (candidate as { sourceAssignmentId?: string }).sourceAssignmentId,
+    isCommittedAssignment: (candidate as { isCommittedAssignment?: boolean }).isCommittedAssignment,
     isBlocked: false,
   };
 }
@@ -405,21 +410,86 @@ export function composeAdaptiveSession(options: AdaptiveSessionOptions): Session
     (c) => !c.isBlocked && !isCompletedOrArchived(c.targetId)
   );
 
+  // 3b. Collect uncompleted committed daily assignments (user's committed morning plan)
+  type CommittedReviewCandidate = ReviewCandidate & {
+    sourceAssignmentId?: string;
+    isCommittedAssignment?: boolean;
+  };
+
+  const committedCandidates: CommittedReviewCandidate[] = [];
+  for (const assign of todayAssignmentsTyped) {
+    if (isCompletedOrArchived(assign.referenceId)) continue;
+
+    const task = (tasks as TaskDefinition[]).find((t) => t.id === assign.referenceId);
+    const prob = !task ? (dsaProblems as DSAProblem[]).find((p) => p.id === assign.referenceId) : null;
+
+    if (task) {
+      const prereq = evaluateTaskPrerequisites(task, taskProgressMap as Record<string, TaskProgress>);
+      committedCandidates.push({
+        id: `session-assign-${assign.id}`,
+        type: 'roadmap_task',
+        title: task.title,
+        description: task.description,
+        priority: 'normal_progression',
+        priorityScore: 85,
+        domainId: task.domainId,
+        topicId: task.topicId,
+        estimatedMinutes: assign.allocatedMinutes || task.estimatedMinutes || 30,
+        reason: `Committed in today's morning plan`,
+        route: 'roadmap',
+        targetId: task.id,
+        sourceTaskId: task.id,
+        sourceAssignmentId: assign.id,
+        isCommittedAssignment: true,
+        isBlocked: prereq.isBlocked,
+        blockingReason: prereq.unmetPrerequisiteIds.join(', '),
+      });
+    } else if (prob) {
+      const isReview =
+        assign.taskType === 'dsa_review' ||
+        ((dsaProgressMap as Record<string, DSAProgress>)[prob.id]?.attemptCount ?? 0) > 0;
+      committedCandidates.push({
+        id: `session-assign-${assign.id}`,
+        type: isReview ? 'dsa_review' : 'dsa_new',
+        title: prob.title,
+        description: prob.title,
+        priority: isReview ? 'overdue_review' : 'normal_progression',
+        priorityScore: 90,
+        domainId: prob.domainId || 'dsa',
+        topicId: prob.topicId || 'topic-dsa-arrays',
+        estimatedMinutes: assign.allocatedMinutes || prob.estimatedTimeMinutes || 20,
+        reason: `Committed in today's morning plan`,
+        route: 'dsa',
+        targetId: prob.id,
+        sourceProblemId: prob.id,
+        sourceAssignmentId: assign.id,
+        isCommittedAssignment: true,
+        isBlocked: false,
+      });
+    }
+  }
+
   // 4. Composition State
   const activities: SessionActivity[] = [];
   let remaining = availableMinutes;
   const selectedTargetIds = new Set<string>();
 
-  const tryAddCandidate = (candidate: ReviewCandidate, overrideReason?: string): boolean => {
+  const tryAddCandidate = (
+    candidate: CommittedReviewCandidate | ReviewCandidate,
+    overrideReason?: string
+  ): boolean => {
     if (selectedTargetIds.has(candidate.targetId)) return false;
 
     // Energy adjustment for low energy: prefer shorter activities (<= 30 min) when available
     if (
       energyLevel === 'low' &&
       candidate.estimatedMinutes > 30 &&
-      eligibleCandidates.some(
+      (eligibleCandidates.some(
         (c) => c.estimatedMinutes <= 30 && !selectedTargetIds.has(c.targetId)
-      )
+      ) ||
+        committedCandidates.some(
+          (c) => c.estimatedMinutes <= 30 && !selectedTargetIds.has(c.targetId)
+        ))
     ) {
       return false;
     }
@@ -499,7 +569,14 @@ export function composeAdaptiveSession(options: AdaptiveSessionOptions): Session
       tryAddCandidate(cand);
     }
 
-    // Fill any remaining budget with weaknesses or progression
+    // Fill any remaining budget with committed daily assignments, then weaknesses or progression
+    for (const cand of committedCandidates) {
+      if (remaining <= 0) break;
+      if (!cand.isBlocked) {
+        tryAddCandidate(cand);
+      }
+    }
+
     for (const cand of nonReviewCandidates) {
       if (remaining <= 0) break;
       tryAddCandidate(cand);
@@ -516,10 +593,15 @@ export function composeAdaptiveSession(options: AdaptiveSessionOptions): Session
       tryAddCandidate(urgentReview, 'Overdue review');
     }
 
-    // Pick top focus candidate (company gap, weakness, or primary task)
-    const focusCandidate = eligibleCandidates.find(
-      (c) => !selectedTargetIds.has(c.targetId) && c.estimatedMinutes <= remaining
+    // Pick top focus candidate: prefer unblocked committed assignment if available, else company gap, weakness, or primary task
+    const unblockedCommitted = committedCandidates.find(
+      (c) => !c.isBlocked && !selectedTargetIds.has(c.targetId) && c.estimatedMinutes <= remaining
     );
+    const focusCandidate =
+      unblockedCommitted ||
+      eligibleCandidates.find(
+        (c) => !selectedTargetIds.has(c.targetId) && c.estimatedMinutes <= remaining
+      );
     if (focusCandidate) {
       tryAddCandidate(focusCandidate);
       // Immediately pair with practice for this domain/topic if time permits
@@ -528,7 +610,13 @@ export function composeAdaptiveSession(options: AdaptiveSessionOptions): Session
       }
     }
 
-    // If budget remains, fill with items in the same domain or next priority
+    // If budget remains, fill with other committed assignments, then items in the same domain or next priority
+    for (const cand of committedCandidates) {
+      if (remaining <= 0) break;
+      if (!cand.isBlocked && !selectedTargetIds.has(cand.targetId)) {
+        tryAddCandidate(cand);
+      }
+    }
     for (const cand of eligibleCandidates) {
       if (remaining <= 0) break;
       if (!selectedTargetIds.has(cand.targetId)) {
@@ -538,9 +626,10 @@ export function composeAdaptiveSession(options: AdaptiveSessionOptions): Session
   } else {
     // Mode: Balanced (default) — balanced distribution:
     // 1. Urgent review (capped: max 1 item for <=30min, max 2 items / ~40% time for >30min)
-    // 2. High-priority focus (Weakness or Company requirement)
-    // 3. Complementary practice if a learning lesson was picked
-    // 4. Remaining budget filled with highest-priority progression/reviews
+    // 2. Committed daily plan assignments (user's committed morning plan intent)
+    // 3. High-priority focus (Weakness or Company requirement)
+    // 4. Complementary practice if a learning lesson was picked
+    // 5. Remaining budget filled with highest-priority progression/reviews
 
     const maxReviewItems = availableMinutes <= 30 ? 1 : 2;
     const maxReviewMinutes = availableMinutes <= 30 ? 15 : Math.floor(availableMinutes * 0.4);
@@ -565,7 +654,15 @@ export function composeAdaptiveSession(options: AdaptiveSessionOptions): Session
       }
     }
 
-    // Step 2: Target weakness or company requirement
+    // Step 2: Committed daily plan assignments take precedence as the user's committed daily intent
+    for (const cand of committedCandidates) {
+      if (remaining <= 0) break;
+      if (!cand.isBlocked) {
+        tryAddCandidate(cand);
+      }
+    }
+
+    // Step 3: Target weakness or company requirement
     const priorityFocus = eligibleCandidates.find(
       (c) =>
         !selectedTargetIds.has(c.targetId) &&
@@ -577,13 +674,13 @@ export function composeAdaptiveSession(options: AdaptiveSessionOptions): Session
 
     if (priorityFocus) {
       tryAddCandidate(priorityFocus);
-      // Step 2b: Complementary practice to reinforce preparation
+      // Step 3b: Complementary practice to reinforce preparation
       if (priorityFocus.type === 'preparation_lesson' && remaining >= 15) {
         tryAddComplementaryPractice(priorityFocus.domainId, priorityFocus.topicId);
       }
     }
 
-    // Step 3: Fill remaining budget with highest priority eligible candidates
+    // Step 4: Fill remaining budget with highest priority eligible candidates
     for (const cand of eligibleCandidates) {
       if (remaining <= 0) break;
       if (!selectedTargetIds.has(cand.targetId)) {
@@ -600,12 +697,14 @@ export function composeAdaptiveSession(options: AdaptiveSessionOptions): Session
   // Preserves compatibility with existing tests when availableMinutes is small (e.g., 1-5 mins)
   if (
     activities.length === 0 &&
-    eligibleCandidates.length > 0 &&
+    (committedCandidates.length > 0 || eligibleCandidates.length > 0) &&
     availableMinutes > 0 &&
     !strictBudget
   ) {
-    const top = eligibleCandidates[0];
-    activities.push(buildSessionActivityFromCandidate(top));
+    const top = committedCandidates.find((c) => !c.isBlocked) || eligibleCandidates[0];
+    if (top) {
+      activities.push(buildSessionActivityFromCandidate(top));
+    }
   }
 
   const currentMinutes = activities.reduce((sum, a) => sum + a.estimatedMinutes, 0);

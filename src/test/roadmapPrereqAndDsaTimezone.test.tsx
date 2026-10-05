@@ -348,6 +348,15 @@ describe('F-INT-TIMEZONE-DSA: Canonical Local todayDate and IST Midnight Boundar
   it('does NOT mark a future review as Review Due on local today', () => {
     const defaultState = getDefaultStorageState() as AppExtendedStorageState;
 
+    // Simulate local today as 2026-10-02 so that nextReviewAt ('2026-10-05') is 3 days in the future
+    const simulatedLocalTime = new Date('2026-10-02T10:00:00.000Z');
+    vi.setSystemTime(simulatedLocalTime);
+
+    // Ensure Date local methods return Oct 2
+    vi.spyOn(Date.prototype, 'getFullYear').mockReturnValue(2026);
+    vi.spyOn(Date.prototype, 'getMonth').mockReturnValue(9); // October (0-indexed 9)
+    vi.spyOn(Date.prototype, 'getDate').mockReturnValue(2);  // 2nd
+
     const testState: AppExtendedStorageState = {
       ...defaultState,
       dsaProgress: {

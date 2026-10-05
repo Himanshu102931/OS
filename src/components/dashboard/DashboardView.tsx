@@ -51,7 +51,7 @@ export const DashboardView: React.FC = () => {
     taskDefinitions, taskProgress, dsaProblems, dsaProgress, dsaAttempts,
     domains, topics, activePhase, currentMode, todayDate, updateTaskState,
     restoreTaskTransaction, setRoute, companyOverlays, skillStates, dailyCheckIns,
-    dailyTaskAssignments, commitDailyPlan, sealDayExecution,
+    dailyTaskAssignments, commitDailyPlan, sealDayExecution, syncDailyAssignmentCompletion,
     decomposeTask, practiceSessions, practiceAttempts,
     recordPracticeAttempt, evidenceLogs, pendingSundayObligation,
     preparationTopicProgress, assessmentProfileReadout, assessmentState,
@@ -487,6 +487,26 @@ export const DashboardView: React.FC = () => {
     setRoute(route.route, route.linkedTopicId);
   };
 
+  const handleCompleteSessionActivity = useCallback((activity: SessionActivity) => {
+    if (isDaySealed) return;
+    if (activity.sourceTaskId) {
+      updateTaskState(activity.sourceTaskId, 'completed');
+    }
+    if (activity.sourceAssignmentId) {
+      syncDailyAssignmentCompletion(activity.sourceAssignmentId, true);
+    } else if (activity.sourceTaskId) {
+      const match = todayAssignments.find((a) => a.referenceId === activity.sourceTaskId);
+      if (match) {
+        syncDailyAssignmentCompletion(match.id, true);
+      }
+    } else if (activity.sourceProblemId) {
+      const match = todayAssignments.find((a) => a.referenceId === activity.sourceProblemId);
+      if (match) {
+        syncDailyAssignmentCompletion(match.id, true);
+      }
+    }
+  }, [isDaySealed, updateTaskState, syncDailyAssignmentCompletion, todayAssignments]);
+
   const completionNextStep = completionInfo
     ? buildCompletionNextStep({ completedTaskId: completionInfo.taskId, evidenceLogs, nextCandidates: evaluatedCandidates })
     : null;
@@ -499,6 +519,13 @@ export const DashboardView: React.FC = () => {
       if (task) assignedPlanTasks.push({ assignmentId: assign.id, task, progress: taskProgress[task.id] });
     });
   }
+  const completedPlanCount = isPlanCommitted
+    ? assignedPlanTasks.filter(
+        (item) =>
+          item.progress?.state === 'completed' ||
+          todayAssignments.find((a) => a.id === item.assignmentId)?.completed
+      ).length
+    : 0;
   const visiblePlanTasks = isPlanExpanded ? assignedPlanTasks : assignedPlanTasks.slice(0, 3);
 
   // Completion animation data — C7-07: all of it is read back from what the
@@ -1158,16 +1185,26 @@ export const DashboardView: React.FC = () => {
 
       {/* 5b. CHAINED PRACTICE SESSION — Deterministic session from available time */}
       <section ref={setScrollRef('session')} className={`scroll-reveal ${revealedSections.has('session') ? 'visible' : ''}`} data-reveal="session">
-        <SessionDisplay onStartActivity={handleStartSessionActivity} />
+        <SessionDisplay
+          onStartActivity={handleStartSessionActivity}
+          onCompleteActivity={handleCompleteSessionActivity}
+        />
       </section>
 
       {/* 6. UP NEXT / TODAY'S PLAN */}
       <section ref={setScrollRef('plan')} className={`scroll-reveal ${revealedSections.has('plan') ? 'visible' : ''}`} data-reveal="plan" data-guide-target="today-plan-list">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-[#F1F5F9]">
-              {isPlanCommitted ? `Today's Plan (${assignedPlanTasks.length} assigned)` : "Up Next"}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-[#F1F5F9]">
+                {isPlanCommitted ? `Today's Plan (${assignedPlanTasks.length} assigned)` : "Up Next"}
+              </h3>
+              {isPlanCommitted && (
+                <span className="text-[11px] px-2 py-0.5 rounded bg-[#1B2028] text-[#8E98A8] border border-[#262D38] font-mono" data-testid="plan-progress-counts">
+                  {completedPlanCount} completed · {assignedPlanTasks.length - completedPlanCount} remaining
+                </span>
+              )}
+            </div>
             <button onClick={() => setRoute('roadmap')} className="text-xs text-[#E5A93C] hover:text-[#FFC665] font-medium flex items-center gap-1 transition-colors">
               View Roadmap <ArrowRight className="size-3.5" />
             </button>

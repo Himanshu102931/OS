@@ -283,12 +283,38 @@ function SessionProviderInner({
   );
 
   const advanceActivity = useCallback((outcome: 'completed' | 'skipped' | 'failed' | 'postponed') => {
+    if (outcome === 'completed' && placement && sessionState) {
+      const currentAct = getCurrentActivity(sessionState);
+      if (currentAct) {
+        const isSealed = placement.dailyCheckIns.find((c) => c.date === placement.todayDate)?.isSealed;
+        if (!isSealed) {
+          if (currentAct.sourceAssignmentId) {
+            placement.syncDailyAssignmentCompletion(currentAct.sourceAssignmentId, true);
+          } else if (currentAct.sourceTaskId) {
+            const match = placement.dailyTaskAssignments.find(
+              (a) => a.date === placement.todayDate && a.referenceId === currentAct.sourceTaskId
+            );
+            if (match && !match.completed) {
+              placement.syncDailyAssignmentCompletion(match.id, true);
+            }
+          } else if (currentAct.sourceProblemId) {
+            const match = placement.dailyTaskAssignments.find(
+              (a) => a.date === placement.todayDate && a.referenceId === currentAct.sourceProblemId
+            );
+            if (match && !match.completed) {
+              placement.syncDailyAssignmentCompletion(match.id, true);
+            }
+          }
+        }
+      }
+    }
+
     setSessionState((prev) => {
       if (!prev) return prev;
       const { newState } = advanceSession(prev, outcome);
       return newState;
     });
-  }, []);
+  }, [placement, sessionState]);
 
   const recoverActivity = useCallback((minutes: number) => {
     setSessionState((prev) => {

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateTopicReadiness,
   calculateDomainReadinessList,
+  explainSkillFreshness,
   type TopicReadiness,
 } from '../engine/skillsEngine';
 import type {
@@ -413,5 +414,142 @@ describe('skillsEngine — preparation → roadmap evidence bridge', () => {
     expect(readiness.evidenceStrength).toBe(0);
     expect(readiness.freshness).toBe('untested');
     expect(readiness.readinessStatus).toBe('needs_baseline');
+  });
+});
+
+describe('explainSkillFreshness', () => {
+  const todayStr = '2026-10-05';
+
+  it('explains fresh skill when last practiced within 7 days', () => {
+    const skillState: TopicSkillState = {
+      topicId: 'topic-dsa-arrays',
+      domainId: 'dsa',
+      lastPracticedAt: '2026-10-02', // 3 days ago
+      freshness: 'fresh',
+      evidenceStrength: 75,
+    };
+
+    const explanation = explainSkillFreshness(skillState, todayStr);
+
+    expect(explanation.freshness).toBe('fresh');
+    expect(explanation.explanation).toContain('Fresh because recent evidence demonstrates the skill');
+    expect(explanation.explanation).toContain('Last practiced 2026-10-02');
+    expect(explanation.daysSinceLastPractice).toBe(3);
+    expect(explanation.latestEvidence).toEqual({
+      sourceType: 'practice_attempt',
+      timestamp: '2026-10-02',
+      daysAgo: 3,
+      details: 'Last practiced 3 days ago',
+    });
+  });
+
+  it('explains aging skill when last practiced between 8 and 14 days ago', () => {
+    const skillState: TopicSkillState = {
+      topicId: 'topic-dsa-arrays',
+      domainId: 'dsa',
+      lastPracticedAt: '2026-09-25', // 10 days ago
+      freshness: 'aging',
+      evidenceStrength: 65,
+    };
+
+    const explanation = explainSkillFreshness(skillState, todayStr);
+
+    expect(explanation.freshness).toBe('aging');
+    expect(explanation.explanation).toContain('Aging because demonstrated evidence is becoming old');
+    expect(explanation.explanation).toContain('Last practiced 2026-09-25');
+    expect(explanation.daysSinceLastPractice).toBe(10);
+    expect(explanation.latestEvidence).toEqual({
+      sourceType: 'practice_attempt',
+      timestamp: '2026-09-25',
+      daysAgo: 10,
+      details: 'Last practiced 10 days ago',
+    });
+  });
+
+  it('explains stale skill when last practiced more than 14 days ago', () => {
+    const skillState: TopicSkillState = {
+      topicId: 'topic-dsa-arrays',
+      domainId: 'dsa',
+      lastPracticedAt: '2026-09-15', // 20 days ago
+      freshness: 'stale',
+      evidenceStrength: 50,
+    };
+
+    const explanation = explainSkillFreshness(skillState, todayStr);
+
+    expect(explanation.freshness).toBe('stale');
+    expect(explanation.explanation).toContain('Stale because no sufficiently recent evidence exists');
+    expect(explanation.explanation).toContain('Last practiced 2026-09-15');
+    expect(explanation.daysSinceLastPractice).toBe(20);
+    expect(explanation.latestEvidence).toEqual({
+      sourceType: 'practice_attempt',
+      timestamp: '2026-09-15',
+      daysAgo: 20,
+      details: 'Last practiced 20 days ago',
+    });
+  });
+
+  it('explains untested skill when no last practice or evidence exists', () => {
+    const skillState: TopicSkillState = {
+      topicId: 'topic-dsa-arrays',
+      domainId: 'dsa',
+      lastPracticedAt: undefined,
+      freshness: 'untested',
+      evidenceStrength: 0,
+    };
+
+    const explanation = explainSkillFreshness(skillState, todayStr);
+
+    expect(explanation.freshness).toBe('untested');
+    expect(explanation.explanation).toContain('Untested because there is insufficient demonstrated evidence');
+    expect(explanation.daysSinceLastPractice).toBeUndefined();
+    expect(explanation.latestEvidence).toEqual({
+      sourceType: 'none',
+      timestamp: '',
+      daysAgo: 0,
+      details: 'No practice or assessment records found',
+    });
+  });
+
+  it('gives manual override precedence over activity timestamps', () => {
+    const skillState: TopicSkillState = {
+      topicId: 'topic-dsa-arrays',
+      domainId: 'dsa',
+      lastPracticedAt: '2026-09-15', // 20 days ago (would be stale)
+      freshness: 'fresh',
+      evidenceStrength: 80,
+      manualOverride: {
+        evidenceStrength: 85,
+        freshness: 'fresh',
+        updatedAt: '2026-10-04T12:00:00Z',
+      },
+    };
+
+    const explanation = explainSkillFreshness(skillState, todayStr);
+
+    expect(explanation.freshness).toBe('fresh');
+    expect(explanation.explanation).toBe('Manual rating: fresh (85% evidence)');
+    expect(explanation.latestEvidence).toEqual({
+      sourceType: 'manual_override',
+      timestamp: '2026-10-04T12:00:00Z',
+      daysAgo: 20,
+      details: 'User-rated freshness: fresh',
+    });
+    expect(explanation.daysSinceLastPractice).toBe(20);
+  });
+
+  it('formats singular "1 day ago" correctly in latest evidence details', () => {
+    const skillState: TopicSkillState = {
+      topicId: 'topic-dsa-arrays',
+      domainId: 'dsa',
+      lastPracticedAt: '2026-10-04', // 1 day ago
+      freshness: 'fresh',
+      evidenceStrength: 90,
+    };
+
+    const explanation = explainSkillFreshness(skillState, todayStr);
+
+    expect(explanation.daysSinceLastPractice).toBe(1);
+    expect(explanation.latestEvidence?.details).toBe('Last practiced 1 day ago');
   });
 });

@@ -3,6 +3,7 @@ import { usePlacement } from '../../context/PlacementContext';
 import {
   calculateTopicReadiness,
   calculateDomainReadinessList,
+  explainSkillFreshness,
   type TopicReadiness,
 } from '../../engine/skillsEngine';
 import { SkillOverrideModal } from './SkillOverrideModal';
@@ -49,7 +50,7 @@ export const SkillsView: React.FC = () => {
   const topicReadinessList = useMemo(() => {
     return topics.map((top) => {
       const dom = domains.find((d) => d.id === top.domainId);
-      return calculateTopicReadiness(
+      const readiness = calculateTopicReadiness(
         top,
         dom,
         taskDefinitions,
@@ -62,6 +63,28 @@ export const SkillsView: React.FC = () => {
         companyOverlays,
         todayDate
       );
+      // Compute skill freshness explanation using canonical function
+      const skillState = skillStates[top.id];
+      const explanation = skillState
+        ? explainSkillFreshness(skillState, todayDate)
+        : {
+            freshness: 'untested',
+            explanation: 'Untested because there is insufficient demonstrated evidence. No practice or assessment records found.',
+            latestEvidence: {
+              sourceType: 'none',
+              timestamp: '',
+              daysAgo: 0,
+              details: 'No practice or assessment records found'
+            },
+            daysSinceLastPractice: undefined,
+          };
+      return {
+        ...readiness,
+        // Attach freshness explanation for UI display
+        freshnessExplanation: explanation.explanation,
+        latestEvidence: explanation.latestEvidence,
+        daysSinceLastPractice: explanation.daysSinceLastPractice,
+      };
     });
   }, [
     topics,
@@ -288,7 +311,11 @@ export const SkillsView: React.FC = () => {
                       </span>
                     </div>
                     <p className="text-[11px] text-[#8E98A8]">
-                      Evidence Confidence: <strong className="text-[#F1F5F9]">{tr.evidenceStrength}%</strong> · Freshness: <span className="capitalize freshness-animate">{tr.freshness}</span>
+                      Evidence Confidence: <strong className="text-[#F1F5F9]">{tr.evidenceStrength}%</strong> · Freshness:
+<span className="capitalize freshness-animate">{tr.freshness}</span>
+{tr.freshnessExplanation && (
+<span className="text-[10px] text-[#6B7280] ml-1 capitalize">
+{tr.freshnessExplanation}</span>)}
                     </p>
                   </div>
 

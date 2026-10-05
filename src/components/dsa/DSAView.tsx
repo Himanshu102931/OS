@@ -6,6 +6,7 @@ import { TaskLearningWorkspaceDrawer } from '../common/TaskLearningWorkspaceDraw
 import type { DSAProblem, DSAAttempt, DSAProgress } from '../../types';
 import { isProblemUnlocked } from '../../engine/dsaEngine';
 import { PATTERN_LESSONS } from '../../data/dsaDataset';
+import { calculatePatternMastery } from '../../engine/dsaEngine';
 import { GuideTrigger } from '../guide/GuideTrigger';
 import {
   Code2,
@@ -282,6 +283,27 @@ export const DSAView: React.FC = () => {
             <div className="space-y-2 list-stagger">
               {filteredProblems.slice(0, 8).map((prob) => {
                 const status = getProblemStatus(prob);
+                // Compute pattern mastery using canonical dsaEngine function
+                const probProgress = dsaProgress[prob.id];
+                const patternMastery = probProgress
+                  ? calculatePatternMastery(
+                      prob.primaryPattern,
+                      dsaProblems,
+                      dsaProgress
+                    )
+                  : {
+                      state: 'not_started',
+                      masteryRatio: 0,
+                      totalProblems: 0,
+                      attemptedCount: 0,
+                      independentSolves: 0,
+                      assistedSolves: 0,
+                      starterCount: 0,
+                      coreCount: 0,
+                      requiredIndependentSolves: 0,
+                      hasBox3Or4: false,
+                      remediationActive: false,
+                    };
                 return (
                   <div
                     key={prob.id}
@@ -319,6 +341,32 @@ export const DSAView: React.FC = () => {
                         >
                           Attempt
                         </Button>
+                      )}
+                      {/* Mastery Progress Display */}
+                      {probProgress && (
+                        <div className="text-xs text-[#6B7280] mt-1">
+                          <span className="font-medium">Box {probProgress.currentBox}/4</span>
+                          {patternMastery.state === 'mastered' && !patternMastery.remediationActive ? (
+                            <span className="text-[10px] text-[#10B981] ml-1">Mastered</span>
+                          ) : patternMastery.state === 'not_started' ? (
+                            <span className="text-[10px] text-[#8E98A8] ml-1">Not started</span>
+                          ) : patternMastery.state === 'in_progress' && !patternMastery.remediationActive ? (
+                            <>
+                              <span className="text-[10px] text-[#E5A93C] ml-1">
+                                {patternMastery.masteryRatio}% mastery
+                              </span>
+                              {patternMastery.independentSolves > 0 && (
+                                <span className="text-[10px] text-[#6B7280] ml-1">
+                                  {patternMastery.independentSolves}/{patternMastery.requiredIndependentSolves} independent
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-[10px] text-[#8E98A8] ml-1">
+                              {patternMastery.remediationActive ? 'Remediation active' : 'In progress'}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
