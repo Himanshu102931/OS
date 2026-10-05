@@ -239,6 +239,7 @@ export interface DailyTaskAssignment {
   allocatedMinutes: number;
   completed: boolean;
   actualMinutes?: number;
+  sourceProblemId?: string;
 }
 
 export interface CompanyOverlay {

@@ -452,6 +452,7 @@ function validateDailyTaskAssignments(assignments: unknown[]): boolean {
     if (typeof dta.allocatedMinutes !== 'number') return false;
     if (typeof dta.completed !== 'boolean') return false;
     if (dta.actualMinutes !== undefined && typeof dta.actualMinutes !== 'number') return false;
+    if (dta.sourceProblemId !== undefined && typeof dta.sourceProblemId !== 'string') return false;
   }
   return true;
 }

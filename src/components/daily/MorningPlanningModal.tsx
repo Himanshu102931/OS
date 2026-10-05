@@ -1,12 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { usePlacement } from '../../context/PlacementContext';
 import {
   getEvaluatedCandidates,
   getTimeBudget,
-  selectDailyPlan,
 } from '../../engine/adaptiveEngine';
-import type { PlacementMode, DailyTaskAssignment, DailyCheckIn } from '../../types';
-import { Clock, Zap, Target, CheckCircle2, X, AlertCircle } from 'lucide-react';
+import { isProblemUnlocked } from '../../engine/dsaEngine';
+import type {
+  PlacementMode,
+  DailyTaskAssignment,
+  DailyCheckIn,
+  DSAProblem,
+  TaskDefinition,
+} from '../../types';
+import {
+  Clock,
+  Zap,
+  Target,
+  CheckCircle2,
+  X,
+  AlertCircle,
+  Code2,
+  BookOpen,
+  CheckSquare,
+  Square,
+  Sparkles,
+} from 'lucide-react';
 import { Button } from '../ui/button';
 
 interface MorningPlanningModalProps {
@@ -14,6 +32,43 @@ interface MorningPlanningModalProps {
   onClose: () => void;
   onCommitPlan: (checkIn: DailyCheckIn, assignments: DailyTaskAssignment[]) => void;
   targetCompanyId?: string;
+}
+
+interface MorningTaskPlanItem {
+  kind: 'task';
+  id: string; // task.id
+  title: string;
+  domainShortName: string;
+  estimatedMinutes: number;
+  priorityScore: number;
+  explanation: string;
+  task: TaskDefinition;
+  taskType: 'catalog_task';
+}
+
+interface MorningDSAPlanItem {
+  kind: 'dsa';
+  id: string; // problem.id
+  title: string;
+  domainShortName: string;
+  estimatedMinutes: number;
+  priorityScore: number;
+  explanation: string;
+  problem: DSAProblem;
+  taskType: 'dsa_review' | 'dsa_new';
+  currentBox: number;
+  isDue: boolean;
+  difficulty: 'easy' | 'medium' | 'hard';
+  patternName: string;
+}
+
+type MorningPlanItem = MorningTaskPlanItem | MorningDSAPlanItem;
+
+function getDaysDifference(targetDateStr: string, todayStr: string): number {
+  const target = new Date(targetDateStr);
+  const today = new Date(todayStr);
+  const diffTime = today.getTime() - target.getTime();
+  return Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
 }
 
 export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
@@ -32,12 +87,16 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
     currentMode,
     todayDate,
     domains,
+    activePhase,
+    dailyCheckIns,
+    dailyTaskAssignments,
   } = usePlacement();
 
   const [availableMinutes, setAvailableMinutes] = useState<number>(180);
   const [energyLevel, setEnergyLevel] = useState<'low' | 'medium' | 'high'>('medium');
   const [mode, setMode] = useState<PlacementMode>(currentMode);
 
+  // Close on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
@@ -48,10 +107,50 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  // Is today already sealed?
+  const isDaySealed = useMemo(() => {
+    return (dailyCheckIns || []).find((c) => c.date === todayDate)?.isSealed ?? false;
+  }, [dailyCheckIns, todayDate]);
 
-  // 1. Gather & evaluate candidates deterministically
-  const candidates = getEvaluatedCandidates(
+  // Committed target IDs for today to prevent duplicate commitments
+  const committedTodayTargetIds = useMemo(() => {
+    return new Set(
+      (dailyTaskAssignments || [])
+        .filter((a) => a.date === todayDate)
+        .map((a) => a.referenceId)
+    );
+  }, [dailyTaskAssignments, todayDate]);
+
+  // 1. Gather Roadmap task candidates
+  const roadmapCandidates: MorningTaskPlanItem[] = useMemo(() => {
+    const rawCandidates = getEvaluatedCandidates(
+      taskDefinitions,
+      taskProgress,
+      dsaProblems,
+      dsaProgress,
+      skillStates,
+      companyOverlays,
+      mode,
+      todayDate,
+      targetCompanyId
+    );
+    return rawCandidates
+      .filter((c) => !committedTodayTargetIds.has(c.task.id))
+      .map((c) => {
+        const domain = domains.find((d) => d.id === c.task.domainId);
+        return {
+          kind: 'task' as const,
+          id: c.task.id,
+          title: c.task.title,
+          domainShortName: domain?.shortName || 'Roadmap',
+          estimatedMinutes: c.task.estimatedMinutes,
+          priorityScore: c.breakdown.finalScore,
+          explanation: c.breakdown.explanation,
+          task: c.task,
+          taskType: 'catalog_task' as const,
+        };
+      });
+  }, [
     taskDefinitions,
     taskProgress,
     dsaProblems,
@@ -60,33 +159,206 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
     companyOverlays,
     mode,
     todayDate,
-    targetCompanyId
-  );
+    targetCompanyId,
+    committedTodayTargetIds,
+    domains,
+  ]);
 
-  // 2. Calculate time budget and select daily plan
-  const timeBudget = getTimeBudget(mode, availableMinutes);
-  const selectedCandidates = selectDailyPlan(candidates, timeBudget);
+  // 2. Gather Eligible DSA candidates (Due Leitner reviews + newly unlocked problems)
+  const { dueDsaCandidates, newDsaCandidates } = useMemo(() => {
+    const currentPhaseNum = activePhase?.order ?? 1;
+    const dueReviews: MorningDSAPlanItem[] = [];
+    const newProblems: MorningDSAPlanItem[] = [];
 
-  const totalSelectedMinutes = selectedCandidates.reduce(
-    (sum, c) => sum + c.task.estimatedMinutes,
-    0
-  );
+    for (const prob of dsaProblems) {
+      if (committedTodayTargetIds.has(prob.id)) continue;
+      const prog = dsaProgress[prob.id];
+
+      // Exclude if already completed today
+      if (prog?.lastAttemptAt && prog.lastAttemptAt.startsWith(todayDate)) {
+        continue;
+      }
+
+      const unlockStatus = isProblemUnlocked(prob, dsaProgress, currentPhaseNum);
+      if (!unlockStatus.isUnlocked) continue;
+
+      const domain = domains.find((d) => d.id === prob.domainId);
+      const domainShortName = domain?.shortName || 'DSA';
+
+      if (prog?.nextReviewAt && prog.nextReviewAt <= todayDate) {
+        // Due Leitner Review
+        const daysOverdue = getDaysDifference(prog.nextReviewAt, todayDate);
+        const priorityScore = Math.min(100, 85 + daysOverdue * 3);
+        dueReviews.push({
+          kind: 'dsa' as const,
+          id: prob.id,
+          title: prob.title,
+          domainShortName,
+          estimatedMinutes: prob.estimatedTimeMinutes || 20,
+          priorityScore,
+          explanation: `Leitner Box ${prog.currentBox || 1} review due ${
+            daysOverdue > 0 ? `(${daysOverdue}d overdue)` : 'today'
+          }`,
+          problem: prob,
+          taskType: 'dsa_review' as const,
+          currentBox: prog.currentBox || 1,
+          isDue: true,
+          difficulty: prob.difficulty,
+          patternName: prob.primaryPattern,
+        });
+      } else if (!prog || prog.attemptCount === 0) {
+        // Newly Unlocked Problem
+        newProblems.push({
+          kind: 'dsa' as const,
+          id: prob.id,
+          title: prob.title,
+          domainShortName,
+          estimatedMinutes: prob.estimatedTimeMinutes || 20,
+          priorityScore: prob.isAnchor ? 85 : 75,
+          explanation: `Newly unlocked ${prob.difficulty} problem in ${prob.primaryPattern}`,
+          problem: prob,
+          taskType: 'dsa_new' as const,
+          currentBox: 0,
+          isDue: false,
+          difficulty: prob.difficulty,
+          patternName: prob.primaryPattern,
+        });
+      }
+    }
+
+    // Sort due reviews: most overdue first, then box ascending, then id
+    dueReviews.sort((a, b) => {
+      if (b.priorityScore !== a.priorityScore) return b.priorityScore - a.priorityScore;
+      return a.id.localeCompare(b.id);
+    });
+
+    // Sort new problems: anchors first, then phase, then id
+    newProblems.sort((a, b) => {
+      if (a.problem.isAnchor !== b.problem.isAnchor) return a.problem.isAnchor ? -1 : 1;
+      if (a.problem.recommendedPhase !== b.problem.recommendedPhase) {
+        return a.problem.recommendedPhase - b.problem.recommendedPhase;
+      }
+      return a.id.localeCompare(b.id);
+    });
+
+    return { dueDsaCandidates: dueReviews, newDsaCandidates: newProblems };
+  }, [dsaProblems, dsaProgress, activePhase, todayDate, committedTodayTargetIds, domains]);
+
+  const timeBudget = useMemo(() => getTimeBudget(mode, availableMinutes), [mode, availableMinutes]);
+
+  // Deterministic automatic selection of plan items within time budget:
+  // 1. Due Leitner reviews take precedence (time-critical spaced repetition obligations)
+  // 2. High-priority roadmap tasks fill the remaining budget
+  // 3. Fallback ensures plan is non-empty when timeBudget > 0
+  const defaultSelectedIds = useMemo(() => {
+    const selected = new Set<string>();
+    let remainingBudget = timeBudget;
+
+    // 1. Pack due Leitner DSA reviews first (up to 2 reviews or within budget)
+    let dsaReviewsCount = 0;
+    for (const dsaItem of dueDsaCandidates) {
+      if (dsaReviewsCount >= 2 && remainingBudget < 60) break;
+      if (dsaItem.estimatedMinutes <= remainingBudget) {
+        selected.add(dsaItem.id);
+        remainingBudget -= dsaItem.estimatedMinutes;
+        dsaReviewsCount++;
+      }
+    }
+
+    // 2. Pack top roadmap tasks into remaining budget
+    for (const taskItem of roadmapCandidates) {
+      if (taskItem.estimatedMinutes <= remainingBudget) {
+        selected.add(taskItem.id);
+        remainingBudget -= taskItem.estimatedMinutes;
+      }
+    }
+
+    // 3. If budget permits and no due reviews were present, pack top new DSA problem
+    if (dueDsaCandidates.length === 0) {
+      for (const dsaItem of newDsaCandidates) {
+        if (dsaItem.estimatedMinutes <= remainingBudget) {
+          selected.add(dsaItem.id);
+          break; // At most 1 new DSA problem in default auto-pack
+        }
+      }
+    }
+
+    // Over-budget exception rule: if plan is empty and budget > 0, pick top candidate
+    if (selected.size === 0 && timeBudget > 0) {
+      if (dueDsaCandidates.length > 0) {
+        selected.add(dueDsaCandidates[0].id);
+      } else if (roadmapCandidates.length > 0) {
+        selected.add(roadmapCandidates[0].id);
+      } else if (newDsaCandidates.length > 0) {
+        selected.add(newDsaCandidates[0].id);
+      }
+    }
+
+    return selected;
+  }, [timeBudget, dueDsaCandidates, roadmapCandidates, newDsaCandidates]);
+
+  // User selection override state (null uses deterministic defaultSelectedIds, Set when explicitly toggled)
+  const [selectedIdsOverride, setSelectedIdsOverride] = useState<Set<string> | null>(null);
+
+  const selectedIds = selectedIdsOverride ?? defaultSelectedIds;
+
+  const toggleItem = (id: string) => {
+    setSelectedIdsOverride((prev) => {
+      const current = prev ?? new Set(defaultSelectedIds);
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const allCandidateItems: MorningPlanItem[] = useMemo(() => {
+    return [...dueDsaCandidates, ...roadmapCandidates, ...newDsaCandidates];
+  }, [dueDsaCandidates, roadmapCandidates, newDsaCandidates]);
+
+  const selectedItems: MorningPlanItem[] = useMemo(() => {
+    return allCandidateItems.filter((item) => selectedIds.has(item.id));
+  }, [allCandidateItems, selectedIds]);
+
+  const totalSelectedMinutes = useMemo(() => {
+    return selectedItems.reduce((sum, item) => sum + item.estimatedMinutes, 0);
+  }, [selectedItems]);
+
+  const selectedDsaCount = selectedItems.filter((i) => i.kind === 'dsa').length;
+  const selectedRoadmapCount = selectedItems.filter((i) => i.kind === 'task').length;
 
   const handleCommit = () => {
+    if (isDaySealed || selectedItems.length === 0) return;
+
     const checkInId = `checkin-${todayDate}`;
     const assignmentIds: string[] = [];
 
-    const assignments: DailyTaskAssignment[] = selectedCandidates.map((c, index) => {
-      const id = `assign-${todayDate}-${c.task.id}-${index}`;
+    const assignments: DailyTaskAssignment[] = selectedItems.map((item, index) => {
+      const id = `assign-${todayDate}-${item.id}-${index}`;
       assignmentIds.push(id);
-      return {
-        id,
-        date: todayDate,
-        taskType: 'catalog_task',
-        referenceId: c.task.id,
-        allocatedMinutes: c.task.estimatedMinutes,
-        completed: false,
-      };
+      if (item.kind === 'dsa') {
+        return {
+          id,
+          date: todayDate,
+          taskType: item.taskType,
+          referenceId: item.problem.id,
+          allocatedMinutes: item.estimatedMinutes,
+          completed: false,
+          sourceProblemId: item.problem.id,
+        };
+      } else {
+        return {
+          id,
+          date: todayDate,
+          taskType: 'catalog_task',
+          referenceId: item.task.id,
+          allocatedMinutes: item.task.estimatedMinutes,
+          completed: false,
+        };
+      }
     });
 
     const checkIn: DailyCheckIn = {
@@ -105,6 +377,8 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
     onCommitPlan(checkIn, assignments);
     onClose();
   };
+
+  if (!isOpen) return null;
 
   return (
     <div
@@ -144,7 +418,10 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
             <select
               id="morning-available-time"
               value={availableMinutes}
-              onChange={(e) => setAvailableMinutes(Number(e.target.value))}
+              onChange={(e) => {
+                setAvailableMinutes(Number(e.target.value));
+                setSelectedIdsOverride(null);
+              }}
               className="w-full bg-[#14171D] text-[#F1F5F9] font-bold p-2 rounded-[4px] border border-[#262D38] focus:outline-none focus:border-[#3B4556]"
             >
               <option value={60}>60 minutes (1 hr)</option>
@@ -180,7 +457,10 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
             <select
               id="morning-placement-mode"
               value={mode}
-              onChange={(e) => setMode(e.target.value as PlacementMode)}
+              onChange={(e) => {
+                setMode(e.target.value as PlacementMode);
+                setSelectedIdsOverride(null);
+              }}
               className="w-full bg-[#14171D] text-[#F1F5F9] font-bold p-2 rounded-[4px] border border-[#262D38] focus:outline-none focus:border-[#3B4556]"
             >
               <option value="normal">Normal Workload</option>
@@ -192,62 +472,247 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
         </div>
 
         {/* Calculated Time Budget Banner */}
-        <div className="p-3 rounded-[4px] bg-[#1B2028] border border-[#262D38] text-xs flex items-center justify-between text-[#8E98A8] font-mono">
+        <div className="p-3 rounded-[4px] bg-[#1B2028] border border-[#262D38] text-xs flex flex-wrap items-center justify-between gap-2 text-[#8E98A8] font-mono">
           <div className="flex items-center gap-2">
             <Clock className="size-4 text-[#FFC665]" />
             <span>
               Calculated Budget for <strong className="text-[#F1F5F9]">{mode}</strong> mode:
             </span>
           </div>
-          <span className="font-mono font-bold text-sm text-[#FFC665]">
-            {totalSelectedMinutes}m / {timeBudget}m allocated
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] text-[#8E98A8]">
+              {selectedDsaCount} DSA · {selectedRoadmapCount} Roadmap
+            </span>
+            <span
+              className={`font-mono font-bold text-sm ${
+                totalSelectedMinutes > timeBudget ? 'text-amber-400' : 'text-[#FFC665]'
+              }`}
+            >
+              {totalSelectedMinutes}m / {timeBudget}m allocated
+            </span>
+          </div>
         </div>
 
-        {/* Selected Tasks List */}
+        {/* Section 1: Leitner DSA Reviews & Algorithmic Practice */}
         <div className="space-y-3">
-          <h4 className="text-xs font-semibold text-[#8E98A8] uppercase tracking-wider font-mono">
-            Deterministic Recommended Plan ({selectedCandidates.length} Tasks)
-          </h4>
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-semibold text-[#8E98A8] uppercase tracking-wider font-mono flex items-center gap-1.5">
+              <Code2 className="size-3.5 text-[#E5A93C]" />
+              <span>Leitner DSA Reviews & Algorithmic Practice</span>
+              {dueDsaCandidates.length > 0 && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#E5A93C]/15 text-[#FFC665] border border-[#E5A93C]/30 font-medium">
+                  {dueDsaCandidates.length} Due
+                </span>
+              )}
+            </h4>
+            <span className="text-[11px] text-[#5C6675] font-mono">
+              Click item to toggle commitment
+            </span>
+          </div>
 
-          <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
-            {selectedCandidates.length === 0 ? (
-              <div className="p-4 rounded-[4px] bg-[#1B2028] border border-[#262D38] text-center text-xs text-[#8E98A8]">
-                No tasks selected for this time budget. Increase available time or adjust mode.
+          <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+            {dueDsaCandidates.length === 0 && (
+              <div className="p-3 rounded-[4px] bg-[#1B2028]/60 border border-[#262D38] text-center text-xs text-[#8E98A8]">
+                No DSA reviews due today. Focus on curriculum roadmap tasks.
+              </div>
+            )}
+            {/* Due Reviews First */}
+                {dueDsaCandidates.map((dsa) => {
+                  const isSelected = selectedIds.has(dsa.id);
+                  return (
+                    <div
+                      key={dsa.id}
+                      onClick={() => toggleItem(dsa.id)}
+                      data-testid={`morning-dsa-item-${dsa.id}`}
+                      className={`p-3 rounded-[4px] border cursor-pointer transition-all space-y-1.5 text-xs ${
+                        isSelected
+                          ? 'bg-[#1B2028] border-[#E5A93C]/50 hover:border-[#E5A93C]'
+                          : 'bg-[#14171D] border-[#262D38] hover:border-[#3B4556] opacity-75'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-2.5">
+                          <button
+                            type="button"
+                            aria-label={isSelected ? `Deselect ${dsa.title}` : `Select ${dsa.title}`}
+                            className="mt-0.5 text-[#E5A93C] focus:outline-none"
+                          >
+                            {isSelected ? (
+                              <CheckSquare className="size-4" />
+                            ) : (
+                              <Square className="size-4 text-[#5C6675]" />
+                            )}
+                          </button>
+                          <div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-mono font-semibold text-[10px] px-1.5 py-0.5 rounded-[4px] bg-[#E5A93C]/15 text-[#FFC665] border border-[#E5A93C]/30">
+                                Box {dsa.currentBox} Review
+                              </span>
+                              <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-[4px] bg-[#14171D] text-[#8E98A8] border border-[#262D38]">
+                                {dsa.patternName}
+                              </span>
+                              <span
+                                className={`font-mono text-[10px] px-1.5 py-0.5 rounded-[4px] border capitalize ${
+                                  dsa.difficulty === 'easy'
+                                    ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/30'
+                                    : dsa.difficulty === 'medium'
+                                    ? 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30'
+                                    : 'bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/30'
+                                }`}
+                              >
+                                {dsa.difficulty}
+                              </span>
+                              <span className="font-semibold text-[#F1F5F9]">{dsa.title}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className="font-mono font-bold text-[#FFC665]">
+                            Score: {dsa.priorityScore}/100
+                          </span>
+                          <span className="block text-[11px] text-[#8E98A8] font-mono">
+                            {dsa.estimatedMinutes} mins
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="text-[11px] text-[#8E98A8] flex items-center gap-1 italic pl-6.5">
+                        <AlertCircle className="size-3 text-[#E5A93C] shrink-0" />
+                        <span>{dsa.explanation}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Newly Unlocked DSA Problems (if available and no due reviews) */}
+                {dueDsaCandidates.length === 0 &&
+                  newDsaCandidates.slice(0, 3).map((dsa) => {
+                    const isSelected = selectedIds.has(dsa.id);
+                    return (
+                      <div
+                        key={dsa.id}
+                        onClick={() => toggleItem(dsa.id)}
+                        data-testid={`morning-dsa-item-${dsa.id}`}
+                        className={`p-3 rounded-[4px] border cursor-pointer transition-all space-y-1.5 text-xs ${
+                          isSelected
+                            ? 'bg-[#1B2028] border-[#3B82F6]/50 hover:border-[#3B82F6]'
+                            : 'bg-[#14171D] border-[#262D38] hover:border-[#3B4556] opacity-75'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-2.5">
+                            <button
+                              type="button"
+                              aria-label={isSelected ? `Deselect ${dsa.title}` : `Select ${dsa.title}`}
+                              className="mt-0.5 text-[#3B82F6] focus:outline-none"
+                            >
+                              {isSelected ? (
+                                <CheckSquare className="size-4" />
+                              ) : (
+                                <Square className="size-4 text-[#5C6675]" />
+                              )}
+                            </button>
+                            <div>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-mono font-semibold text-[10px] px-1.5 py-0.5 rounded-[4px] bg-[#3B82F6]/15 text-[#93C5FD] border border-[#3B82F6]/30">
+                                  New Problem
+                                </span>
+                                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-[4px] bg-[#14171D] text-[#8E98A8] border border-[#262D38]">
+                                  {dsa.patternName}
+                                </span>
+                                <span className="font-semibold text-[#F1F5F9]">{dsa.title}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <span className="font-mono font-bold text-[#93C5FD]">
+                              Score: {dsa.priorityScore}/100
+                            </span>
+                            <span className="block text-[11px] text-[#8E98A8] font-mono">
+                              {dsa.estimatedMinutes} mins
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-[11px] text-[#8E98A8] flex items-center gap-1 italic pl-6.5">
+                          <Sparkles className="size-3 text-[#3B82F6] shrink-0" />
+                          <span>{dsa.explanation}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+          </div>
+        </div>
+
+        {/* Section 2: Roadmap Curriculum Tasks */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-semibold text-[#8E98A8] uppercase tracking-wider font-mono flex items-center gap-1.5">
+              <BookOpen className="size-3.5 text-[#3B82F6]" />
+              <span>Curriculum Roadmap Tasks ({roadmapCandidates.length} Available)</span>
+            </h4>
+            <span className="text-[11px] text-[#5C6675] font-mono">
+              Deterministic priority
+            </span>
+          </div>
+
+          <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+            {roadmapCandidates.length === 0 ? (
+              <div className="p-3 rounded-[4px] bg-[#1B2028]/60 border border-[#262D38] text-center text-xs text-[#8E98A8]">
+                No pending roadmap tasks available for planning.
               </div>
             ) : (
-              selectedCandidates.map((c) => {
-                const domain = domains.find((d) => d.id === c.task.domainId);
+              roadmapCandidates.map((c) => {
+                const isSelected = selectedIds.has(c.id);
                 return (
                   <div
-                    key={c.task.id}
-                    className="p-3 rounded-[4px] bg-[#1B2028] border border-[#262D38] space-y-1.5 text-xs"
+                    key={c.id}
+                    onClick={() => toggleItem(c.id)}
+                    data-testid={`morning-task-item-${c.id}`}
+                    className={`p-3 rounded-[4px] border cursor-pointer transition-all space-y-1.5 text-xs ${
+                      isSelected
+                        ? 'bg-[#1B2028] border-[#FFC665]/50 hover:border-[#FFC665]'
+                        : 'bg-[#14171D] border-[#262D38] hover:border-[#3B4556] opacity-75'
+                    }`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          {domain && (
-                            <span className="font-mono font-semibold text-[10px] px-1.5 py-0.5 rounded-[4px] bg-[#14171D] text-[#8E98A8] border border-[#262D38]">
-                              {domain.shortName}
-                            </span>
+                      <div className="flex items-start gap-2.5">
+                        <button
+                          type="button"
+                          aria-label={isSelected ? `Deselect ${c.title}` : `Select ${c.title}`}
+                          className="mt-0.5 text-[#FFC665] focus:outline-none"
+                        >
+                          {isSelected ? (
+                            <CheckSquare className="size-4" />
+                          ) : (
+                            <Square className="size-4 text-[#5C6675]" />
                           )}
-                          <span className="font-semibold text-[#F1F5F9]">{c.task.title}</span>
+                        </button>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-semibold text-[10px] px-1.5 py-0.5 rounded-[4px] bg-[#14171D] text-[#8E98A8] border border-[#262D38]">
+                              {c.domainShortName}
+                            </span>
+                            <span className="font-semibold text-[#F1F5F9]">{c.title}</span>
+                          </div>
                         </div>
                       </div>
 
                       <div className="text-right shrink-0">
                         <span className="font-mono font-bold text-[#FFC665]">
-                          Score: {c.breakdown.finalScore}/100
+                          Score: {c.priorityScore}/100
                         </span>
                         <span className="block text-[11px] text-[#8E98A8] font-mono">
-                          {c.task.estimatedMinutes} mins
+                          {c.estimatedMinutes} mins
                         </span>
                       </div>
                     </div>
 
-                    <div className="text-[11px] text-[#8E98A8] flex items-center gap-1 italic">
+                    <div className="text-[11px] text-[#8E98A8] flex items-center gap-1 italic pl-6.5">
                       <AlertCircle className="size-3 text-[#5C6675] shrink-0" />
-                      <span>{c.breakdown.explanation}</span>
+                      <span>{c.explanation}</span>
                     </div>
                   </div>
                 );
@@ -257,18 +722,33 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
         </div>
 
         {/* Modal Actions */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#262D38]">
-          <Button variant="ghost" size="sm" onClick={onClose} className="text-xs text-[#8E98A8] hover:text-[#F1F5F9] rounded-[4px]">
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleCommit}
-            disabled={selectedCandidates.length === 0}
-            className="text-xs bg-[#E5A93C] hover:bg-[#FFC665] text-[#0D0F12] font-mono font-bold rounded-[4px]"
-          >
-            <CheckCircle2 className="size-3.5 mr-1" /> Commit Today's Plan
-          </Button>
+        <div className="flex items-center justify-between pt-4 border-t border-[#262D38]">
+          <div className="text-xs text-[#8E98A8] font-mono">
+            {isDaySealed && (
+              <span className="text-amber-400 font-semibold flex items-center gap-1">
+                <AlertCircle className="size-3.5" /> Day is sealed. Further commitments locked.
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="text-xs text-[#8E98A8] hover:text-[#F1F5F9] rounded-[4px]"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleCommit}
+              disabled={selectedItems.length === 0 || isDaySealed}
+              data-testid="commit-morning-plan-button"
+              className="text-xs bg-[#E5A93C] hover:bg-[#FFC665] text-[#0D0F12] font-mono font-bold rounded-[4px]"
+            >
+              <CheckCircle2 className="size-3.5 mr-1" /> Commit Today's Plan ({selectedItems.length})
+            </Button>
+          </div>
         </div>
       </div>
     </div>

@@ -24,7 +24,7 @@ import {
   getLearningDestinationLabel,
   buildCompletionNextStep,
 } from '../../engine/taskFlowEngine';
-import type { TaskProgress, TaskDefinition, PracticeSessionDefinition } from '../../types';
+import type { TaskProgress, TaskDefinition, PracticeSessionDefinition, DSAProblem, DSAProgress } from '../../types';
 import type { SessionActivity } from '../../engine/sessionComposer';
 import { PREPARATION_TOPICS } from '../../data/preparationDataset';
 import { SessionProvider } from './SessionProvider';
@@ -511,20 +511,40 @@ export const DashboardView: React.FC = () => {
     ? buildCompletionNextStep({ completedTaskId: completionInfo.taskId, evidenceLogs, nextCandidates: evaluatedCandidates })
     : null;
 
-  // Build assigned tasks
-  const assignedPlanTasks: { assignmentId: string; task: TaskDefinition; progress?: TaskProgress }[] = [];
+  // Build assigned tasks & DSA problems
+  type AssignedPlanItem =
+    | { kind: 'task'; assignmentId: string; task: TaskDefinition; progress?: TaskProgress; completed: boolean }
+    | { kind: 'dsa'; assignmentId: string; problem: DSAProblem; dsaProg?: DSAProgress; completed: boolean; taskType: 'dsa_review' | 'dsa_new' };
+
+  const assignedPlanTasks: AssignedPlanItem[] = [];
   if (isPlanCommitted) {
     todayAssignments.forEach((assign) => {
       const task = taskDefinitions.find((t) => t.id === assign.referenceId);
-      if (task) assignedPlanTasks.push({ assignmentId: assign.id, task, progress: taskProgress[task.id] });
+      if (task) {
+        assignedPlanTasks.push({
+          kind: 'task',
+          assignmentId: assign.id,
+          task,
+          progress: taskProgress[task.id],
+          completed: assign.completed || taskProgress[task.id]?.state === 'completed',
+        });
+      } else {
+        const prob = dsaProblems.find((p) => p.id === assign.referenceId);
+        if (prob) {
+          assignedPlanTasks.push({
+            kind: 'dsa',
+            assignmentId: assign.id,
+            problem: prob,
+            dsaProg: dsaProgress[prob.id],
+            completed: assign.completed,
+            taskType: assign.taskType === 'dsa_new' ? 'dsa_new' : 'dsa_review',
+          });
+        }
+      }
     });
   }
   const completedPlanCount = isPlanCommitted
-    ? assignedPlanTasks.filter(
-        (item) =>
-          item.progress?.state === 'completed' ||
-          todayAssignments.find((a) => a.id === item.assignmentId)?.completed
-      ).length
+    ? assignedPlanTasks.filter((item) => item.completed).length
     : 0;
   const visiblePlanTasks = isPlanExpanded ? assignedPlanTasks : assignedPlanTasks.slice(0, 3);
 
@@ -1222,19 +1242,63 @@ export const DashboardView: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-3 list-stagger">
-              {visiblePlanTasks.map(({ assignmentId, task, progress }) => {
-                const state = progress?.state || 'not_started';
-                const stateClass = state === 'in_progress' ? 'state-active' : state === 'completed' ? 'state-completed' : state === 'not_started' ? 'state-due' : '';
-                return (
-                  <div key={assignmentId} className={stateClass}>
-                    <TaskCard task={task} progress={progress} domain={getDomain(task.domainId)} onUpdateState={handleUpdateTaskStateWithToast} onDecomposeTask={decomposeTask} onOpenLearning={openTaskLearning} todayISO={todayDate} onPostpone={handlePostponeTask} onSkip={handleSkipTask} />
-                  </div>
-                );
+              {visiblePlanTasks.map((item) => {
+                if (item.kind === 'task') {
+                  const state = item.progress?.state || 'not_started';
+                  const stateClass = state === 'in_progress' ? 'state-active' : state === 'completed' ? 'state-completed' : state === 'not_started' ? 'state-due' : '';
+                  return (
+                    <div key={item.assignmentId} className={stateClass}>
+                      <TaskCard task={item.task} progress={item.progress} domain={getDomain(item.task.domainId)} onUpdateState={handleUpdateTaskStateWithToast} onDecomposeTask={decomposeTask} onOpenLearning={openTaskLearning} todayISO={todayDate} onPostpone={handlePostponeTask} onSkip={handleSkipTask} />
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div
+                      key={item.assignmentId}
+                      className={`p-3 rounded-lg border flex items-center justify-between gap-3 ${
+                        item.completed ? 'bg-[#14171D]/40 border-[#262D38] opacity-75' : 'bg-[#14171D] border-[#262D38]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#E5A93C]/10 text-[#FFC665] border border-[#E5A93C]/30 font-semibold">
+                          DSA {item.taskType === 'dsa_review' ? 'Review' : 'Practice'}
+                        </span>
+                        <div>
+                          <h4 className={`text-xs font-semibold ${item.completed ? 'line-through text-[#8E98A8]' : 'text-[#F1F5F9]'}`}>
+                            {item.problem.title}
+                          </h4>
+                          <span className="text-[11px] text-[#8E98A8]">
+                            {item.problem.primaryPattern} · {item.problem.difficulty}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-[#8E98A8] font-mono flex items-center gap-1">
+                          <Clock className="size-3" /> {todayAssignments.find((a) => a.id === item.assignmentId)?.allocatedMinutes || item.problem.estimatedTimeMinutes}m
+                        </span>
+                        {item.completed ? (
+                          <span className="text-xs text-[#10B981] font-medium flex items-center gap-1">
+                            <CheckCircle2 className="size-3.5" /> Done
+                          </span>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() => setRoute('dsa', item.problem.id)}
+                            data-testid={`solve-dsa-${item.problem.id}`}
+                            className="h-7 px-2.5 text-xs bg-[#1B2028] hover:bg-[#222833] text-[#FFC665] border border-[#E5A93C]/30 rounded font-mono font-medium"
+                          >
+                            Solve
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
               })}
               {assignedPlanTasks.length > 3 && (
                 <button onClick={() => setIsPlanExpanded(!isPlanExpanded)}
                   className="w-full py-2 text-xs font-medium text-[#8E98A8] hover:text-[#F1F5F9] bg-[#14171D] hover:bg-[#1B2028] border border-[#262D38] rounded-md flex items-center justify-center gap-1.5 transition-colors">
-                  {isPlanExpanded ? <><span>Collapse List</span><ChevronUp className="size-3.5" /></> : <><span>Show All ({assignedPlanTasks.length} Tasks)</span><ChevronDown className="size-3.5" /></>}
+                  {isPlanExpanded ? <><span>Collapse List</span><ChevronUp className="size-3.5" /></> : <><span>Show All ({assignedPlanTasks.length} Items)</span><ChevronDown className="size-3.5" /></>}
                 </button>
               )}
             </div>
