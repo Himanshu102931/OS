@@ -54,6 +54,7 @@ export const EveningReflectionModal: React.FC<EveningReflectionModalProps> = ({
     dsaProgress,
     skillStates,
     todayDate,
+    domains,
   } = usePlacement();
 
   const currentCheckIn = dailyCheckIns.find((c) => c.date === todayDate) || {
@@ -69,6 +70,7 @@ export const EveningReflectionModal: React.FC<EveningReflectionModalProps> = ({
     updatedAt: new Date().toISOString(),
   };
 
+  const isDaySealed = currentCheckIn?.isSealed ?? false;
   const activeAssignments = dailyTaskAssignments.filter((a) => a.date === todayDate);
 
   const [reflections, setReflections] = useState<Record<string, AssignmentReflection>>(() => {
@@ -76,7 +78,7 @@ export const EveningReflectionModal: React.FC<EveningReflectionModalProps> = ({
     activeAssignments.forEach((a) => {
       map[a.id] = {
         assignmentId: a.id,
-        taskId: a.referenceId,
+        taskId: a.sourceProblemId || a.referenceId,
         completed: a.completed || true,
         actualMinutes: a.actualMinutes || a.allocatedMinutes || 30,
         assistanceLevel: 'none',
@@ -94,16 +96,30 @@ export const EveningReflectionModal: React.FC<EveningReflectionModalProps> = ({
     field: keyof AssignmentReflection,
     value: string | number | boolean
   ) => {
-    setReflections((prev) => ({
-      ...prev,
-      [assignmentId]: {
-        ...prev[assignmentId],
-        [field]: value,
-      },
-    }));
+    if (isDaySealed) return;
+    setReflections((prev) => {
+      const existing = prev[assignmentId] || {
+        assignmentId,
+        taskId: activeAssignments.find((a) => a.id === assignmentId)?.sourceProblemId || activeAssignments.find((a) => a.id === assignmentId)?.referenceId || '',
+        completed: activeAssignments.find((a) => a.id === assignmentId)?.completed || true,
+        actualMinutes: activeAssignments.find((a) => a.id === assignmentId)?.actualMinutes || activeAssignments.find((a) => a.id === assignmentId)?.allocatedMinutes || 30,
+        assistanceLevel: 'none',
+        confidence: 4,
+        dsaResult: 'pass',
+      };
+      return {
+        ...prev,
+        [assignmentId]: {
+          ...existing,
+          [field]: value,
+        },
+      };
+    });
   };
 
   const handleSeal = () => {
+    if (isDaySealed) return;
+
     let totalActualMinutes = 0;
     const updatedAssignments: DailyTaskAssignment[] = [];
     const newEvidenceLogs: EvidenceLog[] = [];
@@ -113,8 +129,15 @@ export const EveningReflectionModal: React.FC<EveningReflectionModalProps> = ({
     const updatedSkillStatesMap = { ...skillStates };
 
     for (const assign of activeAssignments) {
-      const ref = reflections[assign.id];
-      if (!ref) continue;
+      const ref = reflections[assign.id] || {
+        assignmentId: assign.id,
+        taskId: assign.sourceProblemId || assign.referenceId,
+        completed: assign.completed || true,
+        actualMinutes: assign.actualMinutes || assign.allocatedMinutes || 30,
+        assistanceLevel: 'none' as const,
+        confidence: 4 as const,
+        dsaResult: 'pass' as const,
+      };
 
       totalActualMinutes += ref.actualMinutes;
 
@@ -124,7 +147,8 @@ export const EveningReflectionModal: React.FC<EveningReflectionModalProps> = ({
         actualMinutes: ref.actualMinutes,
       });
 
-      const task = taskDefinitions.find((t) => t.id === assign.referenceId);
+      const isDsa = assign.taskType === 'dsa_review' || assign.taskType === 'dsa_new';
+      const task = !isDsa ? taskDefinitions.find((t) => t.id === assign.referenceId) : undefined;
       if (task) {
         // 1.-3. Progress + evidence + skill record for this reflection — pure.
         // Duplicate guard: a task already completed through Today (progress
@@ -242,20 +266,60 @@ export const EveningReflectionModal: React.FC<EveningReflectionModalProps> = ({
         ) : (
           <div className="space-y-4 max-h-96 overflow-y-auto pr-1">
             {activeAssignments.map((assign) => {
-              const task = taskDefinitions.find((t) => t.id === assign.referenceId);
-              const ref = reflections[assign.id];
-              if (!task || !ref) return null;
+              const isDsa = assign.taskType === 'dsa_review' || assign.taskType === 'dsa_new';
+              const dsaProblemId = assign.sourceProblemId || assign.referenceId;
+              const task = !isDsa ? taskDefinitions.find((t) => t.id === assign.referenceId) : undefined;
+              const dsaProblem = isDsa || !task ? dsaProblems.find((p) => p.id === dsaProblemId) : undefined;
+
+              if (!task && !dsaProblem) return null;
+
+              const ref = reflections[assign.id] || {
+                assignmentId: assign.id,
+                taskId: dsaProblem ? dsaProblem.id : task!.id,
+                completed: assign.completed || true,
+                actualMinutes: assign.actualMinutes || assign.allocatedMinutes || 30,
+                assistanceLevel: 'none' as const,
+                confidence: 4 as const,
+                dsaResult: 'pass' as const,
+              };
+
+              const domain = task ? domains.find((d) => d.id === task.domainId) : undefined;
 
               return (
-                <div key={assign.id} className="p-4 rounded-[4px] bg-[#1B2028] border border-[#262D38] space-y-3 font-mono">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-sm text-[#F1F5F9]">{task.title}</span>
-                    <label className="flex items-center gap-1.5 text-xs text-[#F1F5F9] font-semibold cursor-pointer">
+                <div
+                  key={assign.id}
+                  data-testid={`reflection-item-${assign.id}`}
+                  className="p-4 rounded-[4px] bg-[#1B2028] border border-[#262D38] space-y-3 font-mono"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    {task ? (
+                      <div className="flex items-center gap-2">
+                        {domain && (
+                          <span className="font-mono font-semibold text-[10px] px-1.5 py-0.5 rounded-[4px] bg-[#14171D] text-[#8E98A8] border border-[#262D38]">
+                            {domain.shortName}
+                          </span>
+                        )}
+                        <span className="font-bold text-sm text-[#F1F5F9]">{task.title}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-[4px] bg-[#E5A93C]/10 border border-[#E5A93C]/30 font-semibold">
+                          DSA {assign.taskType === 'dsa_review' ? 'Review' : 'New'}
+                        </span>
+                        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-[4px] bg-[#14171D] text-[#8E98A8] border border-[#262D38]">
+                          {dsaProblem!.primaryPattern} · {dsaProblem!.difficulty}
+                        </span>
+                        <span className="font-bold text-sm text-[#F1F5F9]">{dsaProblem!.title}</span>
+                      </div>
+                    )}
+                    <label className="flex items-center gap-1.5 text-xs text-[#F1F5F9] font-semibold cursor-pointer shrink-0">
                       <input
                         type="checkbox"
                         checked={ref.completed}
+                        disabled={isDaySealed}
                         onChange={(e) => handleFieldChange(assign.id, 'completed', e.target.checked)}
-                        className="rounded-[4px] border-[#262D38] bg-[#14171D] text-emerald-500 focus:ring-emerald-500"
+                        data-testid={`reflection-completed-${assign.id}`}
+                        className="rounded-[4px] border-[#262D38] bg-[#14171D] text-emerald-500 focus:ring-emerald-500 disabled:opacity-50"
                       />
                       Completed
                     </label>
@@ -264,23 +328,31 @@ export const EveningReflectionModal: React.FC<EveningReflectionModalProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                     {/* Field 1: Actual Minutes */}
                     <div className="space-y-1">
-                      <label className="text-[#8E98A8] font-medium block text-[11px] uppercase tracking-wider">Actual Time (mins)</label>
+                      <label className="text-[#8E98A8] font-medium block text-[11px] uppercase tracking-wider">
+                        Actual Time (mins)
+                      </label>
                       <input
                         type="number"
                         min={1}
                         value={ref.actualMinutes}
+                        disabled={isDaySealed}
                         onChange={(e) => handleFieldChange(assign.id, 'actualMinutes', Number(e.target.value))}
-                        className="w-full bg-[#14171D] text-[#F1F5F9] font-bold p-1.5 rounded-[4px] border border-[#262D38] focus:border-[#3B4556]"
+                        data-testid={`reflection-minutes-${assign.id}`}
+                        className="w-full bg-[#14171D] text-[#F1F5F9] font-bold p-1.5 rounded-[4px] border border-[#262D38] focus:border-[#3B4556] disabled:opacity-50"
                       />
                     </div>
 
                     {/* Field 2: Assistance Level */}
                     <div className="space-y-1">
-                      <label className="text-[#8E98A8] font-medium block text-[11px] uppercase tracking-wider">Assistance Required</label>
+                      <label className="text-[#8E98A8] font-medium block text-[11px] uppercase tracking-wider">
+                        Assistance Required
+                      </label>
                       <select
                         value={ref.assistanceLevel}
-                        onChange={(e) => handleFieldChange(assign.id, 'assistanceLevel', e.target.value)}
-                        className="w-full bg-[#14171D] text-[#F1F5F9] font-bold p-1.5 rounded-[4px] border border-[#262D38] focus:border-[#3B4556]"
+                        disabled={isDaySealed}
+                        onChange={(e) => handleFieldChange(assign.id, 'assistanceLevel', e.target.value as 'none' | 'hint' | 'solution')}
+                        data-testid={`reflection-assistance-${assign.id}`}
+                        className="w-full bg-[#14171D] text-[#F1F5F9] font-bold p-1.5 rounded-[4px] border border-[#262D38] focus:border-[#3B4556] disabled:opacity-50"
                       >
                         <option value="none">Independent (No Hints)</option>
                         <option value="hint">Required Hints</option>
@@ -290,11 +362,15 @@ export const EveningReflectionModal: React.FC<EveningReflectionModalProps> = ({
 
                     {/* Field 3: Confidence Rating */}
                     <div className="space-y-1">
-                      <label className="text-[#8E98A8] font-medium block text-[11px] uppercase tracking-wider">Confidence (1 - 5)</label>
+                      <label className="text-[#8E98A8] font-medium block text-[11px] uppercase tracking-wider">
+                        Confidence (1 - 5)
+                      </label>
                       <select
                         value={ref.confidence}
-                        onChange={(e) => handleFieldChange(assign.id, 'confidence', Number(e.target.value))}
-                        className="w-full bg-[#14171D] text-[#F1F5F9] font-bold p-1.5 rounded-[4px] border border-[#262D38] focus:border-[#3B4556]"
+                        disabled={isDaySealed}
+                        onChange={(e) => handleFieldChange(assign.id, 'confidence', Number(e.target.value) as 1 | 2 | 3 | 4 | 5)}
+                        data-testid={`reflection-confidence-${assign.id}`}
+                        className="w-full bg-[#14171D] text-[#F1F5F9] font-bold p-1.5 rounded-[4px] border border-[#262D38] focus:border-[#3B4556] disabled:opacity-50"
                       >
                         <option value={1}>1 - Low Confidence</option>
                         <option value={2}>2 - Below Average</option>
@@ -311,18 +387,33 @@ export const EveningReflectionModal: React.FC<EveningReflectionModalProps> = ({
         )}
 
         {/* Modal Actions */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#262D38]">
-          <Button variant="ghost" size="sm" onClick={onClose} className="text-xs text-[#8E98A8] hover:text-[#F1F5F9] rounded-[4px]">
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleSeal}
-            disabled={activeAssignments.length === 0}
-            className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-bold rounded-[4px]"
-          >
-            <CheckCircle2 className="size-3.5 mr-1" /> Seal Day & Update Skill State
-          </Button>
+        <div className="flex items-center justify-between pt-4 border-t border-[#262D38]">
+          <div className="text-xs text-[#8E98A8] font-mono">
+            {isDaySealed && (
+              <span className="text-amber-400 font-semibold flex items-center gap-1">
+                <AlertCircle className="size-3.5" /> Day is sealed. Reflections are locked.
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="text-xs text-[#8E98A8] hover:text-[#F1F5F9] rounded-[4px]"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSeal}
+              disabled={activeAssignments.length === 0 || isDaySealed}
+              data-testid="seal-day-button"
+              className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-bold rounded-[4px] disabled:opacity-50"
+            >
+              <CheckCircle2 className="size-3.5 mr-1" /> Seal Day & Update Skill State
+            </Button>
+          </div>
         </div>
       </div>
     </div>
