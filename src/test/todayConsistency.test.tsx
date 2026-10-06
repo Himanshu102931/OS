@@ -75,16 +75,16 @@ let mountedCtx: Ctx | null = null;
  * is not a `file:` URL under the jsdom environment, so Vite's `?raw` glob is
  * used instead of reading from disk.
  */
-const DASHBOARD_SOURCES = import.meta.glob('../components/dashboard/*.tsx', {
+const DASHBOARD_SOURCES = import.meta.glob('../components/dashboard/**/*.tsx', {
   query: '?raw',
   import: 'default',
   eager: true,
 }) as Record<string, string>;
 
 const dashboardSrc = (fileName: string): string => {
-  const src = DASHBOARD_SOURCES[`../components/dashboard/${fileName}`];
-  if (typeof src !== 'string') throw new Error(`missing inlined source: ${fileName}`);
-  return src;
+  const match = Object.entries(DASHBOARD_SOURCES).find(([p]) => p.endsWith(`/${fileName}`));
+  if (!match) throw new Error(`missing inlined source: ${fileName}`);
+  return match[1];
 };
 
 const Probe = () => {
@@ -151,7 +151,7 @@ const readCand = (el: Element | null): Cand => {
 };
 
 const primary = () => readCand(screen.getByTestId('primary-action'));
-const journey = () => readCand(screen.getByTestId('daily-journey'));
+const hero = () => readCand(screen.getByTestId('today-hero'));
 
 /** Canonical evaluation from the live context state (the invariant source). */
 const canonicalList = (mode?: PlacementMode): CandidateTask[] => {
@@ -275,22 +275,22 @@ afterEach(() => {
   localStorage.clear();
 });
 
-/* ═══ A. DAILYJOURNEY ═══════════════════════════════════════════════ */
-describe('C6 A — DailyJourney uses the canonical Today candidate', () => {
-  it('A1. fresh clean baseline — journey agrees with the canonical top candidate', () => {
+/* ═══ A. TODAYHEROVISUAL ═══════════════════════════════════════════ */
+describe('C6 A — TodayHeroVisual uses the canonical Today candidate', () => {
+  it('A1. fresh clean baseline — hero agrees with the canonical top candidate', () => {
     renderToday();
 
     const expected = canonicalTop();
     expect(expected.id).not.toBe('');
 
-    const shown = journey();
+    const shown = hero();
     expect(shown.id).toBe(expected.id);
     expect(shown.title).toBe(expected.title);
     expect(shown.score).toBe(expected.score);
     expect(shown.reason).toBe(expected.reason);
   });
 
-  it('A2. after task completion — journey follows the recomputed top candidate', () => {
+  it('A2. after task completion — hero follows the recomputed top candidate', () => {
     renderToday();
 
     const before = canonicalTop();
@@ -300,11 +300,11 @@ describe('C6 A — DailyJourney uses the canonical Today candidate', () => {
 
     const after = canonicalTop();
     expect(after.id).not.toBe(before.id);
-    expect(journey()).toEqual(after);
+    expect(hero()).toEqual(after);
     expect(primary()).toEqual(after);
   });
 
-  it('A3. DSA progress — journey reflects the DSA-aware canonical evaluation', () => {
+  it('A3. DSA progress — hero reflects the DSA-aware canonical evaluation', () => {
     renderToday();
 
     const todayISO = getCtx().todayDate;
@@ -313,17 +313,17 @@ describe('C6 A — DailyJourney uses the canonical Today candidate', () => {
     });
 
     const expected = canonicalTop();
-    expect(journey()).toEqual(expected);
+    expect(hero()).toEqual(expected);
 
     // The legacy isolated call could not see this DSA progress — prove the
     // scenario really does distinguish the two computations.
     expect(candidateIds(canonicalList())).not.toBe(candidateIds(legacyShadowList()));
-    expect(journey().id + '|' + journey().score).not.toBe(
+    expect(hero().id + '|' + hero().score).not.toBe(
       (legacyShadowList()[0]?.task.id ?? '') + '|' + (legacyShadowList()[0]?.breakdown?.finalScore ?? '')
     );
   });
 
-  it('A4. company overlay — journey agrees with the overlay-aware canonical evaluation', () => {
+  it('A4. company overlay — hero agrees with the overlay-aware canonical evaluation', () => {
     renderToday();
 
     act(() => {
@@ -333,11 +333,11 @@ describe('C6 A — DailyJourney uses the canonical Today candidate', () => {
 
     const expected = canonicalTop();
     expect(expected.id).not.toBe('');
-    expect(journey()).toEqual(expected);
+    expect(hero()).toEqual(expected);
     expect(primary()).toEqual(expected);
   });
 
-  it('A5. every placement mode — journey receives the authoritative current mode', () => {
+  it('A5. every placement mode — hero receives the authoritative current mode', () => {
     renderToday();
 
     const modes: PlacementMode[] = ['normal', 'reduced', 'exam', 'placement_sprint'];
@@ -346,18 +346,18 @@ describe('C6 A — DailyJourney uses the canonical Today candidate', () => {
         getCtx().setPlacementMode(mode);
       });
       expect(getCtx().currentMode).toBe(mode);
-      expect(journey()).toEqual(canonicalTop(mode));
+      expect(hero()).toEqual(canonicalTop(mode));
       expect(primary()).toEqual(canonicalTop(mode));
     }
   });
 
-  it('A6. C6-01 regression guard — DailyJourney contains no engine call and no hardcoded mode', () => {
-    const src = dashboardSrc('DailyJourney.tsx');
-    expect(src).not.toContain('getEvaluatedCandidates(');
-    expect(src).not.toMatch(/'normal'/);
-    expect(src).not.toMatch(/'reduced'/);
-    expect(src).not.toMatch(/'exam'/);
-    expect(src).not.toMatch(/\[\s*\]\s*,\s*\{\s*\}\s*,\s*\{\s*\}/);
+  it('A6. DailyJourney retired — no child contains engine call, DailyJourney.tsx is deleted', () => {
+    const files = Object.keys(DASHBOARD_SOURCES);
+    expect(files.some((f) => f.endsWith('DailyJourney.tsx'))).toBe(false);
+    for (const [path, src] of Object.entries(DASHBOARD_SOURCES)) {
+      if (path.endsWith('DashboardView.tsx') || path.endsWith('TodayControlVisual.tsx')) continue;
+      expect(src, `${path} must not call getEvaluatedCandidates`).not.toContain('getEvaluatedCandidates(');
+    }
   });
 });
 
@@ -427,7 +427,7 @@ describe('C6 B — DailySignalGraph uses canonical readiness', () => {
     expect(graph).not.toContain('getEvaluatedCandidates(');
 
     // Today's readiness section must never re-run candidate selection itself
-    for (const f of ['DailyJourney.tsx', 'DailySignalGraph.tsx', 'TodayHeroVisual.tsx']) {
+    for (const f of ['DailySignalGraph.tsx', 'TodayHeroVisual.tsx']) {
       expect(dashboardSrc(f), `${f} must consume the parent's canonical result`).not.toContain(
         'getEvaluatedCandidates('
       );
@@ -439,12 +439,12 @@ describe('C6 B — DailySignalGraph uses canonical readiness', () => {
 });
 
 /* ═══ C. CROSS-TODAY CONSISTENCY ════════════════════════════════════ */
-describe('C6 C — primary action and DailyJourney identify the same candidate', () => {
+describe('C6 C — primary action and TodayHeroVisual identify the same candidate', () => {
   const expectAllTodaySectionsAgree = () => {
     const expected = canonicalTop();
     expect(expected.id).not.toBe('');
     expect(primary()).toEqual(expected);   // DashboardView primary
-    expect(journey()).toEqual(expected);    // DailyJourney
+    expect(hero()).toEqual(expected);      // TodayHeroVisual
   };
 
   it('C1. fresh baseline', () => {
@@ -483,8 +483,8 @@ describe('C6 C — primary action and DailyJourney identify the same candidate',
   it('C5. the meaningful identity, not just the task id, is shared', () => {
     renderToday();
     const expected = canonicalTop();
-    expect(journey().reason).toBe(expected.reason);
-    expect(journey().score).toBe(expected.score);
+    expect(hero().reason).toBe(expected.reason);
+    expect(hero().score).toBe(expected.score);
     expect(primary().reason).toBe(expected.reason);
     expect(primary().score).toBe(expected.score);
   });
@@ -518,9 +518,9 @@ describe('C6 E — canonical wiring stays in place', () => {
     expect(src).toContain('candidates: CandidateTask[]');
   });
 
-  it('E2. DashboardView passes one evaluation to both Today sections', () => {
+  it('E2. DashboardView passes canonical candidate to TodayHeroVisual and wires ExecutionQueue', () => {
     const src = dashboardSrc('DashboardView.tsx');
-    expect(src).toContain('<DailyJourney candidates={evaluatedCandidates} />');
     expect(src).toContain('<TodayHeroVisual candidates={evaluatedCandidates} />');
+    expect(src).toContain('<ExecutionQueue');
   });
 });

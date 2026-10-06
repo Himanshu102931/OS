@@ -113,6 +113,27 @@
   --radius-lg: 0.5rem;
 }
 
+/* Today token reconciliation (spec §1.5) — ADDITIVE ONLY.
+   Every line below is a new alias; no line of the @theme block above is
+   modified, so the pinned tokens and their utilities stay byte-identical.
+   These aliases are what make `bg-primary`, `text-accent`, `border-warning`
+   and the other canonical Today utilities real instead of no-ops. */
+@theme inline {
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --color-foreground-subtle: var(--foreground-subtle);
+
+  /* §1.4 — tier 3 collapses into tier 2 without this: `--secondary` equals
+     `--foreground-muted`. Re-declared last so it wins inside this block. */
+  --color-text-tertiary: var(--foreground-subtle);
+}
+
 :root {
   /* PlacementOS Semantic Color Tokens — 90–95% Dark Technical Workspace + Forest Green Identity */
   --background: #0B100D;             /* deep dark background canvas */
@@ -121,6 +142,7 @@
   --surface-elevated: #1B241F;       /* elevated dark card */
   --foreground: #E8F0E9;             /* light / near-white green tint body text */
   --foreground-muted: #9AA99F;       /* muted green-grey secondary text */
+  --foreground-subtle: #86958B;      /* NEW tier-3 metadata text (Today §1.4) — 5.2:1 on surface-elevated */
   --border: #28352D;                 /* subtle dark green-grey border */
   --border-active: #3C4E43;          /* active boundary line */
   --primary: #2E8B62;                /* refined forest green primary */
@@ -628,6 +650,12 @@ button.bg-\[\#E5A93C\]:hover, a.bg-\[\#E5A93C\]:hover, .btn-primary:hover {
   transform: translateY(0);
 }
 
+/* Mission atmospheric surface (spec §5.1, §1.6) */
+[data-atmospheric="true"] {
+  background-color: var(--hero-dark, #070B09);
+  border-top-color: rgba(70, 185, 130, 0.3);
+}
+
 /* ---- C7-02: focus visibility for Today hero + guide controls only ----
    The app-wide `* { outline: none }` policy is a separate (C9) concern; these
    two selectors are deliberately scoped so hero/guide keyboard users get a
@@ -641,6 +669,71 @@ button.bg-\[\#E5A93C\]:hover, a.bg-\[\#E5A93C\]:hover, .btn-primary:hover {
   outline-offset: -2px;
 }
 
+/* ============================================================
+   CONSTELLATION ORBITAL INSTRUMENT MOTION (TASK 49)
+   ============================================================ */
+
+@keyframes constellation-orbit {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes constellation-orbit-counter {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes mission-breathing-energy {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(70, 185, 130, 0), inset 0 0 0 1px rgba(70, 185, 130, 0.25);
+    border-color: rgba(70, 185, 130, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 14px 2px rgba(70, 185, 130, 0.22), inset 0 0 6px 1px rgba(70, 185, 130, 0.18);
+    border-color: rgba(70, 185, 130, 0.7);
+  }
+}
+
+.constellation-orbit {
+  animation: constellation-orbit 36s linear infinite;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.constellation-node-counter {
+  animation: constellation-orbit-counter 36s linear infinite;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.mission-pulse-glow {
+  animation: mission-breathing-energy 4s ease-in-out infinite;
+}
+
+/* Pause orbit on hover or keyboard focus for effortless inspection */
+[data-testid="today-hero"]:hover .constellation-orbit,
+[data-testid="today-hero"]:hover .constellation-node-counter,
+[data-testid="today-hero"]:focus-within .constellation-orbit,
+[data-testid="today-hero"]:focus-within .constellation-node-counter {
+  animation-play-state: paused;
+}
+
+/* Mobile compact screens: disable continuous orbit to ensure rock-solid touch targets */
+@media (max-width: 767px) {
+  .constellation-orbit,
+  .constellation-node-counter {
+    animation: none;
+  }
+}
+
 /* ---- Reduced Motion Overrides ---- */
 @media (prefers-reduced-motion: reduce) {
   .pulse-ring { animation: none !important; }
@@ -648,6 +741,9 @@ button.bg-\[\#E5A93C\]:hover, a.bg-\[\#E5A93C\]:hover, .btn-primary:hover {
   .hero-entrance { animation: none !important; opacity: 1; transform: none; }
   .scroll-reveal { transition: none !important; opacity: 1; transform: none; }
   .parallax-layer { transition: none !important; }
+  .constellation-orbit { animation: none !important; }
+  .constellation-node-counter { animation: none !important; }
+  .mission-pulse-glow { animation: none !important; }
 }
 
 /* ---- SVG Visual Motif Styles ---- */

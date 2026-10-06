@@ -62,9 +62,9 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
 
   return (
-    <div className="min-h-screen flex flex-col font-sans bg-[#0D0F12] text-[#F1F5F9] selection:bg-[#E5A93C]/30 selection:text-white">
+    <div className="min-h-screen md:h-screen md:overflow-hidden flex flex-col font-sans bg-[#0D0F12] text-[#F1F5F9] selection:bg-[#E5A93C]/30 selection:text-white">
       {/* Top Header Bar */}
-      <header className="sticky top-0 z-40 bg-[#14171D]/95 backdrop-blur-md border-b border-[#262D38] px-4 sm:px-8 py-3">
+      <header className="shrink-0 bg-[#14171D]/95 backdrop-blur-md border-b border-[#262D38] px-4 sm:px-8 py-3 z-40">
         <div className="max-w-[1500px] mx-auto flex items-center justify-between gap-4">
           {/* Brand & Page Context */}
           <div className="flex items-center gap-3">
@@ -111,10 +111,10 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       </header>
 
       {/* Main App Container */}
-      <div className="flex-1 max-w-[1500px] w-full mx-auto flex flex-col md:flex-row">
-        {/* Sidebar Navigation */}
-        <aside className="w-full md:w-60 lg:w-64 border-b md:border-b-0 md:border-r border-[#262D38] bg-[#14171D] p-3.5 shrink-0 flex flex-col justify-between">
-          <nav className="flex md:flex-col gap-1.5 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0">
+      <div className="flex-1 max-w-[1500px] w-full mx-auto flex flex-col md:flex-row min-h-0 md:overflow-hidden">
+        {/* Sidebar Navigation - Fixed & docked on desktop */}
+        <aside className="w-full md:w-60 lg:w-64 border-b md:border-b-0 md:border-r border-[#262D38] bg-[#14171D] p-3.5 shrink-0 flex flex-col justify-between md:h-full md:overflow-y-auto">
+          <nav className="flex md:flex-col gap-1.5 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0" aria-label="Main Navigation">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentRoute === item.id;
@@ -122,21 +122,26 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
                 <button
                   key={item.id}
                   onClick={() => setRoute(item.id)}
-                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-[4px] text-xs font-medium transition-all text-left whitespace-nowrap ${
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`group relative flex items-center gap-3 px-3.5 py-2.5 rounded-[4px] text-xs font-medium text-left whitespace-nowrap transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#46B982] ${
                     isActive
-                      ? 'bg-[#1B2028] text-[#F1F5F9] border border-[#3B4556] font-semibold shadow-sm'
-                      : 'text-[#8E98A8] hover:text-[#F1F5F9] hover:bg-[#1B2028]/60 border border-transparent'
+                      ? 'bg-[#18221B] text-[#F3F7F3] border-l-2 border-l-[#46B982] border-y border-r border-[#26352C] font-semibold shadow-sm'
+                      : 'text-[#8E98A8] hover:text-[#F3F7F3] hover:bg-[#162019] hover:translate-x-0.5 border border-transparent'
                   }`}
                 >
-                  <Icon className={`size-4 ${isActive ? 'text-[#E5A93C]' : 'text-[#5C6675]'}`} />
-                  <span>{item.label}</span>
+                  <Icon
+                    className={`size-4 transition-colors duration-150 ${
+                      isActive ? 'text-[#46B982]' : 'text-[#6B7C72] group-hover:text-[#46B982]'
+                    }`}
+                  />
+                  <span className="transition-colors duration-150">{item.label}</span>
                 </button>
               );
             })}
           </nav>
 
           {/* Quiet System Footer */}
-          <div className="mt-6 pt-4 border-t border-[#262D38] hidden md:block px-2 text-[11px] text-[#5C6675] space-y-1 font-mono">
+          <div className="mt-6 pt-4 border-t border-[#262D38] hidden md:block px-2 text-[11px] text-[#5C6675] space-y-1 font-mono shrink-0">
             <div className="flex justify-between">
               <span>PlacementOS</span>
               <span className="text-[#8E98A8]">v1.0.0</span>
@@ -148,8 +153,8 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
           </div>
         </aside>
 
-        {/* Main Content Area */}
-        <main className="flex-1 p-5 sm:p-7 md:p-8 min-w-0 bg-[#0D0F12]">
+        {/* Main Content Area - Independently scrollable on desktop */}
+        <main className="flex-1 p-5 sm:p-7 md:p-8 min-w-0 bg-[#0D0F12] md:h-full md:overflow-y-auto">
           {children}
         </main>
       </div>

@@ -135,7 +135,6 @@ export const DailySignalGraph: React.FC = () => {
   const urgentComps = companyOverlays.filter(
     (c) => c.applicationStatus === 'interview_scheduled' || c.applicationStatus === 'oa_scheduled'
   );
-  const maxReadiness = Math.max(...readinessByDomain.map((r) => r.overallReadiness), 1);
 
   // C7-05 — connector geometry derived from the displayed sequence.
   const connectors = useMemo(
@@ -160,15 +159,15 @@ export const DailySignalGraph: React.FC = () => {
               column of the `justify-around` bar row at every viewport width. */}
           <svg
             data-testid="signal-connectors"
-            className="absolute inset-0 w-full h-full"
+            className="absolute inset-0 w-full h-full pointer-events-none"
             viewBox={`0 0 ${SIGNAL_VIEWBOX_WIDTH} 192`}
             preserveAspectRatio="none"
           >
             <defs>
               <linearGradient id="signalFlow" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#E5A93C" stopOpacity="0" />
-                <stop offset="50%" stopColor="#E5A93C" stopOpacity="0.6" />
-                <stop offset="100%" stopColor="#E5A93C" stopOpacity="0" />
+                <stop offset="0%" stopColor="#46B982" stopOpacity="0" />
+                <stop offset="50%" stopColor="#46B982" stopOpacity="0.6" />
+                <stop offset="100%" stopColor="#46B982" stopOpacity="0" />
               </linearGradient>
             </defs>
             {connectors.map((c) => (
@@ -183,9 +182,7 @@ export const DailySignalGraph: React.FC = () => {
                 strokeOpacity={0.3}
                 strokeDasharray="4 6"
                 vectorEffect="non-scaling-stroke"
-              >
-                {!reducedMotion && <animate attributeName="stroke-dashoffset" values="0;-20" dur="2s" repeatCount="indefinite" />}
-              </line>
+              />
             ))}
           </svg>
           <div className="absolute inset-0 overflow-x-auto overflow-y-hidden">
@@ -195,7 +192,6 @@ export const DailySignalGraph: React.FC = () => {
               {readinessByDomain.map((r) => {
                 const Icon = DOMAIN_ICON[r.domainId] ?? Code2;
                 const isHovered = hoveredDomain === r.domainId;
-                const readinessHeight = (r.overallReadiness / maxReadiness) * 120;
                 const meta = statusMeta(r.status);
                 const statusColor = meta.color;
                 return (
@@ -206,13 +202,49 @@ export const DailySignalGraph: React.FC = () => {
                     data-domain-label={r.shortName}
                     data-domain-status={r.status}
                     data-domain-readiness={r.overallReadiness}
-                    className="flex flex-col items-center gap-1 cursor-pointer transition-all duration-300" style={{ opacity: isHovered ? 1 : 0.85, transform: isHovered ? 'scale(1.1)' : 'scale(1)' }} onMouseEnter={() => setHoveredDomain(r.domainId)} onMouseLeave={() => setHoveredDomain(null)}>
-                    <div className="w-10 bg-[#0D0F12] rounded-t border border-[#262D38] relative overflow-hidden" style={{ height: Math.max(4, readinessHeight) }}>
-                      <div className="absolute bottom-0 left-0 right-0 rounded-t transition-all duration-700" style={{ height: `${Math.max(10, r.overallReadiness)}%`, background: `linear-gradient(to top, ${statusColor}80, ${statusColor})` }} />
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`${r.shortName}: ${r.overallReadiness}% (${meta.label})`}
+                    className="flex flex-col items-center gap-1.5 cursor-pointer transition-all duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#46B982] rounded-md p-1"
+                    style={{
+                      opacity: isHovered ? 1 : 0.88,
+                      transform: isHovered ? 'scale(1.06)' : 'scale(1)',
+                    }}
+                    onMouseEnter={() => setHoveredDomain(r.domainId)}
+                    onMouseLeave={() => setHoveredDomain(null)}
+                    onFocus={() => setHoveredDomain(r.domainId)}
+                    onBlur={() => setHoveredDomain(null)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setHoveredDomain(hoveredDomain === r.domainId ? null : r.domainId);
+                      }
+                    }}
+                  >
+                    <div
+                      className="w-9 sm:w-10 bg-[#0E1410] rounded-t border border-[#212D26] relative overflow-hidden flex flex-col justify-end"
+                      style={{ height: '96px' }}
+                    >
+                      {/* Honest bar fill: height corresponds directly to r.overallReadiness% */}
+                      <div
+                        className="w-full rounded-t transition-all duration-500"
+                        style={{
+                          height: `${Math.max(r.overallReadiness > 0 ? 6 : 0, r.overallReadiness)}%`,
+                          background: r.overallReadiness > 0
+                            ? `linear-gradient(to top, ${statusColor}50, ${statusColor})`
+                            : 'transparent',
+                        }}
+                      />
+                      {/* Subdued baseline indicator when at 0% */}
+                      {r.overallReadiness === 0 && (
+                        <div className="w-full h-0.5 bg-[#28352D]" />
+                      )}
                     </div>
-                    <Icon className="size-4" />
-                    <span className="text-[8px] font-mono text-[#8E98A8]">{r.shortName}</span>
-                    <span className="text-[9px] font-bold font-mono" style={{ color: statusColor }}>{r.overallReadiness}%</span>
+                    <Icon className="size-4 text-[#9AA99F]" />
+                    <span className="text-[9px] font-mono font-medium text-[#9AA99F]">{r.shortName}</span>
+                    <span className="text-[10px] font-bold font-mono" style={{ color: statusColor }}>
+                      {r.overallReadiness}%
+                    </span>
                   </div>
                 );
               })}
@@ -229,8 +261,13 @@ export const DailySignalGraph: React.FC = () => {
               const statusColor = meta.color;
               return (
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-[#F1F5F9] font-semibold">{r.shortName}</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded border font-mono" style={{ color: statusColor, borderColor: `${statusColor}40`, background: `${statusColor}10` }}>{statusLabel} — {r.overallReadiness}%</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#F1F5F9] font-semibold">{r.shortName}</span>
+                    <span className="text-[11px] text-[#9AA99F]">Domain Readiness Signal</span>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded border font-mono font-medium" style={{ color: statusColor, borderColor: `${statusColor}40`, background: `${statusColor}10` }}>
+                    {statusLabel} — {r.overallReadiness}%
+                  </span>
                 </div>
               );
             })()}
