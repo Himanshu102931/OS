@@ -243,7 +243,7 @@ const BUTTON_SIZE: Record<'md' | 'lg', string> = {
  * and Mission renders it exactly once.
  */
 const BUTTON_VARIANT: Record<TodayButtonVariant, string> = {
-  primary: 'border-transparent bg-primary text-primary-foreground hover:bg-primary-hover',
+  primary: 'border-action-accent-border bg-action-accent text-action-accent-foreground hover:bg-action-accent-hover shadow-sm transition-colors',
   tonal: 'border-border-default bg-surface-subtle text-text-primary hover:bg-surface-elevated',
   outline: 'border-border-active bg-surface-panel text-text-primary hover:bg-surface-elevated',
   ghost: 'border-transparent bg-transparent text-text-secondary hover:bg-surface-elevated hover:text-text-primary',

@@ -138,7 +138,7 @@ export const RoadmapUnblockedFocus: React.FC<RoadmapUnblockedFocusProps> = ({
                 data-testid={`focus-task-item-${task.id}`}
                 className={`p-4 rounded-lg border transition-all flex flex-col justify-between space-y-3.5 ${
                   isFirst
-                    ? 'bg-[var(--surface-elevated)] border-[var(--border-active)] shadow-sm'
+                    ? 'bg-[var(--surface-elevated)] border-[var(--action-accent-border)]/60 shadow-sm'
                     : 'bg-[var(--surface-muted)] border-[var(--border)] hover:border-[var(--border-active)]'
                 }`}
               >
@@ -210,7 +210,7 @@ export const RoadmapUnblockedFocus: React.FC<RoadmapUnblockedFocusProps> = ({
                       size="xs"
                       onClick={() => onOpenTask(task.id)}
                       data-testid={`focus-action-btn-${task.id}`}
-                      className="flex-1 h-7 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-foreground)] font-semibold rounded-md shadow-sm flex items-center justify-center gap-1.5 cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--focus)]"
+                      className="flex-1 h-7 text-xs bg-[var(--action-accent)] hover:bg-[var(--action-accent-hover)] text-[var(--action-accent-foreground)] font-semibold rounded-md shadow-sm flex items-center justify-center gap-1.5 cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--action-accent-ring)] transition-colors"
                     >
                       <span>{isInProgress ? 'Resume Task' : 'Start Task'}</span>
                       <ArrowRight className="size-3" aria-hidden="true" />
