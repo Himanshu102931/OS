@@ -16,11 +16,13 @@ Unlike generic educational tools or consumer platforms, PlacementOS operates as 
   - **Box 2**: 3-day interval
   - **Box 3**: 7-day interval
   - **Box 4**: 14-day interval (Mastered)
-- **4-Phase Authoritative Roadmap**:
-  - **Phase 1** (Sep 1 – Nov 30, 2026): Core Foundations & Early Skills (DSA, Python, SQL, DBMS, OS, CN, OOP, Aptitude, Communication, Projects, Mock Interviews)
-  - **Phase 2** (Dec 1, 2026 – Jan 31, 2027): Advanced Topics & Core CS Deep-Dive (DSA, Python, SQL, OS, CN, OOP)
-  - **Phase 3** (Feb 1 – Mar 31, 2027): Intensive Mock Drills & Timed Assessments
-  - **Phase 4** (Apr 1 – May 31, 2027): Placement Sprint & Final Drive Sweep
+- **4-Phase Authoritative Roadmap & Trajectory Control**:
+  - Interactive trajectory navigation connecting 4 placement phases:
+    - **Phase 1** (Sep 1 – Nov 30, 2026): Core Foundations & Early Skills (DSA, Python, SQL, DBMS, OS, CN, OOP, Aptitude, Communication, Projects, Mock Interviews)
+    - **Phase 2** (Dec 1, 2026 – Jan 31, 2027): Advanced Topics & Core CS Deep-Dive (DSA, Python, SQL, OS, CN, OOP)
+    - **Phase 3** (Feb 1 – Mar 31, 2027): Intensive Mock Drills & Timed Assessments
+    - **Phase 4** (Apr 1 – May 31, 2027): Placement Sprint & Final Drive Sweep
+  - Temporal position tracking, active vs selected phase distinction, curriculum milestones with collapsible modules, domain-specific filtering, deterministic immediate unblocked focus selection, and full prerequisite lock tracing with deep-linked topic drawers.
 - **11-Domain Skill Matrix**: Real-time strength calculation (0–100) and freshness tracking (`Fresh`, `Aging`, `Untested`) across DSA, SQL, Python, DBMS, OS, CN, OOP, Projects, Communication, Aptitude, and Mock Interviews.
 - **Skill Freshness Explanation**: Plain-language explanation of why a skill has its current freshness state (`fresh`, `aging`, `stale`, or `untested`), based on deterministic analysis of last practice/assessment evidence. Uses existing canonical evidence data — no new freshness calculation. Explains: "Fresh because recent evidence demonstrates the skill," "Aging because evidence is becoming old," "Stale because no sufficiently recent evidence exists," "Untested because no demonstrated evidence found."
 - **Company Target Overlays**: Priority boosting for active hiring drives (e.g., Amazon, TCS Digital).
@@ -34,9 +36,9 @@ Unlike generic educational tools or consumer platforms, PlacementOS operates as 
 
 - **Framework**: React 19 + TypeScript 6.0
 - **Build Tool**: Vite 8
-- **Styling**: TailwindCSS 4 (Dark mode studio design system: `surface-canvas` `#0D0F12`, warm bronze accent `#E5A93C`)
+- **Styling**: TailwindCSS 4 (Forest-green studio design system: deep obsidian `#0B100D`, primary forest `#2E8B62` / `#46B982`, warning bronze `#D19A45`)
 - **Icons**: Lucide React
-- **Testing**: Vitest (476 automated scenario & engine tests across 27 test files)
+- **Testing**: Vitest (1339+ automated tests across 64 test suites)
 - **Routing**: Client-side hash routing (`#/${route}`)
 - **Persistence**: `StorageAdapter` with JSON backup export/import
 

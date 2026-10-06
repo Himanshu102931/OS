@@ -908,8 +908,53 @@ button.bg-\[\#E5A93C\]:hover, a.bg-\[\#E5A93C\]:hover, .btn-primary:hover {
 @media (prefers-reduced-motion: reduce) {
   .readiness-glow, .evidence-update, .kpi-card, .company-glow,
   .gap-badge, .flow-step::after, .defense-state, .settings-control,
-  .settings-section, .state-success, .state-error, .save-notify {
+  .settings-section, .state-success, .state-error, .save-notify,
+  .phase-active-pulse {
     animation: none;
     transition: none;
+  }
+}
+
+/* ---- Trajectory Active Phase Breathing Ring ---- */
+@keyframes phase-active-breath {
+  0%, 100% {
+    border-color: rgba(46, 139, 98, 0.5);
+    box-shadow: 0 0 0 1px rgba(70, 185, 130, 0.15);
+  }
+  50% {
+    border-color: rgba(70, 185, 130, 0.85);
+    box-shadow: 0 0 0 2px rgba(70, 185, 130, 0.28);
+  }
+}
+
+.phase-active-pulse {
+  animation: phase-active-breath 2.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phase-active-pulse {
+    animation: none !important;
+  }
+}
+
+/* ---- Roadmap Topic Drawer Slide Animation ---- */
+@keyframes roadmap-drawer-slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0.85;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.roadmap-drawer-slide {
+  animation: roadmap-drawer-slide-in 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .roadmap-drawer-slide {
+    animation: none !important;
   }
 }
