@@ -204,4 +204,19 @@ const DeepLinkHarness = () => {
     expect(screen.getByTestId('topic-detail-drawer')).toBeDefined();
     expect(screen.getByText('Master Two Pointer Technique on Arrays')).toBeDefined();
   });
+
+  it('9. renders signature motion: Roadmap Trajectory Traveler along the 4-phase trajectory rail', () => {
+    mountRoadmap();
+
+    const rail = screen.getByTestId('roadmap-trajectory-rail');
+    expect(rail).toBeDefined();
+
+    const traveler = screen.getByTestId('roadmap-trajectory-traveler');
+    expect(traveler).toBeDefined();
+    expect(traveler.className).toContain('roadmap-trajectory-traveler');
+
+    // Active phase Phase 1 has breathing emphasis
+    const phase1Node = screen.getByTestId('phase-node-phase-1');
+    expect(phase1Node.className).toContain('phase-active-pulse');
+  });
 });

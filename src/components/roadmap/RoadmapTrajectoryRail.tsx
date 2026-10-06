@@ -61,6 +61,17 @@ export const RoadmapTrajectoryRail: React.FC<RoadmapTrajectoryRailProps> = ({
         </div>
       </div>
 
+      {/* Continuous Trajectory Traveler Motion Track */}
+      <div className="relative py-1" aria-hidden="true">
+        <div className="h-1 w-full bg-[var(--surface-muted)] border border-[var(--border)] rounded-full roadmap-trajectory-track relative">
+          <div
+            data-testid="roadmap-trajectory-traveler"
+            className="roadmap-trajectory-traveler"
+            aria-hidden="true"
+          />
+        </div>
+      </div>
+
       {/* 4-Phase Trajectory Track */}
       <div
         className="overflow-x-auto pb-1"

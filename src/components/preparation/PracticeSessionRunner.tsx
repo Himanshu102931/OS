@@ -19,8 +19,9 @@ import {
   ShieldCheck,
   Award,
   AlertTriangle,
+  Play,
+  Activity,
 } from 'lucide-react';
-
 
 interface PracticeSessionRunnerProps {
   session: PracticeSessionDefinition;
@@ -136,8 +137,6 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
 
   // Time-limited sets submit themselves the moment the limit is reached, with
   // whatever has actually been answered — blank items stay blank and unscored.
-  // We track whether we've already auto-submitted to avoid multiple submissions
-  // and avoid the ESLint "setState in effect" false positive.
   const autoSubmittedRef = useRef<boolean>(false);
 
   useEffect(() => {
@@ -164,21 +163,43 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
   const hasVerdict = resultAttempt?.passingScorePct !== undefined;
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#0D0F12]/95 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      <div className="w-full max-w-2xl bg-[#14171D] border border-[#262D38] rounded-[8px] shadow-2xl overflow-hidden flex flex-col my-auto">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="practice-runner-title"
+      className="fixed inset-0 z-50 bg-[var(--background)]/90 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
+    >
+      <div className="w-full max-w-2xl bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden flex flex-col my-auto relative">
+        {/* Active Session Diagnostic Pulse Track */}
+        {step === 'active' && (
+          <div
+            className="diagnostic-pulse-track absolute top-0 left-0 right-0 h-[2px] bg-[var(--border)]"
+            aria-hidden="true"
+            data-testid="diagnostic-pulse-rail"
+          >
+            <div className="diagnostic-pulse-beam" />
+          </div>
+        )}
+
         {/* Header Bar */}
-        <div className="px-5 py-4 border-b border-[#262D38] flex items-center justify-between bg-[#1B2028]">
-          <div className="flex items-center gap-2.5">
-            <span className="px-2 py-0.5 text-[10px] uppercase font-mono font-bold bg-[#E5A93C]/15 text-[#E5A93C] rounded border border-[#E5A93C]/30">
+        <div className="px-5 py-3.5 border-b border-[var(--border)] flex items-center justify-between bg-[var(--surface-elevated)]">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="px-2 py-0.5 text-[10px] uppercase font-mono font-semibold bg-[var(--accent)]/10 text-[var(--accent)] rounded border border-[var(--accent)]/20 shrink-0">
               {session.category}
             </span>
-            <h2 className="text-sm sm:text-base font-semibold text-[#F1F5F9] truncate max-w-md">{session.title}</h2>
+            <h2
+              id="practice-runner-title"
+              className="text-xs sm:text-sm font-semibold text-[var(--foreground)] truncate max-w-md"
+            >
+              {session.title}
+            </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded text-[#8E98A8] hover:text-[#F1F5F9] hover:bg-[#262D38] transition-all"
+            aria-label="Close session runner"
+            className="p-1 rounded-lg text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface)] transition-colors focus-visible:ring-2 focus-visible:ring-[var(--focus)] outline-none"
           >
-            <X className="size-5" />
+            <X className="size-4" />
           </button>
         </div>
 
@@ -186,59 +207,80 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
         {step === 'intro' && (
           <div className="p-6 sm:p-8 space-y-6">
             <div className="space-y-2">
-              <h3 className="text-lg font-bold text-[#F1F5F9] tracking-tight">{session.title}</h3>
-              <p className="text-xs text-[#8E98A8] leading-relaxed">{session.description}</p>
+              <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-[var(--accent)]">
+                <Activity className="size-3.5" />
+                <span>Diagnostic Assessment Protocol</span>
+              </div>
+              <h3 className="text-base sm:text-lg font-bold text-[var(--foreground)] tracking-tight">
+                {session.title}
+              </h3>
+              <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">
+                {session.description}
+              </p>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 p-4 bg-[#1B2028] border border-[#262D38] rounded-[6px] text-center font-mono">
+            {/* Canonical Metadata Grid */}
+            <div className="grid grid-cols-3 gap-3 p-4 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-lg text-center font-mono">
               <div>
-                <span className="text-[10px] text-[#8E98A8] uppercase block">Questions</span>
-                <span className="text-base font-bold text-[#F1F5F9] mt-0.5 block">{session.questionCount}</span>
+                <span className="text-[10px] text-[var(--foreground-muted)] uppercase block">Questions</span>
+                <span className="text-base font-bold text-[var(--foreground)] mt-0.5 block">
+                  {session.questionCount}
+                </span>
               </div>
               <div>
-                <span className="text-[10px] text-[#8E98A8] uppercase block">
+                <span className="text-[10px] text-[var(--foreground-muted)] uppercase block">
                   {timeLimitSeconds !== null ? 'Time Limit' : 'Est. Duration'}
                 </span>
-                <span className="text-base font-bold text-[#F1F5F9] mt-0.5 block">{session.estimatedMinutes} mins</span>
+                <span className="text-base font-bold text-[var(--foreground)] mt-0.5 block">
+                  {session.estimatedMinutes} mins
+                </span>
               </div>
               <div>
-                <span className="text-[10px] text-[#8E98A8] uppercase block">Pass Threshold</span>
-                <span className="text-base font-bold text-[#E5A93C] mt-0.5 block">{session.passingScorePct}%</span>
+                <span className="text-[10px] text-[var(--foreground-muted)] uppercase block">Pass Threshold</span>
+                <span className="text-base font-bold text-[var(--accent)] mt-0.5 block">
+                  {session.passingScorePct}%
+                </span>
               </div>
             </div>
 
-            <div className="p-3 bg-[#1B2028]/60 border border-[#262D38] rounded text-xs text-[#8E98A8] flex items-center gap-2">
-              <ShieldCheck className="size-4 text-[#10B981] shrink-0" />
+            <div className="p-3 bg-[var(--success)]/10 border border-[var(--success)]/20 rounded-lg text-xs text-[var(--success)] flex items-center gap-2.5">
+              <ShieldCheck className="size-4 shrink-0" />
               <span>Completion logs canonical evidence to your Skills Matrix & Analytics without double-counting.</span>
             </div>
 
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end items-center gap-3 pt-2 border-t border-[var(--border)]">
               <button
                 onClick={onClose}
-                className="px-4 py-2 text-xs font-medium text-[#8E98A8] hover:text-[#F1F5F9] transition-all"
+                className="px-4 py-2 text-xs font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleStart}
-                className="px-5 py-2 rounded bg-[#E5A93C] hover:bg-[#F5B84C] text-[#0D0F12] font-bold text-xs transition-all flex items-center gap-2 shadow-sm"
+                className="px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-all flex items-center gap-2 shadow-xs focus-visible:ring-2 focus-visible:ring-[var(--focus)] outline-none"
               >
+                <Play className="size-3.5 fill-current" />
                 <span>Start Assessment</span>
-                <ArrowRight className="size-4" />
               </button>
             </div>
           </div>
         )}
 
-        {/* STEP 2: ACTIVE SESSION WORK (Hides telemetry) */}
+        {/* STEP 2: ACTIVE SESSION WORK */}
         {step === 'active' && currentQuestion && (
-          <div className="p-6 sm:p-8 space-y-6">
+          <div className="p-5 sm:p-7 space-y-5">
             {/* Top Progress & Timer Bar */}
-            <div className="flex items-center justify-between text-xs font-mono border-b border-[#262D38] pb-3">
-              <span className="text-[#8E98A8]">
-                Question <strong className="text-[#F1F5F9]">{currentIndex + 1}</strong> of <strong className="text-[#F1F5F9]">{totalQuestions}</strong>
-              </span>
-              <div className="flex items-center gap-1.5 text-[#E5A93C]">
+            <div className="flex items-center justify-between text-xs font-mono border-b border-[var(--border)] pb-3">
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-[var(--foreground-muted)]"
+                  data-testid="question-step-counter"
+                >
+                  Question <strong className="text-[var(--foreground)]">{currentIndex + 1}</strong> of{' '}
+                  <strong className="text-[var(--foreground)]">{totalQuestions}</strong>
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 text-[var(--accent)]">
                 <Clock className="size-3.5" />
                 <span data-testid={timeLimitSeconds !== null ? 'session-countdown' : 'session-elapsed'}>
                   {timeLimitSeconds !== null
@@ -248,36 +290,52 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
               </div>
             </div>
 
+            {/* Progress Bar */}
+            <div className="w-full bg-[var(--surface-elevated)] h-1 rounded-full overflow-hidden">
+              <div
+                className="bg-[var(--accent)] h-full transition-all duration-300"
+                style={{ width: `${((currentIndex + 1) / totalQuestions) * 100}%` }}
+                role="progressbar"
+                aria-valuenow={currentIndex + 1}
+                aria-valuemin={1}
+                aria-valuemax={totalQuestions}
+              />
+            </div>
+
             {/* Question Prompt */}
             <div className="space-y-2">
               {currentQuestion.categoryTag && (
-                <span className="text-[10px] font-mono px-2 py-0.5 bg-[#1B2028] text-[#8E98A8] rounded border border-[#262D38] uppercase">
+                <span className="text-[10px] font-mono px-2 py-0.5 bg-[var(--surface-elevated)] text-[var(--foreground-muted)] rounded border border-[var(--border)] uppercase">
                   {currentQuestion.categoryTag}
                 </span>
               )}
-              <h3 className="text-sm sm:text-base font-medium text-[#F1F5F9] leading-relaxed">
+              <h3 className="text-xs sm:text-sm font-medium text-[var(--foreground)] leading-relaxed">
                 {currentQuestion.prompt}
               </h3>
             </div>
 
             {/* Input Controls Based on Question Type */}
-            <div className="space-y-3 pt-2">
-              {/* Type: MCQ / Multiple Choice — the same objective set the evaluator grades */}
+            <div className="space-y-3 pt-1">
+              {/* Type: MCQ / Multiple Choice */}
               {isObjective && currentQuestion.options && (
                 <div className="space-y-2">
                   {currentQuestion.options.map((optionText, optIdx) => (
                     <button
                       key={optIdx}
                       onClick={() => setSelectedOption(optIdx)}
-                      className={`w-full p-3.5 rounded-[4px] border text-left text-xs transition-all flex items-center gap-3 ${
+                      className={`w-full p-3 rounded-lg border text-left text-xs transition-all flex items-center gap-3 focus-visible:ring-2 focus-visible:ring-[var(--focus)] outline-none ${
                         selectedOption === optIdx
-                          ? 'bg-[#1B2028] border-[#E5A93C] text-[#F1F5F9] font-medium shadow-xs'
-                          : 'bg-[#14171D] border-[#262D38] text-[#8E98A8] hover:text-[#F1F5F9] hover:bg-[#1B2028]/50'
+                          ? 'bg-[var(--surface-elevated)] border-[var(--accent)] text-[var(--foreground)] font-medium shadow-xs'
+                          : 'bg-[var(--surface)] border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-elevated)]/50'
                       }`}
                     >
-                      <span className={`size-5 rounded-full border flex items-center justify-center text-[10px] font-mono ${
-                        selectedOption === optIdx ? 'border-[#E5A93C] text-[#E5A93C] bg-[#E5A93C]/10 font-bold' : 'border-[#3B4556] text-[#5C6675]'
-                      }`}>
+                      <span
+                        className={`size-5 rounded-md border flex items-center justify-center text-[10px] font-mono shrink-0 ${
+                          selectedOption === optIdx
+                            ? 'border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/15 font-bold'
+                            : 'border-[var(--border)] text-[var(--foreground-subtle)]'
+                        }`}
+                      >
                         {String.fromCharCode(65 + optIdx)}
                       </span>
                       <span>{optionText}</span>
@@ -289,7 +347,7 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
               {/* Type: Short Answer / SQL Query / Explanation / Defense / Interview */}
               {!isObjective && (
                 <div className="space-y-3">
-                  <span className="text-[11px] text-[#8E98A8] font-mono block">
+                  <span className="text-[11px] text-[var(--foreground-muted)] font-mono block">
                     Your response (recorded exactly as written)
                   </span>
                   <textarea
@@ -301,34 +359,35 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
                         ? 'Type your SQL query here...'
                         : 'Write your response or defense notes here...'
                     }
-                    className="w-full p-3 bg-[#1B2028] border border-[#262D38] rounded text-xs text-[#F1F5F9] font-mono focus:outline-none focus:border-[#E5A93C] placeholder-[#5C6675]"
+                    className="w-full p-3 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-lg text-xs text-[var(--foreground)] font-mono focus:outline-none focus:border-[var(--accent)] placeholder-[var(--foreground-subtle)]"
                   />
 
-                  {/* Self-certification — visually distinct from "I answered":
-                      this is the only thing that can make a non-MCQ item count. */}
-                  <div className="p-3 bg-[#14171D] border border-[#3B4556] rounded space-y-2" data-testid="self-certification">
+                  {/* Self-certification */}
+                  <div
+                    className="p-3 bg-[var(--surface-elevated)]/60 border border-[var(--border)] rounded-lg space-y-1.5"
+                    data-testid="self-certification"
+                  >
                     <label className="flex items-start gap-2.5 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={selfCertified}
                         onChange={(e) => setSelfCertified(e.target.checked)}
-                        className="mt-0.5 size-4 accent-[#E5A93C] shrink-0"
+                        className="mt-0.5 size-4 accent-[var(--accent)] shrink-0 rounded"
                       />
-                      <span className="text-xs text-[#F1F5F9] font-medium">
+                      <span className="text-xs text-[var(--foreground)] font-medium">
                         I can verify this response is correct (self-certified)
                       </span>
                     </label>
-                    <p className="text-[11px] text-[#8E98A8] leading-relaxed">
+                    <p className="text-[11px] text-[var(--foreground-muted)] leading-relaxed">
                       This question type has no answer key, so nothing is graded automatically.
-                      Writing a response only records that you completed it — it counts as correct
-                      only when you certify it here against the model answer.
+                      Writing a response records completion — it counts as correct only when certified against the model answer.
                     </p>
                   </div>
 
                   {/* Self-Rating Confidence Bar */}
-                  <div className="p-3 bg-[#1B2028]/50 border border-[#262D38] rounded space-y-2">
-                    <span className="text-[11px] text-[#8E98A8] font-mono block">
-                      Self Confidence Rating (1 = Unsure, 5 = Confident) — recorded, never scored
+                  <div className="p-3 bg-[var(--surface-elevated)]/40 border border-[var(--border)] rounded-lg space-y-2">
+                    <span className="text-[10px] text-[var(--foreground-muted)] font-mono uppercase tracking-wider block">
+                      Confidence Rating (1 = Unsure, 5 = Confident)
                     </span>
                     <div className="flex gap-2">
                       {([1, 2, 3, 4, 5] as const).map((rating) => (
@@ -336,10 +395,10 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
                           key={rating}
                           type="button"
                           onClick={() => setConfidence(rating)}
-                          className={`flex-1 py-1.5 rounded text-xs font-mono border transition-all ${
+                          className={`flex-1 py-1.5 rounded-md text-xs font-mono border transition-all focus-visible:ring-2 focus-visible:ring-[var(--focus)] outline-none ${
                             confidence === rating
-                              ? 'bg-[#E5A93C] text-[#0D0F12] border-[#E5A93C] font-bold'
-                              : 'bg-[#14171D] text-[#8E98A8] border-[#262D38] hover:bg-[#1B2028]'
+                              ? 'bg-[var(--accent)] text-[var(--accent-foreground)] border-[var(--accent)] font-bold'
+                              : 'bg-[var(--surface)] text-[var(--foreground-muted)] border-[var(--border)] hover:bg-[var(--surface-elevated)]'
                           }`}
                         >
                           {rating}
@@ -357,13 +416,13 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
                     <button
                       type="button"
                       onClick={() => setShowHint(true)}
-                      className="text-[11px] text-[#8E98A8] hover:text-[#E5A93C] flex items-center gap-1 font-mono transition-all"
+                      className="text-[11px] text-[var(--foreground-muted)] hover:text-[var(--accent)] flex items-center gap-1.5 font-mono transition-colors"
                     >
                       <HelpCircle className="size-3.5" />
                       <span>Show Hint</span>
                     </button>
                   ) : (
-                    <div className="p-3 bg-[#1B2028] border border-[#E5A93C]/30 rounded text-xs text-[#E5A93C] flex items-start gap-2">
+                    <div className="p-3 bg-[var(--surface-elevated)] border border-[var(--accent)]/30 rounded-lg text-xs text-[var(--accent)] flex items-start gap-2">
                       <Sparkles className="size-4 shrink-0 mt-0.5" />
                       <span>{currentQuestion.hint}</span>
                     </div>
@@ -373,31 +432,30 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
             </div>
 
             {/* Bottom Actions */}
-            <div className="flex justify-between items-center pt-4 border-t border-[#262D38]">
-              <span className="text-[11px] text-[#5C6675] font-mono">
+            <div className="flex justify-between items-center pt-4 border-t border-[var(--border)]">
+              <span className="text-[11px] text-[var(--foreground-muted)] font-mono">
                 {currentIndex + 1} / {totalQuestions}
               </span>
 
               <button
                 onClick={handleNext}
-                className="px-5 py-2 rounded bg-[#E5A93C] hover:bg-[#F5B84C] text-[#0D0F12] font-bold text-xs transition-all flex items-center gap-2 shadow-sm"
+                className="px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-all flex items-center gap-2 shadow-xs focus-visible:ring-2 focus-visible:ring-[var(--focus)] outline-none"
               >
                 <span>{currentIndex < totalQuestions - 1 ? 'Next Question' : 'Submit Assessment'}</span>
-                <ArrowRight className="size-4" />
+                <ArrowRight className="size-3.5" />
               </button>
             </div>
           </div>
         )}
 
-        {/* STEP 3: RESULT STATE — every value below is read from the stored
-            evaluation produced by `evaluatePracticeAttempt`, never recomputed. */}
+        {/* STEP 3: RESULT STATE */}
         {step === 'result' && resultAttempt && resultSummary && (
           <div className="p-6 sm:p-8 space-y-6 text-center">
             <div
               className={`size-12 rounded-full border flex items-center justify-center mx-auto ${
                 hasVerdict && !resultAttempt.passed
-                  ? 'bg-[#EF4444]/15 border-[#EF4444]/30 text-[#EF4444]'
-                  : 'bg-[#E5A93C]/15 border-[#E5A93C]/30 text-[#E5A93C]'
+                  ? 'bg-[var(--error)]/10 border-[var(--error)]/30 text-[var(--error)]'
+                  : 'bg-[var(--success)]/10 border-[var(--success)]/30 text-[var(--success)]'
               }`}
             >
               {hasVerdict && !resultAttempt.passed ? (
@@ -409,38 +467,37 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
 
             <div className="space-y-1">
               <h3
-                className={`text-xl font-bold ${
-                  hasVerdict && !resultAttempt.passed ? 'text-[#EF4444]' : 'text-[#F1F5F9]'
+                className={`text-lg sm:text-xl font-bold ${
+                  hasVerdict && !resultAttempt.passed ? 'text-[var(--error)]' : 'text-[var(--foreground)]'
                 }`}
                 data-testid="result-verdict"
               >
                 {hasVerdict ? (resultAttempt.passed ? 'PASS' : 'FAIL') : 'Assessment Completed'}
               </h3>
               {hasVerdict && (
-                <p className="text-xs text-[#8E98A8]">
-                  {resultAttempt.scorePct}% against a {resultAttempt.passingScorePct}% pass
-                  threshold
+                <p className="text-xs text-[var(--foreground-muted)]">
+                  {resultAttempt.scorePct}% against a {resultAttempt.passingScorePct}% pass threshold
                 </p>
               )}
             </div>
 
             {/* Results Grid */}
-            <div className="grid grid-cols-3 gap-3 p-4 bg-[#1B2028] border border-[#262D38] rounded font-mono text-center">
+            <div className="grid grid-cols-3 gap-3 p-4 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-lg font-mono text-center">
               <div>
-                <span className="text-[10px] text-[#8E98A8] uppercase block">Score</span>
-                <span className="text-2xl font-bold text-[#E5A93C] mt-1 block" data-testid="result-score">
+                <span className="text-[10px] text-[var(--foreground-muted)] uppercase block">Score</span>
+                <span className="text-xl sm:text-2xl font-bold text-[var(--accent)] mt-1 block" data-testid="result-score">
                   {resultAttempt.scorePct}%
                 </span>
               </div>
               <div>
-                <span className="text-[10px] text-[#8E98A8] uppercase block">Correct</span>
-                <span className="text-2xl font-bold text-[#F1F5F9] mt-1 block">
+                <span className="text-[10px] text-[var(--foreground-muted)] uppercase block">Correct</span>
+                <span className="text-xl sm:text-2xl font-bold text-[var(--foreground)] mt-1 block">
                   {resultAttempt.correctCount} / {resultAttempt.totalQuestions}
                 </span>
               </div>
               <div>
-                <span className="text-[10px] text-[#8E98A8] uppercase block">Time</span>
-                <span className="text-2xl font-bold text-[#F1F5F9] mt-1 block">
+                <span className="text-[10px] text-[var(--foreground-muted)] uppercase block">Time</span>
+                <span className="text-xl sm:text-2xl font-bold text-[var(--foreground)] mt-1 block">
                   {formatTimer(resultAttempt.totalTimeSeconds)}
                 </span>
               </div>
@@ -448,7 +505,7 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
 
             {resultSummary.unansweredCount > 0 && (
               <div
-                className="p-3 bg-[#F59E0B]/10 border border-[#F59E0B]/30 rounded text-xs text-[#F59E0B] flex items-center justify-center gap-2"
+                className="p-3 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-lg text-xs text-[var(--warning)] flex items-center justify-center gap-2"
                 data-testid="result-unanswered"
               >
                 <AlertTriangle className="size-4 shrink-0" />
@@ -459,12 +516,12 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
               </div>
             )}
 
-            <div className="p-3 bg-[#10B981]/10 border border-[#10B981]/30 rounded text-xs text-[#10B981] flex items-center justify-center gap-2">
+            <div className="p-3 bg-[var(--success)]/10 border border-[var(--success)]/20 rounded-lg text-xs text-[var(--success)] flex items-center justify-center gap-2">
               <CheckCircle2 className="size-4 shrink-0" />
               <span>One attempt and one evidence event recorded for this session.</span>
             </div>
 
-            <p className="text-xs text-[#8E98A8]" data-testid="result-next-action">
+            <p className="text-xs text-[var(--foreground-muted)]" data-testid="result-next-action">
               {hasVerdict && !resultAttempt.passed
                 ? 'Next: review what you missed, then retake this session.'
                 : resultSummary.unansweredCount > 0
@@ -472,10 +529,10 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
                   : 'Next: continue to your next stage, or retake to improve the score.'}
             </p>
 
-            <div className="flex justify-center gap-3 pt-2">
+            <div className="flex justify-center items-center gap-3 pt-2">
               <button
                 onClick={handleStart}
-                className="px-4 py-2 rounded bg-[#1B2028] border border-[#262D38] text-xs font-medium text-[#8E98A8] hover:text-[#F1F5F9] transition-all flex items-center gap-1.5"
+                className="px-4 py-2 rounded-lg bg-[var(--surface-elevated)] border border-[var(--border)] text-xs font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-[var(--focus)] outline-none"
               >
                 <RotateCcw className="size-3.5" />
                 <span>Retake Session</span>
@@ -485,7 +542,7 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
                   onClose();
                   setRoute('preparation');
                 }}
-                className="px-5 py-2 rounded bg-[#E5A93C] hover:bg-[#F5B84C] text-[#0D0F12] font-bold text-xs transition-all shadow-sm"
+                className="px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-all shadow-xs focus-visible:ring-2 focus-visible:ring-[var(--focus)] outline-none"
               >
                 Return to Preparation Hub
               </button>

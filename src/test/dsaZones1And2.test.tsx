@@ -560,5 +560,40 @@ describe('DSA Subsystem Manufacturing — Zones 1 & 2', () => {
       expect(screen.getByText('All Current Algorithmic Goals Completed')).toBeDefined();
       expect(screen.queryByTestId('dsa-primary-cta')).toBeNull();
     });
+
+    it('3.7 renders signature motion: DSA Algorithm Trace with luminous traveler and 4 stations', () => {
+      render(
+        <PlacementProvider>
+          <DSAView />
+        </PlacementProvider>
+      );
+
+      const trace = screen.getByTestId('dsa-algorithm-trace');
+      expect(trace).toBeDefined();
+      expect(within(trace).getByText(/Algorithmic Problem Laboratory Trace/i)).toBeDefined();
+      expect(within(trace).getByText(/Pattern → Problem → Attempt → Mastery/i)).toBeDefined();
+
+      const traveler = screen.getByTestId('dsa-trace-traveler');
+      expect(traveler).toBeDefined();
+      expect(traveler.className).toContain('dsa-trace-traveler');
+
+      // 4 stations exist
+      expect(screen.getByTestId('dsa-trace-station-pattern')).toBeDefined();
+      expect(screen.getByTestId('dsa-trace-station-problem')).toBeDefined();
+      expect(screen.getByTestId('dsa-trace-station-attempt')).toBeDefined();
+      expect(screen.getByTestId('dsa-trace-station-mastery')).toBeDefined();
+    });
+
+    it('3.8 highlights active station with restrained breathing pulse in DSA Algorithm Trace', () => {
+      render(
+        <PlacementProvider>
+          <DSAView />
+        </PlacementProvider>
+      );
+
+      // In initial state with default active focus problem, problem station has pulse
+      const problemStation = screen.getByTestId('dsa-trace-station-problem');
+      expect(problemStation.className).toContain('dsa-station-pulse');
+    });
   });
 });

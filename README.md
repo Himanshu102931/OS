@@ -25,6 +25,17 @@ Unlike generic educational tools or consumer platforms, PlacementOS operates as 
     - **Phase 3** (Feb 1 – Mar 31, 2027): Intensive Mock Drills & Timed Assessments
     - **Phase 4** (Apr 1 – May 31, 2027): Placement Sprint & Final Drive Sweep
   - Temporal position tracking, active vs selected phase distinction, curriculum milestones with collapsible modules, domain-specific filtering, deterministic immediate unblocked focus selection, and full prerequisite lock tracing with deep-linked topic drawers.
+- **Preparation Progression & Knowledge Workspace**:
+  - **Zone 1: Hub Header & Macro Readiness Strip**: Real-time curriculum readiness tracking across 20 foundational topics, preparedness distribution (Covered, Practiced, Assessed, Retained, Mastered), and active topic focus selector.
+  - **Zone 2: Section Progression Matrix**: 4-section curriculum grid (Core CS, System Design, Coding Foundations, Applied Practice) tracking module completion, unproven topics, and immediate learning targets.
+  - **Zone 3: Workspace Context & 4-Pillar Preparedness Model**: Deterministic proof evaluation per topic tracking:
+    1. *Covered*: Orient + Learn completed or passing score.
+    2. *Practiced*: Apply stage completed or hands-on practice logged.
+    3. *Assessed*: Passing score ($\ge 70\%$) demonstrated in practice assessments.
+    4. *Retained*: Active non-stale evidence strength ($\ge 60/100$) + Interview stage completion.
+  - **Zone 4: Prerequisite Proof Gate**: Explicit dependency barrier explaining locked topics and unmet prerequisite curriculum/evidence with direct deep-link navigation.
+  - **Zone 5: 7-Stage Progression Rail with "Knowledge Flow" Signature Motion**: Connected learning progression (Orient $\rightarrow$ Learn $\rightarrow$ Apply $\rightarrow$ Assess $\rightarrow$ Review $\rightarrow$ Interview $\rightarrow$ Evidence) animated with a continuous 16s traveling energy beam, canonical current-stage breathing halo, and subtopic knowledge cards with accordion drill-downs (*What, Why, Example, Practice, Proof*).
+  - **Zone 6: Diagnostic Practice Session Runner**: Focused training and diagnostic modal featuring the *Diagnostic Pulse* active scan motion, MCQ/subjective inputs with self-certification, hint support, and canonical evidence logging.
 - **11-Domain Skill Matrix**: Real-time strength calculation (0–100) and freshness tracking (`Fresh`, `Aging`, `Untested`) across DSA, SQL, Python, DBMS, OS, CN, OOP, Projects, Communication, Aptitude, and Mock Interviews.
 - **Skill Freshness Explanation**: Plain-language explanation of why a skill has its current freshness state (`fresh`, `aging`, `stale`, or `untested`), based on deterministic analysis of last practice/assessment evidence. Uses existing canonical evidence data — no new freshness calculation. Explains: "Fresh because recent evidence demonstrates the skill," "Aging because evidence is becoming old," "Stale because no sufficiently recent evidence exists," "Untested because no demonstrated evidence found."
 - **Company Target Overlays**: Priority boosting for active hiring drives (e.g., Amazon, TCS Digital).
@@ -40,7 +51,7 @@ Unlike generic educational tools or consumer platforms, PlacementOS operates as 
 - **Build Tool**: Vite 8
 - **Styling**: TailwindCSS 4 (Forest-green studio design system: deep obsidian `#0B100D`, primary forest `#2E8B62` / `#46B982`, warning bronze `#D19A45`)
 - **Icons**: Lucide React
-- **Testing**: Vitest (1381+ automated tests across 67 test suites)
+- **Testing**: Vitest (1432+ automated tests across 70 test suites)
 - **Routing**: Client-side hash routing (`#/${route}`)
 - **Persistence**: `StorageAdapter` with JSON backup export/import
 

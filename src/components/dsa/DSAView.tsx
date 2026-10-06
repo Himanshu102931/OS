@@ -9,6 +9,7 @@ import { DSAActiveFocus } from './DSAActiveFocus';
 import { DSAReviewQueue } from './DSAReviewQueue';
 import { DSAPatternMatrix } from './DSAPatternMatrix';
 import { DSAProblemWorkbench } from './DSAProblemWorkbench';
+import { DSAAlgorithmTrace } from './DSAAlgorithmTrace';
 import type { DSAProblem, DSAAttempt, DSAProgress } from '../../types';
 import { getDSASignals } from '../../engine/dsaEngine';
 
@@ -118,6 +119,12 @@ export const DSAView: React.FC = () => {
         problems={dsaProblems}
         progressMap={dsaProgress}
         todayDate={todayDate}
+      />
+
+      {/* SIGNATURE MOTION: Algorithmic Problem Laboratory Flow Trace */}
+      <DSAAlgorithmTrace
+        activeSignal={activeFocusSignal}
+        hasRemediation={Boolean(dsaProblems.some((p) => dsaProgress[p.id]?.remediationRequired))}
       />
 
       {/* ZONE 2: Active Focus / Dominant Next Mission */}

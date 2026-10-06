@@ -990,3 +990,325 @@ button.bg-\[\#E5A93C\]:hover, a.bg-\[\#E5A93C\]:hover, .btn-primary:hover {
     animation: none !important;
   }
 }
+
+/* ============================================================
+   PREPARATION SIGNATURE MOTION: KNOWLEDGE FLOW
+   ============================================================ */
+
+/* 1. Continuous Traveling Energy Beam (16s cycle) */
+@keyframes knowledge-flow-travel {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  5% {
+    opacity: 0.9;
+  }
+  95% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateX(500%);
+    opacity: 0;
+  }
+}
+
+.knowledge-flow-track {
+  position: relative;
+  overflow: hidden;
+}
+
+.knowledge-flow-beam {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 25%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(70, 185, 130, 0.1) 20%,
+    rgba(70, 185, 130, 0.75) 50%,
+    rgba(70, 185, 130, 0.1) 80%,
+    transparent 100%
+  );
+  filter: blur(0.5px);
+  animation: knowledge-flow-travel 16s linear infinite;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* 2. Canonical Current Stage Breathing Halo (3s cycle) */
+@keyframes stage-current-halo {
+  0%, 100% {
+    box-shadow: 0 0 0 1px rgba(70, 185, 130, 0.3), 0 0 8px rgba(70, 185, 130, 0.12);
+    border-color: rgba(70, 185, 130, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 2px rgba(70, 185, 130, 0.65), 0 0 16px rgba(70, 185, 130, 0.25);
+    border-color: rgba(70, 185, 130, 0.95);
+  }
+}
+
+.stage-current-breath {
+  animation: stage-current-halo 3s ease-in-out infinite;
+}
+
+/* 3. Stage Content Selection Transition */
+@keyframes stage-panel-fade {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stage-panel-enter {
+  animation: stage-panel-fade 240ms var(--ease-out) forwards;
+}
+
+/* 4. Mandatory Reduced Motion Overrides */
+@media (prefers-reduced-motion: reduce) {
+  .knowledge-flow-beam,
+  .stage-current-breath,
+  .stage-panel-enter,
+  .diagnostic-pulse-beam {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+  .knowledge-flow-beam,
+  .diagnostic-pulse-beam {
+    display: none !important;
+  }
+}
+
+/* ============================================================
+   PRACTICE RUNNER SIGNATURE MOTION: DIAGNOSTIC PULSE
+   ============================================================ */
+
+@keyframes diagnostic-pulse-travel {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.85;
+  }
+  80% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateX(350%);
+    opacity: 0;
+  }
+}
+
+.diagnostic-pulse-track {
+  position: relative;
+  overflow: hidden;
+}
+
+.diagnostic-pulse-beam {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 30%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(70, 185, 130, 0.15) 25%,
+    rgba(70, 185, 130, 0.8) 50%,
+    rgba(70, 185, 130, 0.15) 75%,
+    transparent 100%
+  );
+  filter: blur(0.5px);
+  animation: diagnostic-pulse-travel 3s ease-in-out infinite;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* ============================================================
+   TASK 69: SIGNATURE MOTION LAYER FOR PREPARATION, ROADMAP & DSA
+   ============================================================ */
+
+/* 1. Preparation Hub: Knowledge Flow Traveler (18s cycle) */
+@keyframes prep-knowledge-traveler-move {
+  0% {
+    left: -8%;
+    opacity: 0;
+  }
+  4% {
+    opacity: 1;
+  }
+  96% {
+    opacity: 1;
+  }
+  100% {
+    left: 104%;
+    opacity: 0;
+  }
+}
+
+.prep-flow-track {
+  position: relative;
+  overflow: hidden;
+}
+
+.prep-knowledge-traveler {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 80px;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(70, 185, 130, 0.2) 20%,
+    rgba(70, 185, 130, 1) 50%,
+    rgba(70, 185, 130, 0.2) 80%,
+    transparent 100%
+  );
+  box-shadow: 0 0 10px rgba(70, 185, 130, 0.65);
+  animation: prep-knowledge-traveler-move 18s linear infinite;
+  pointer-events: none;
+  will-change: left;
+}
+
+@keyframes prep-section-pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(70, 185, 130, 0), inset 0 0 0 1px rgba(70, 185, 130, 0.2);
+    border-color: rgba(70, 185, 130, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 8px 1px rgba(70, 185, 130, 0.2), inset 0 0 4px 1px rgba(70, 185, 130, 0.15);
+    border-color: rgba(70, 185, 130, 0.75);
+  }
+}
+
+.prep-active-section-pulse {
+  animation: prep-section-pulse-glow 3.5s ease-in-out infinite;
+}
+
+/* 2. Roadmap: Trajectory Traveler (24s cycle) */
+@keyframes roadmap-trajectory-traveler-move {
+  0% {
+    left: -8%;
+    opacity: 0;
+  }
+  4% {
+    opacity: 1;
+  }
+  96% {
+    opacity: 1;
+  }
+  100% {
+    left: 104%;
+    opacity: 0;
+  }
+}
+
+.roadmap-trajectory-track {
+  position: relative;
+  overflow: hidden;
+}
+
+.roadmap-trajectory-traveler {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 90px;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(70, 185, 130, 0.25) 20%,
+    rgba(70, 185, 130, 1) 50%,
+    rgba(70, 185, 130, 0.25) 80%,
+    transparent 100%
+  );
+  box-shadow: 0 0 12px rgba(70, 185, 130, 0.7);
+  animation: roadmap-trajectory-traveler-move 24s linear infinite;
+  pointer-events: none;
+  will-change: left;
+}
+
+/* 3. DSA: Algorithm Trace (16s cycle) */
+@keyframes dsa-trace-traveler-move {
+  0% {
+    left: -8%;
+    opacity: 0;
+  }
+  5% {
+    opacity: 1;
+  }
+  95% {
+    opacity: 1;
+  }
+  100% {
+    left: 104%;
+    opacity: 0;
+  }
+}
+
+.dsa-trace-track {
+  position: relative;
+  overflow: hidden;
+}
+
+.dsa-trace-traveler {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 75px;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(70, 185, 130, 0.2) 20%,
+    rgba(70, 185, 130, 1) 50%,
+    rgba(70, 185, 130, 0.2) 80%,
+    transparent 100%
+  );
+  box-shadow: 0 0 10px rgba(70, 185, 130, 0.65);
+  animation: dsa-trace-traveler-move 16s linear infinite;
+  pointer-events: none;
+  will-change: left;
+}
+
+@keyframes dsa-station-pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(70, 185, 130, 0), inset 0 0 0 1px rgba(70, 185, 130, 0.25);
+    border-color: rgba(70, 185, 130, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 8px 1px rgba(70, 185, 130, 0.25), inset 0 0 4px 1px rgba(70, 185, 130, 0.2);
+    border-color: rgba(70, 185, 130, 0.85);
+  }
+}
+
+.dsa-station-pulse {
+  animation: dsa-station-pulse-glow 3s ease-in-out infinite;
+}
+
+/* Reduced motion overrides for signature motion layer */
+@media (prefers-reduced-motion: reduce) {
+  .prep-knowledge-traveler,
+  .prep-active-section-pulse,
+  .roadmap-trajectory-traveler,
+  .dsa-trace-traveler,
+  .dsa-station-pulse {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+  .prep-knowledge-traveler,
+  .roadmap-trajectory-traveler,
+  .dsa-trace-traveler {
+    display: none !important;
+  }
+}
