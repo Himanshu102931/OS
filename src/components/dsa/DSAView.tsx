@@ -1,24 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { usePlacement } from '../../context/PlacementContext';
 import { useSession } from '../dashboard/SessionContext';
 import { DSAAttemptModal } from './DSAAttemptModal';
 import { TaskLearningWorkspaceDrawer } from '../common/TaskLearningWorkspaceDrawer';
+import { DSAHeader } from './DSAHeader';
+import { DSAMasteryStrip } from './DSAMasteryStrip';
+import { DSAActiveFocus } from './DSAActiveFocus';
+import { DSAReviewQueue } from './DSAReviewQueue';
+import { DSAPatternMatrix } from './DSAPatternMatrix';
+import { DSAProblemWorkbench } from './DSAProblemWorkbench';
 import type { DSAProblem, DSAAttempt, DSAProgress } from '../../types';
-import { isProblemUnlocked } from '../../engine/dsaEngine';
-import { PATTERN_LESSONS } from '../../data/dsaDataset';
-import { calculatePatternMastery } from '../../engine/dsaEngine';
-import { GuideTrigger } from '../guide/GuideTrigger';
-import {
-  Code2,
-  BookOpen,
-  Search,
-  Sparkles,
-  Award,
-  Play,
-  RotateCcw,
-  Zap,
-} from 'lucide-react';
-import { Button } from '../ui/button';
+import { getDSASignals } from '../../engine/dsaEngine';
 
 function useSafeSession() {
   try {
@@ -42,7 +34,6 @@ export const DSAView: React.FC = () => {
   const session = useSafeSession();
 
   const [dismissedTargetId, setDismissedTargetId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'journey' | 'bank' | 'patterns'>('journey');
   const [selectedProblemForAttempt, setSelectedProblemForAttempt] = useState<DSAProblem | null>(
     null
   );
@@ -50,6 +41,11 @@ export const DSAView: React.FC = () => {
     useState<DSAProblem | null>(null);
   const [isAttemptModalOpen, setIsAttemptModalOpen] = useState<boolean>(false);
   const [isWorkspaceOpen, setIsWorkspaceOpen] = useState<boolean>(false);
+
+  // Unified Filter State (Zones 4 & 5)
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
+  const [selectedPattern, setSelectedPattern] = useState<string | null>(null);
 
   // Derive deep-linked problem directly from canonical route state
   const isDeepLinked =
@@ -73,58 +69,19 @@ export const DSAView: React.FC = () => {
     selectedProblemForWorkspace ?? (deepLinkedProblem && isDeepLinkedRemediation ? deepLinkedProblem : null);
   const isWorkspaceVisible = isWorkspaceOpen || Boolean(deepLinkedProblem && isDeepLinkedRemediation);
 
-  // Filters
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [filterDifficulty, setFilterDifficulty] = useState<string>('all');
-
   const currentPhaseIndex = activePhase ? activePhase.order : 1;
 
-  // Helper for status
-  const getProblemStatus = (p: DSAProblem) => {
-    const prog = dsaProgress[p.id];
-    const unlockStatus = isProblemUnlocked(p, dsaProgress, currentPhaseIndex);
+  // Mastered count for header
+  const totalMasteredCount = useMemo(() => {
+    return dsaProblems.filter((p) => dsaProgress[p.id]?.passedIndependently).length;
+  }, [dsaProblems, dsaProgress]);
 
-    if (!unlockStatus.isUnlocked) {
-      return { label: 'Locked', color: 'bg-[#1B2028] text-[#5C6675] border-[#262D38]', isLocked: true };
-    }
-    if (prog?.passedIndependently) {
-      return { label: 'Mastered', color: 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/30', isLocked: false };
-    }
-    if (prog?.nextReviewAt && prog.nextReviewAt <= todayDate) {
-      return { label: 'Review Due', color: 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30', isLocked: false };
-    }
-    if (prog?.assistedProvisional) {
-      return { label: 'Assisted', color: 'bg-[#E5A93C]/10 text-[#FFC665] border-[#E5A93C]/30', isLocked: false };
-    }
-    return { label: 'Unlocked', color: 'bg-[#14171D] text-[#8E98A8] border-[#262D38]', isLocked: false };
-  };
+  // Canonical DSA Signals for Active Focus
+  const dsaSignals = useMemo(() => {
+    return getDSASignals(dsaProblems, dsaProgress, currentPhaseIndex, todayDate);
+  }, [dsaProblems, dsaProgress, currentPhaseIndex, todayDate]);
 
-  // Recommended next problem
-  const recommendedProblem = dsaProblems.find((p) => {
-    const status = getProblemStatus(p);
-    return !status.isLocked && !dsaProgress[p.id]?.passedIndependently;
-  }) || dsaProblems[0];
-
-  // Reviews due today
-  const reviewsDue = dsaProblems.filter((p) => {
-    const prog = dsaProgress[p.id];
-    return prog?.nextReviewAt && prog.nextReviewAt <= todayDate;
-  });
-
-  // Filtered problems list
-  const filteredProblems = dsaProblems.filter((p) => {
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchTitle = p.title.toLowerCase().includes(q);
-      const matchPattern = p.primaryPattern.toLowerCase().includes(q);
-      const matchLC = String(p.leetcodeNumber).includes(q);
-      if (!matchTitle && !matchPattern && !matchLC) return false;
-    }
-
-    if (filterDifficulty !== 'all' && p.difficulty !== filterDifficulty) return false;
-
-    return true;
-  });
+  const activeFocusSignal = dsaSignals.length > 0 ? dsaSignals[0] : null;
 
   const handleOpenAttempt = (prob: DSAProblem) => {
     setSelectedProblemForAttempt(prob);
@@ -151,367 +108,61 @@ export const DSAView: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-7xl xl:max-w-[1400px] mx-auto font-sans">
-      {/* Header & View Switcher */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#262D38]">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#F1F5F9]">
-            DSA Progression Engine
-          </h1>
-          <p className="text-xs text-[#8E98A8] mt-1">
-            Curated 150-problem journey • Pattern Mastery DAG • Leitner Spaced Repetition
-          </p>
-        </div>
+      {/* ZONE 1: DSA Header & Macro Mastery Strip */}
+      <DSAHeader
+        totalProblemsCount={dsaProblems.length}
+        masteredCount={totalMasteredCount}
+      />
 
-        <div className="flex flex-wrap items-center gap-2">
-          <GuideTrigger route="dsa" />
-          <div className="flex items-center gap-1.5 bg-[#14171D] p-1 border border-[#262D38] rounded-lg">
-          <button
-            onClick={() => setActiveTab('journey')}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
-              activeTab === 'journey'
-                ? 'bg-[#E5A93C] text-[#432C00]'
-                : 'text-[#8E98A8] hover:text-[#F1F5F9]'
-            }`}
-          >
-            <Sparkles className="size-3.5" /> Progression Journey
-          </button>
-          <button
-            onClick={() => setActiveTab('bank')}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
-              activeTab === 'bank'
-                ? 'bg-[#E5A93C] text-[#432C00]'
-                : 'text-[#8E98A8] hover:text-[#F1F5F9]'
-            }`}
-          >
-            <Code2 className="size-3.5" /> Full Catalog ({dsaProblems.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('patterns')}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
-              activeTab === 'patterns'
-                ? 'bg-[#E5A93C] text-[#432C00]'
-                : 'text-[#8E98A8] hover:text-[#F1F5F9]'
-            }`}
-          >
-            <Award className="size-3.5" /> Patterns ({PATTERN_LESSONS.length})
-          </button>
-        </div>
-      </div>
-    </div>
+      <DSAMasteryStrip
+        problems={dsaProblems}
+        progressMap={dsaProgress}
+        todayDate={todayDate}
+      />
 
-      {/* 1. PROGRESSION JOURNEY VIEW */}
-      {activeTab === 'journey' && (
-        <div className="space-y-6">
-          {/* Recommended Problem Hero Card */}
-          {recommendedProblem && (
-            <div className="bg-gradient-to-br from-[#1B2028] to-[#14171D] p-6 border border-[#E5A93C]/40 rounded-xl space-y-4 shadow-md glow-border relative overflow-hidden">
-              <div className="ambient-overlay absolute inset-0 bg-gradient-to-br from-[#E5A93C]/5 via-transparent to-transparent pointer-events-none" />
-              <div className="flex items-center justify-between relative">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#E5A93C]/15 text-xs font-bold text-[#FFC665]">
-                  <Zap className="size-3.5 text-[#E5A93C]" /> RECOMMENDED PROBLEM
-                </span>
-                <span className="text-xs text-[#8E98A8] font-mono">
-                  LC #{recommendedProblem.leetcodeNumber}
-                </span>
-              </div>
+      {/* ZONE 2: Active Focus / Dominant Next Mission */}
+      <DSAActiveFocus
+        activeSignal={activeFocusSignal}
+        onOpenAttempt={handleOpenAttempt}
+        onOpenWorkspace={handleOpenWorkspace}
+      />
 
-              <div>
-                <h2 className="text-xl font-bold text-[#F1F5F9]">{recommendedProblem.title}</h2>
-                <div className="flex items-center gap-2 mt-1 text-xs text-[#8E98A8]">
-                  <span className="text-[#FFC665] font-medium">{recommendedProblem.primaryPattern}</span>
-                  <span>·</span>
-                  <span className="capitalize">{recommendedProblem.difficulty}</span>
-                  <span>·</span>
-                  <span>~{recommendedProblem.estimatedTimeMinutes} mins</span>
-                </div>
-              </div>
+      {/* ZONE 3: Spaced Review Queue */}
+      <DSAReviewQueue
+        problems={dsaProblems}
+        progressMap={dsaProgress}
+        todayDate={todayDate}
+        onOpenAttempt={handleOpenAttempt}
+        onOpenWorkspace={handleOpenWorkspace}
+      />
 
-              <div className="pt-3 border-t border-[#262D38] flex items-center justify-between">
-                <button
-                  onClick={() => handleOpenWorkspace(recommendedProblem)}
-                  className="text-xs text-[#8E98A8] hover:text-[#F1F5F9] font-medium flex items-center gap-1.5"
-                >
-                  <BookOpen className="size-3.5 text-[#E5A93C]" /> Open Workspace
-                </button>
+      {/* ZONE 4: Pattern Mastery Matrix & Filter Controller */}
+      <DSAPatternMatrix
+        problems={dsaProblems}
+        progressMap={dsaProgress}
+        selectedPattern={selectedPattern}
+        onSelectPattern={setSelectedPattern}
+        selectedDifficulty={selectedDifficulty}
+        onSelectDifficulty={setSelectedDifficulty}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+      />
 
-                <Button
-                  size="sm"
-                  onClick={() => handleOpenAttempt(recommendedProblem)}
-                  className="h-9 px-4 font-bold text-xs bg-[#E5A93C] hover:bg-[#FFC665] text-[#432C00] rounded-md shadow-sm"
-                >
-                  <Play className="size-3.5 mr-1.5" /> Log Attempt
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Reviews Due Section */}
-          {reviewsDue.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-[#F1F5F9] flex items-center gap-2">
-                <RotateCcw className="size-4 text-[#F59E0B]" />
-                Spaced Reviews Due Today ({reviewsDue.length})
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {reviewsDue.map((prob) => (
-                  <div
-                    key={prob.id}
-                    className="bg-[#14171D] border border-[#262D38] rounded-lg p-4 flex items-center justify-between"
-                  >
-                    <div>
-                      <h4 className="text-xs font-semibold text-[#F1F5F9]">{prob.title}</h4>
-                      <p className="text-[11px] text-[#8E98A8] mt-0.5">{prob.primaryPattern}</p>
-                    </div>
-                    <Button
-                      size="xs"
-                      onClick={() => handleOpenAttempt(prob)}
-                      className="h-7 text-xs bg-[#F59E0B]/20 text-[#F59E0B] hover:bg-[#F59E0B]/30 border border-[#F59E0B]/40 rounded-md font-semibold"
-                    >
-                      Review
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Unlocked Active Progression Cards */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-[#F1F5F9]">
-              Active Problem Track ({filteredProblems.slice(0, 6).length} available)
-            </h3>
-            <div className="space-y-2 list-stagger">
-              {filteredProblems.slice(0, 8).map((prob) => {
-                const status = getProblemStatus(prob);
-                // Compute pattern mastery using canonical dsaEngine function
-                const probProgress = dsaProgress[prob.id];
-                const patternMastery = probProgress
-                  ? calculatePatternMastery(
-                      prob.primaryPattern,
-                      dsaProblems,
-                      dsaProgress
-                    )
-                  : {
-                      state: 'not_started',
-                      masteryRatio: 0,
-                      totalProblems: 0,
-                      attemptedCount: 0,
-                      independentSolves: 0,
-                      assistedSolves: 0,
-                      starterCount: 0,
-                      coreCount: 0,
-                      requiredIndependentSolves: 0,
-                      hasBox3Or4: false,
-                      remediationActive: false,
-                    };
-                return (
-                  <div
-                    key={prob.id}
-                    className="p-3.5 bg-[#14171D] hover:bg-[#1B2028]/60 border border-[#262D38] rounded-lg flex items-center justify-between transition-all"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-[#F1F5F9]">{prob.title}</span>
-                        <span className="text-[10px] text-[#8E98A8] font-mono">#{prob.leetcodeNumber}</span>
-                        <span className={`text-[10px] px-2 py-0.2 rounded border font-medium ${status.color}`}>
-                          {status.label}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-[11px] text-[#8E98A8]">
-                        <span className="text-[#FFC665]">{prob.primaryPattern}</span>
-                        <span>·</span>
-                        <span className="capitalize">{prob.difficulty}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="xs"
-                        variant="outline"
-                        onClick={() => handleOpenWorkspace(prob)}
-                        className="h-7 text-xs border-[#262D38] bg-[#1B2028] text-[#F1F5F9] rounded-md"
-                      >
-                        Workspace
-                      </Button>
-                      {!status.isLocked && (
-                        <Button
-                          size="xs"
-                          onClick={() => handleOpenAttempt(prob)}
-                          className="h-7 text-xs bg-[#E5A93C] hover:bg-[#FFC665] text-[#432C00] rounded-md font-semibold"
-                        >
-                          Attempt
-                        </Button>
-                      )}
-                      {/* Mastery Progress Display */}
-                      {probProgress && (
-                        <div className="text-xs text-[#6B7280] mt-1">
-                          <span className="font-medium">Box {probProgress.currentBox}/4</span>
-                          {patternMastery.state === 'mastered' && !patternMastery.remediationActive ? (
-                            <span className="text-[10px] text-[#10B981] ml-1">Mastered</span>
-                          ) : patternMastery.state === 'not_started' ? (
-                            <span className="text-[10px] text-[#8E98A8] ml-1">Not started</span>
-                          ) : patternMastery.state === 'in_progress' && !patternMastery.remediationActive ? (
-                            <>
-                              <span className="text-[10px] text-[#E5A93C] ml-1">
-                                {patternMastery.masteryRatio}% mastery
-                              </span>
-                              {patternMastery.independentSolves > 0 && (
-                                <span className="text-[10px] text-[#6B7280] ml-1">
-                                  {patternMastery.independentSolves}/{patternMastery.requiredIndependentSolves} independent
-                                </span>
-                              )}
-                            </>
-                          ) : (
-                            <span className="text-[10px] text-[#8E98A8] ml-1">
-                              {patternMastery.remediationActive ? 'Remediation active' : 'In progress'}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 2. FULL CATALOG VIEW */}
-      {activeTab === 'bank' && (
-        <div className="space-y-4">
-          {/* Search & Filter controls */}
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-[#14171D] p-3 border border-[#262D38] rounded-lg">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="size-3.5 text-[#8E98A8] absolute left-3 top-2.5" />
-              <input
-                type="text"
-                placeholder="Search problem title, pattern, or LeetCode #..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[#1B2028] border border-[#262D38] rounded-md pl-9 pr-3 py-1.5 text-xs text-[#F1F5F9] placeholder-[#5C6675] focus:outline-none"
-              />
-            </div>
-
-            <div className="flex items-center gap-2 text-xs">
-              <select
-                value={filterDifficulty}
-                onChange={(e) => setFilterDifficulty(e.target.value)}
-                className="bg-[#1B2028] border border-[#262D38] rounded-md px-2.5 py-1.5 text-xs text-[#F1F5F9] focus:outline-none"
-              >
-                <option value="all">All Difficulties</option>
-                <option value="easy">Easy</option>
-                <option value="medium">Medium</option>
-                <option value="hard">Hard</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Problem List */}
-          <div className="space-y-2">
-            {filteredProblems.map((prob) => {
-              const status = getProblemStatus(prob);
-              return (
-                <div
-                  key={prob.id || prob.title}
-                  className="p-3 bg-[#14171D] hover:bg-[#1B2028]/60 border border-[#262D38] rounded-lg flex items-center justify-between transition-colors"
-                >
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-[#F1F5F9]">{prob.title}</span>
-                      <span className="text-[10px] text-[#8E98A8] font-mono">#{prob.leetcodeNumber}</span>
-                      <span className={`text-[10px] px-2 py-0.2 rounded border font-medium ${status.color}`}>
-                        {status.label}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-[#8E98A8]">
-                      <span className="text-[#FFC665] font-medium">{prob.primaryPattern}</span> · <span className="capitalize">{prob.difficulty}</span>
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="xs"
-                      variant="outline"
-                      onClick={() => handleOpenWorkspace(prob)}
-                      className="h-7 text-xs border-[#262D38] bg-[#1B2028] text-[#F1F5F9] rounded-md"
-                    >
-                      Inspect
-                    </Button>
-                    {!status.isLocked && (
-                      <Button
-                        size="xs"
-                        onClick={() => handleOpenAttempt(prob)}
-                        className="h-7 text-xs bg-[#E5A93C] hover:bg-[#FFC665] text-[#432C00] rounded-md font-semibold"
-                      >
-                        Log Attempt
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* 3. PATTERNS VIEW */}
-      {activeTab === 'patterns' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {PATTERN_LESSONS.map((pat) => {
-            /* Pattern-specific SVG motif */
-            const patternMotif = (() => {
-              switch (pat.patternId) {
-                case 'arrays':
-                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><rect x="4" y="6" width="6" height="20" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="12" y="10" width="6" height="16" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="20" y="8" width="6" height="18" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="28" y="12" width="4" height="14" fill="none" stroke="#E5A93C" strokeWidth="1"/></svg>;
-                case 'two-pointers':
-                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><circle cx="10" cy="16" r="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="22" cy="16" r="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><line x1="14" y1="16" x2="18" y2="16" stroke="#E5A93C" strokeWidth="0.5"/></svg>;
-                case 'sliding-window':
-                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><rect x="4" y="10" width="8" height="12" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="14" y="10" width="8" height="12" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="24" y="10" width="6" height="12" fill="none" stroke="#E5A93C" strokeWidth="1"/></svg>;
-                case 'stack':
-                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><rect x="12" y="4" width="8" height="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="12" y="10" width="8" height="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="12" y="16" width="8" height="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="12" y="22" width="8" height="4" fill="none" stroke="#E5A93C" strokeWidth="1"/></svg>;
-                case 'binary-search':
-                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><line x1="4" y1="8" x2="28" y2="8" stroke="#E5A93C" strokeWidth="1"/><line x1="4" y1="16" x2="28" y2="16" stroke="#E5A93C" strokeWidth="1"/><line x1="4" y1="24" x2="28" y2="24" stroke="#E5A93C" strokeWidth="1"/><circle cx="12" cy="8" r="2" fill="#E5A93C"/><circle cx="20" cy="16" r="2" fill="#E5A93C"/><circle cx="16" cy="24" r="2" fill="#E5A93C"/></svg>;
-                case 'linked-list':
-                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><circle cx="6" cy="16" r="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="14" cy="16" r="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="22" cy="16" r="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="28" cy="16" r="3" fill="none" stroke="#E5A93C" strokeWidth="1"/><line x1="10" y1="16" x2="14" y2="16" stroke="#E5A93C" strokeWidth="0.5"/><line x1="18" y1="16" x2="22" y2="16" stroke="#E5A93C" strokeWidth="0.5"/></svg>;
-                case 'trees':
-                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><circle cx="16" cy="6" r="3" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="8" cy="16" r="3" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="24" cy="16" r="3" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="4" cy="26" r="2.5" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="12" cy="26" r="2.5" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="20" cy="26" r="2.5" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="28" cy="26" r="2.5" fill="none" stroke="#E5A93C" strokeWidth="1"/></svg>;
-                case 'heaps':
-                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><rect x="12" y="4" width="8" height="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="6" y="10" width="8" height="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="18" y="10" width="8" height="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="4" y="16" width="6" height="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="10" y="16" width="6" height="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="16" y="16" width="6" height="4" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="22" y="16" width="6" height="4" fill="none" stroke="#E5A93C" strokeWidth="1"/></svg>;
-                case 'graphs':
-                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><circle cx="8" cy="8" r="3" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="24" cy="8" r="3" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="8" cy="24" r="3" fill="none" stroke="#E5A93C" strokeWidth="1"/><circle cx="24" cy="24" r="3" fill="none" stroke="#E5A93C" strokeWidth="1"/><line x1="11" y1="8" x2="21" y2="8" stroke="#E5A93C" strokeWidth="0.5"/><line x1="11" y1="24" x2="21" y2="24" stroke="#E5A93C" strokeWidth="0.5"/><line x1="8" y1="11" x2="8" y2="21" stroke="#E5A93C" strokeWidth="0.5"/><line x1="24" y1="11" x2="24" y2="21" stroke="#E5A93C" strokeWidth="0.5"/></svg>;
-                case 'dp':
-                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><rect x="4" y="4" width="8" height="8" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="14" y="10" width="8" height="8" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="24" y="4" width="8" height="8" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="4" y="18" width="8" height="8" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="14" y="24" width="8" height="8" fill="none" stroke="#E5A93C" strokeWidth="1"/></svg>;
-                case 'intervals':
-                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><rect x="4" y="8" width="10" height="5" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="16" y="13" width="10" height="5" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="6" y="18" width="8" height="5" fill="none" stroke="#E5A93C" strokeWidth="1"/><rect x="18" y="23" width="10" height="5" fill="none" stroke="#E5A93C" strokeWidth="1"/></svg>;
-                case 'matrices':
-                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><rect x="4" y="4" width="8" height="8" fill="none" stroke="#E5A93C" strokeWidth="0.5"/><rect x="14" y="4" width="8" height="8" fill="none" stroke="#E5A93C" strokeWidth="0.5"/><rect x="4" y="14" width="8" height="8" fill="none" stroke="#E5A93C" strokeWidth="0.5"/><rect x="14" y="14" width="8" height="8" fill="none" stroke="#E5A93C" strokeWidth="0.5"/><rect x="4" y="24" width="8" height="8" fill="none" stroke="#E5A93C" strokeWidth="0.5"/><rect x="14" y="24" width="8" height="8" fill="none" stroke="#E5A93C" strokeWidth="0.5"/></svg>;
-                case 'bit-operations':
-                  return <svg viewBox="0 0 32 32" className="svg-motif" width="32" height="32"><rect x="4" y="6" width="4" height="4" fill="#E5A93C" opacity="0.3"/><rect x="10" y="10" width="4" height="4" fill="#E5A93C" opacity="0.5"/><rect x="16" y="6" width="4" height="4" fill="#E5A93C"/><rect x="22" y="10" width="4" height="4" fill="#E5A93C" opacity="0.7"/><rect x="4" y="18" width="4" height="4" fill="#E5A93C" opacity="0.5"/><rect x="10" y="22" width="4" height="4" fill="#E5A93C" opacity="0.3"/><rect x="16" y="18" width="4" height="4" fill="#E5A93C" opacity="0.8"/><rect x="22" y="22" width="4" height="4" fill="#E5A93C" opacity="0.4"/></svg>;
-                default:
-                  return null;
-              }
-            })();
-
-            return (
-              <div key={pat.patternId} className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-3 hover-lift relative overflow-hidden">
-                {patternMotif && (
-                  <div className="absolute top-3 right-3">{patternMotif}</div>
-                )}
-                <div>
-                  <h3 className="text-base font-bold text-[#F1F5F9]">{pat.name}</h3>
-                  <p className="text-xs text-[#8E98A8] mt-1 leading-relaxed">{pat.overview}</p>
-                </div>
-
-                <div className="pt-3 border-t border-[#262D38] space-y-1.5 text-xs text-[#8E98A8]">
-                  <div><strong className="text-[#F1F5F9]">Why It Matters:</strong> {pat.whyItMatters}</div>
-                  <div><strong className="text-[#FFC665]">Expected Complexity:</strong> <span className="font-mono">{pat.expectedTimeComplexity}</span></div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {/* ZONE 5: Curated 150-Problem Workbench */}
+      <DSAProblemWorkbench
+        problems={dsaProblems}
+        progressMap={dsaProgress}
+        currentPhaseIndex={currentPhaseIndex}
+        todayDate={todayDate}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        selectedDifficulty={selectedDifficulty}
+        onSelectDifficulty={setSelectedDifficulty}
+        selectedPattern={selectedPattern}
+        onSelectPattern={setSelectedPattern}
+        onOpenAttempt={handleOpenAttempt}
+        onOpenWorkspace={handleOpenWorkspace}
+      />
 
       {/* Modals & Drawers */}
       {effectiveAttemptProblem && (

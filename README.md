@@ -11,11 +11,13 @@ Unlike generic educational tools or consumer platforms, PlacementOS operates as 
 - **Local-First & Offline-Capable**: 100% client-side React + TypeScript application with zero external cloud API dependencies. All progress, evidence logs, attempt histories, and target overlays are safely stored in browser `localStorage`.
 - **Deterministic Adaptive Recommendation Engine**: Uses an explicit 6-factor weight formula ($1.00$ total) to calculate daily study priorities without random selection or runtime LLM dependencies:
   $$\text{Score} = 0.25(\text{Urgency}) + 0.20(\text{Weakness}) + 0.20(\text{Importance}) + 0.15(\text{Company}) + 0.10(\text{Spaced Repetition}) + 0.10(\text{Recovery})$$
-- **Leitner 4-Box Spaced Repetition**: Automated DSA review intervals operating on append-only attempt logs:
-  - **Box 1**: 1-day interval
-  - **Box 2**: 3-day interval
-  - **Box 3**: 7-day interval
-  - **Box 4**: 14-day interval (Mastered)
+- **Leitner 4-Box Spaced Repetition & Algorithmic Problem Laboratory**: 5-zone DSA command center supporting a curated 150-problem curriculum across 17 algorithmic patterns:
+  - **Zone 1: Mastery Strip**: Macro progress tracking across 150 problems, Leitner distribution (Box 1: 1d, Box 2: 3d, Box 3: 7d, Box 4: 14d Mastered), due review count, and pattern mastery ratio.
+  - **Zone 2: Active Focus**: Deterministic dominant training mission identifying the next unlocked problem, due review, or pattern remediation.
+  - **Zone 3: Spaced Review Queue**: Explicit forgetting-curve review deck prioritizing due reviews with one-click logging.
+  - **Zone 4: Pattern Mastery Matrix**: 17 algorithmic pattern cards tracking progression criteria, starter/core solve counts, and active filter control.
+  - **Zone 5: Curated 150-Problem Workbench**: High-density practice catalog with multi-factor search, difficulty filters, Leitner box badges, and subordinate actions.
+  - **Detail Layer**: Protocol-accurate attempt logging modal (`DSAAttemptModal`) with self-check ratings and remediation learning drawer (`TaskLearningWorkspaceDrawer`).
 - **4-Phase Authoritative Roadmap & Trajectory Control**:
   - Interactive trajectory navigation connecting 4 placement phases:
     - **Phase 1** (Sep 1 – Nov 30, 2026): Core Foundations & Early Skills (DSA, Python, SQL, DBMS, OS, CN, OOP, Aptitude, Communication, Projects, Mock Interviews)
@@ -38,7 +40,7 @@ Unlike generic educational tools or consumer platforms, PlacementOS operates as 
 - **Build Tool**: Vite 8
 - **Styling**: TailwindCSS 4 (Forest-green studio design system: deep obsidian `#0B100D`, primary forest `#2E8B62` / `#46B982`, warning bronze `#D19A45`)
 - **Icons**: Lucide React
-- **Testing**: Vitest (1339+ automated tests across 64 test suites)
+- **Testing**: Vitest (1381+ automated tests across 67 test suites)
 - **Routing**: Client-side hash routing (`#/${route}`)
 - **Persistence**: `StorageAdapter` with JSON backup export/import
 
