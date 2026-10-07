@@ -1295,13 +1295,43 @@ button.bg-\[\#E5A93C\]:hover, a.bg-\[\#E5A93C\]:hover, .btn-primary:hover {
   animation: dsa-station-pulse-glow 3s ease-in-out infinite;
 }
 
+/* ============================================================
+   PRACTICE SUBSYSTEM SIGNATURE MOTION & COBALT ACTION LAYER
+   ============================================================ */
+:root {
+  --action-accent-practice: #3B82F6;
+  --action-accent-practice-hover: #60A5FA;
+  --action-accent-practice-subtle: rgba(59, 130, 246, 0.12);
+  --action-accent-practice-border: rgba(59, 130, 246, 0.35);
+  --action-accent-practice-ring: #93C5FD;
+}
+
+[data-testid="practice-view"],
+.practice-view-container {
+  --action-accent: var(--action-accent-practice);
+  --action-accent-hover: var(--action-accent-practice-hover);
+  --action-accent-subtle: var(--action-accent-practice-subtle);
+  --action-accent-border: var(--action-accent-practice-border);
+  --action-accent-ring: var(--action-accent-practice-ring);
+}
+
+.drill-question-enter {
+  animation: placement-fade-up var(--duration-fast, 120ms) var(--ease-out) forwards;
+}
+
+.drill-result-reveal {
+  animation: placement-fade-in var(--duration-normal, 200ms) var(--ease-out) forwards;
+}
+
 /* Reduced motion overrides for signature motion layer */
 @media (prefers-reduced-motion: reduce) {
   .prep-knowledge-traveler,
   .prep-active-section-pulse,
   .roadmap-trajectory-traveler,
   .dsa-trace-traveler,
-  .dsa-station-pulse {
+  .dsa-station-pulse,
+  .drill-question-enter,
+  .drill-result-reveal {
     animation: none !important;
     transition: none !important;
     transform: none !important;

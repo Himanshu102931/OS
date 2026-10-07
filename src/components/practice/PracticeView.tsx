@@ -1,26 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { usePlacement } from '../../context/PlacementContext';
 import { useSession } from '../dashboard/SessionContext';
 import { PRACTICE_SESSIONS } from '../../data/practiceDataset';
 import { getRecommendedPracticeSession, getPracticeCategoryStats } from '../../engine/practiceEngine';
+import { PracticeHeader } from './PracticeHeader';
+import { PracticeProvingStrip } from './PracticeProvingStrip';
+import { RecommendedDrillHero } from './RecommendedDrillHero';
+import { PracticeRemediationQueue } from './PracticeRemediationQueue';
+import { PracticeCategoryTabs, type PracticeTabCategory } from './PracticeCategoryTabs';
+import { PracticeSessionGrid } from './PracticeSessionGrid';
 import { PracticeRunnerModal } from './PracticeRunnerModal';
-import { GuideTrigger } from '../guide/GuideTrigger';
-import type { PracticeSessionDefinition, PracticeCategory } from '../../types';
+import type { PracticeSessionDefinition } from '../../types';
 import type { RoutePath } from '../../context/PlacementContext';
-import {
-  Sparkles,
-  Award,
-  Clock,
-  CheckCircle2,
-  Play,
-  Zap,
-  Target,
-  FileCode,
-  BookOpen,
-  MessageSquare,
-  ShieldCheck,
-} from 'lucide-react';
-import { Button } from '../ui/button';
 
 function useSafeSession() {
   try {
@@ -43,7 +34,9 @@ export const PracticeView: React.FC = () => {
   const session = useSafeSession();
 
   const [dismissedTargetId, setDismissedTargetId] = useState<string | null>(null);
-  const [activeCategory, setActiveCategory] = useState<PracticeCategory | 'all'>('all');
+  const [activeCategory, setActiveCategory] = useState<PracticeTabCategory>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [timedOnly, setTimedOnly] = useState(false);
   const [activeSession, setActiveSession] = useState<PracticeSessionDefinition | null>(null);
 
   // Derive deep-linked session directly from canonical route state
@@ -59,156 +52,136 @@ export const PracticeView: React.FC = () => {
   const effectiveSession = activeSession ?? deepLinkedSession;
 
   // Recommendation engine call
-  const recommendation = getRecommendedPracticeSession(
-    PRACTICE_SESSIONS,
-    practiceAttempts,
-    skillStates,
-    companyOverlays
-  );
+  const recommendation = useMemo(() => {
+    return getRecommendedPracticeSession(
+      PRACTICE_SESSIONS,
+      practiceAttempts,
+      skillStates,
+      companyOverlays
+    );
+  }, [practiceAttempts, skillStates, companyOverlays]);
 
-  const categoryStats = getPracticeCategoryStats(practiceAttempts);
+  // Macro metrics for proving strip
+  const totalAttempts = practiceAttempts.length;
+  const averageAccuracy =
+    totalAttempts > 0
+      ? Math.round(
+          practiceAttempts.reduce((sum, a) => sum + (a.accuracyPct ?? 0), 0) / totalAttempts
+        )
+      : 0;
 
-  const categories: { id: PracticeCategory | 'all'; label: string; icon: React.FC<{ className?: string }> }[] = [
-    { id: 'all', label: 'All Sessions', icon: Sparkles },
-    { id: 'aptitude', label: 'Aptitude', icon: Target },
-    { id: 'verbal', label: 'Verbal', icon: MessageSquare },
-    { id: 'sql', label: 'SQL', icon: FileCode },
-    { id: 'core_cs', label: 'Core CS', icon: BookOpen },
-    { id: 'project_defense', label: 'Project Defense', icon: ShieldCheck },
-    { id: 'mock_interview', label: 'Mock Interview', icon: Award },
-  ];
+  const categoryStats = useMemo(() => getPracticeCategoryStats(practiceAttempts), [practiceAttempts]);
+  const readyDomainsCount = useMemo(() => {
+    return Object.values(categoryStats).filter((c) => c.avgScorePct >= 70).length;
+  }, [categoryStats]);
 
-  const filteredSessions = PRACTICE_SESSIONS.filter((s) => {
-    if (activeCategory !== 'all' && s.category !== activeCategory) return false;
-    return true;
-  });
+  const remediationCount = useMemo(() => {
+    // Count sessions whose latest attempt failed or has < 60% accuracy
+    const latestBySession = new Map<string, typeof practiceAttempts[0]>();
+    practiceAttempts.forEach((a) => {
+      const existing = latestBySession.get(a.sessionId);
+      if (!existing || new Date(a.completedAt || a.date).getTime() > new Date(existing.completedAt || existing.date).getTime()) {
+        latestBySession.set(a.sessionId, a);
+      }
+    });
+    let count = 0;
+    latestBySession.forEach((a) => {
+      if (!a.passed || (a.accuracyPct ?? 0) < 60) {
+        count++;
+      }
+    });
+    return count;
+  }, [practiceAttempts]);
+
+  // Filter sessions
+  const filteredSessions = useMemo(() => {
+    return PRACTICE_SESSIONS.filter((s) => {
+      // Category filter
+      if (activeCategory !== 'all' && s.category !== activeCategory) return false;
+
+      // Timed only filter
+      if (timedOnly && !s.id.includes('timed')) return false;
+
+      // Search query filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase().trim();
+        const matchesTitle = s.title.toLowerCase().includes(query);
+        const matchesDesc = s.description.toLowerCase().includes(query);
+        const matchesCategory = s.category.toLowerCase().includes(query);
+        const matchesTopic = s.topicId ? s.topicId.toLowerCase().includes(query) : false;
+        const matchesQuestion = s.questions.some(
+          (q) =>
+            q.prompt.toLowerCase().includes(query) ||
+            (q.categoryTag && q.categoryTag.toLowerCase().includes(query))
+        );
+        if (!matchesTitle && !matchesDesc && !matchesCategory && !matchesTopic && !matchesQuestion) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [activeCategory, timedOnly, searchQuery]);
 
   return (
-    <div className="space-y-6 max-w-7xl xl:max-w-[1400px] mx-auto font-sans">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#262D38]">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#F1F5F9]">
-            Placement Assessment & Practice Hub
-          </h1>
-          <p className="text-xs text-[#8E98A8] mt-1">
-            Targeted drills for Aptitude, Verbal, SQL scenarios, Core CS, Project Defense, and Mock Interviews.
-          </p>
-        </div>
+    <div
+      data-testid="practice-view"
+      className="practice-view-container space-y-6 max-w-7xl xl:max-w-[1400px] mx-auto font-sans"
+    >
+      {/* Zone 1: Header */}
+      <PracticeHeader totalAttempts={totalAttempts} />
 
-        <div className="flex flex-wrap items-center gap-2.5 text-xs text-[#8E98A8]">
-          <GuideTrigger route="practice" />
-          <span className="px-3 py-1.5 rounded-lg bg-[#14171D] border border-[#262D38]">
-            Attempts Completed: <strong className="text-[#FFC665]">{practiceAttempts.length}</strong>
-          </span>
-        </div>
-      </div>
+      {/* Zone 1: Proving Ground Strip */}
+      <PracticeProvingStrip
+        totalAttempts={totalAttempts}
+        averageAccuracy={averageAccuracy}
+        readyDomainsCount={readyDomainsCount}
+        totalDomainsCount={6}
+        remediationCount={remediationCount}
+      />
 
-      {/* Recommended Practice Hero Card */}
+      {/* Zone 2: Recommended Drill Hero */}
       {recommendation && (
-        <div className="bg-gradient-to-br from-[#1B2028] to-[#14171D] p-6 border border-[#E5A93C]/40 rounded-xl space-y-4 shadow-md">
-          <div className="flex items-center justify-between">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#E5A93C]/15 text-xs font-bold text-[#FFC665]">
-              <Zap className="size-3.5 text-[#E5A93C]" /> RECOMMENDED DRILL
-            </span>
-            <span className="text-xs text-[#8E98A8] font-mono">
-              ~{recommendation.session.estimatedMinutes} mins
-            </span>
-          </div>
-
-          <div className="space-y-1">
-            <h2 className="text-xl font-bold text-[#F1F5F9]">{recommendation.session.title}</h2>
-            <p className="text-xs text-[#8E98A8] leading-relaxed">{recommendation.session.description}</p>
-          </div>
-
-          <div className="pt-3 border-t border-[#262D38] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2 text-[#8E98A8]">
-              <span className="font-semibold text-[#FFC665]">Why this?</span>
-              <span>{recommendation.reason}</span>
-            </div>
-
-            <Button
-              size="sm"
-              onClick={() => setActiveSession(recommendation.session)}
-              className="h-9 px-5 font-bold text-xs bg-[#E5A93C] hover:bg-[#FFC665] text-[#432C00] rounded-md shadow-sm shrink-0"
-            >
-              <Play className="size-3.5 mr-1.5" /> Start Drill Now
-            </Button>
-          </div>
-        </div>
+        <RecommendedDrillHero
+          recommendation={recommendation}
+          onStartSession={(s) => setActiveSession(s)}
+        />
       )}
 
-      {/* Category Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        {categories.map((cat) => {
-          const Icon = cat.icon;
-          const isSelected = activeCategory === cat.id;
-          return (
-            <button
-              key={cat.id}
-              onClick={() => setActiveCategory(cat.id)}
-              className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-all shrink-0 border flex items-center gap-2 ${
-                isSelected
-                  ? 'bg-[#1B2028] border-[#E5A93C]/50 text-[#F1F5F9] shadow-sm'
-                  : 'bg-[#14171D] border-[#262D38] text-[#8E98A8] hover:text-[#F1F5F9] hover:bg-[#1B2028]/60'
-              }`}
-            >
-              <Icon className={`size-3.5 ${isSelected ? 'text-[#E5A93C]' : 'text-[#5C6675]'}`} />
-              <span>{cat.label}</span>
-            </button>
-          );
-        })}
+      {/* Zone 3: Persistent Remediation & Review Queue */}
+      <PracticeRemediationQueue
+        attempts={practiceAttempts}
+        allSessions={PRACTICE_SESSIONS}
+        onStartSession={(s) => setActiveSession(s)}
+        onNavigate={(route, targetId) => setRoute(route, targetId)}
+      />
+
+      {/* Zone 4: Category Tabs, Search & Filters */}
+      <div className="space-y-4">
+        <PracticeCategoryTabs
+          activeCategory={activeCategory}
+          onSelectCategory={(cat) => setActiveCategory(cat)}
+          searchQuery={searchQuery}
+          onSearchChange={(q) => setSearchQuery(q)}
+          timedOnly={timedOnly}
+          onToggleTimedOnly={() => setTimedOnly((prev) => !prev)}
+        />
+
+        {/* Zone 4: Session Grid */}
+        <PracticeSessionGrid
+          sessions={filteredSessions}
+          attempts={practiceAttempts}
+          activeCategory={activeCategory}
+          onStartSession={(s) => setActiveSession(s)}
+          onClearFilters={() => {
+            setActiveCategory('all');
+            setSearchQuery('');
+            setTimedOnly(false);
+          }}
+        />
       </div>
 
-      {/* Practice Session Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-        {filteredSessions.map((session) => {
-          const attemptCount = practiceAttempts.filter((a) => a.sessionId === session.id).length;
-          const stats = categoryStats[session.category];
-
-          return (
-            <div
-              key={session.id}
-              className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-4 hover:border-[#3B4556] transition-all flex flex-col justify-between"
-            >
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase font-bold text-[#FFC665] bg-[#1B2028] px-2.5 py-0.5 rounded border border-[#262D38]">
-                    {session.category.replace('_', ' ')}
-                  </span>
-                  <span className="text-xs text-[#8E98A8] font-mono flex items-center gap-1">
-                    <Clock className="size-3 text-[#E5A93C]" /> {session.estimatedMinutes} mins
-                  </span>
-                </div>
-
-                <h3 className="text-base font-bold text-[#F1F5F9]">{session.title}</h3>
-                <p className="text-xs text-[#8E98A8] leading-relaxed line-clamp-2">{session.description}</p>
-              </div>
-
-              <div className="pt-3 border-t border-[#262D38] flex items-center justify-between text-xs text-[#8E98A8]">
-                <span>{session.questions.length} Questions</span>
-
-                <div className="flex items-center gap-3">
-                  {attemptCount > 0 && stats && (
-                    <span className="text-[#10B981] font-semibold text-[11px] flex items-center gap-1">
-                      <CheckCircle2 className="size-3" /> {Math.round(stats.avgScorePct)}% Avg
-                    </span>
-                  )}
-                  <Button
-                    size="xs"
-                    onClick={() => setActiveSession(session)}
-                    className="h-8 text-xs font-bold bg-[#1B2028] hover:bg-[#222833] text-[#FFC665] border border-[#E5A93C]/40 rounded-md px-3"
-                  >
-                    Start Session
-                  </Button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Runner Modal */}
+      {/* Zone 5: Practice Runner Modal */}
       <PracticeRunnerModal
         session={effectiveSession}
         isOpen={!!effectiveSession}
