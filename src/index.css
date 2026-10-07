@@ -1400,6 +1400,83 @@ button.bg-\[\#E5A93C\]:hover, a.bg-\[\#E5A93C\]:hover, .btn-primary:hover {
   animation: skills-drawer-slide-in 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* ============================================================
+   COMPANIES SUBSYSTEM SIGNATURE MOTION & CORAL FLAME ACTION LAYER
+   ============================================================ */
+:root {
+  --action-accent-companies: #F43F5E;
+  --action-accent-companies-hover: #FB7185;
+  --action-accent-companies-subtle: rgba(244, 63, 94, 0.12);
+  --action-accent-companies-border: rgba(244, 63, 94, 0.35);
+  --action-accent-companies-ring: #FECDD3;
+}
+
+[data-testid="companies-view"],
+.companies-view-container {
+  --action-accent: var(--action-accent-companies);
+  --action-accent-hover: var(--action-accent-companies-hover);
+  --action-accent-subtle: var(--action-accent-companies-subtle);
+  --action-accent-border: var(--action-accent-companies-border);
+  --action-accent-ring: var(--action-accent-companies-ring);
+}
+
+@keyframes company-deadline-sweep {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.85;
+  }
+  80% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateX(350%);
+    opacity: 0;
+  }
+}
+
+.company-deadline-track {
+  position: relative;
+  overflow: hidden;
+}
+
+.company-deadline-beam {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 30%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(244, 63, 94, 0.15) 25%,
+    rgba(244, 63, 94, 0.8) 50%,
+    rgba(244, 63, 94, 0.15) 75%,
+    transparent 100%
+  );
+  filter: blur(0.5px);
+  animation: company-deadline-sweep 3.5s ease-in-out infinite;
+  pointer-events: none;
+  will-change: transform;
+}
+
+@keyframes company-drawer-slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0.85;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.company-drawer-slide {
+  animation: company-drawer-slide-in 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 /* Reduced motion overrides for signature motion layer */
 @media (prefers-reduced-motion: reduce) {
   .prep-knowledge-traveler,
@@ -1409,7 +1486,8 @@ button.bg-\[\#E5A93C\]:hover, a.bg-\[\#E5A93C\]:hover, .btn-primary:hover {
   .dsa-station-pulse,
   .drill-question-enter,
   .drill-result-reveal,
-  .skills-drawer-slide {
+  .skills-drawer-slide,
+  .company-drawer-slide {
     animation: none !important;
     transition: none !important;
     transform: none !important;
@@ -1417,7 +1495,8 @@ button.bg-\[\#E5A93C\]:hover, a.bg-\[\#E5A93C\]:hover, .btn-primary:hover {
   .prep-knowledge-traveler,
   .roadmap-trajectory-traveler,
   .dsa-trace-traveler,
-  .skills-signal-beam {
+  .skills-signal-beam,
+  .company-deadline-beam {
     display: none !important;
     animation: none !important;
   }

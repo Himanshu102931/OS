@@ -38,7 +38,12 @@ Unlike generic educational tools or consumer platforms, PlacementOS operates as 
   - **Zone 6: Diagnostic Practice Session Runner**: Focused training and diagnostic modal featuring the *Diagnostic Pulse* active scan motion, MCQ/subjective inputs with self-certification, hint support, and canonical evidence logging.
 - **11-Domain Skill Matrix**: Real-time strength calculation (0–100) and freshness tracking (`Fresh`, `Aging`, `Untested`) across DSA, SQL, Python, DBMS, OS, CN, OOP, Projects, Communication, Aptitude, and Mock Interviews.
 - **Skill Freshness Explanation**: Plain-language explanation of why a skill has its current freshness state (`fresh`, `aging`, `stale`, or `untested`), based on deterministic analysis of last practice/assessment evidence. Uses existing canonical evidence data — no new freshness calculation. Explains: "Fresh because recent evidence demonstrates the skill," "Aging because evidence is becoming old," "Stale because no sufficiently recent evidence exists," "Untested because no demonstrated evidence found."
-- **Company Target Overlays**: Priority boosting for active hiring drives (e.g., Amazon, TCS Digital).
+- **Company Target Alignment Radar & Recruiter Requirement Matrix**:
+  - **Zone 1: Header & Drive Timeline Strip**: Macro corporate target tracking with 4-metric strip (Active Targets Count, Top Benchmark Readiness %, Next Drive Countdown, Total Unresolved Requirement Gaps).
+  - **Zone 2: Primary Target Focus & Drive Urgency Hero**: Deterministic #1 priority target spotlighting the nearest recruitment drive, application status, countdown tag, overall readiness progressbar, critical deficit spotlight, and 1-click `"Prepare for Company"` Coral Flame action CTA (`#F43F5E`).
+  - **Zone 3: Target Companies Portfolio & Radar Grid**: Searchable, status-filtered, multi-criteria sorted portfolio cards with readiness meters, assessment countdown tags, required domain/language chips, top 2 preparation gaps, and inline delete safety.
+  - **Zone 4: Requirement Coverage Matrix & Gap Breakdown**: Dense technical ledger for the focused company categorized across Domains, Topics, and Languages with evidence strength progressbars, level progress ($L1..L4$), canonical requirement status badges, and 1-touch gap closure triggers.
+  - **Zone 5: Requirement Traceability Drawer & Modal Workbench**: Slide-over causal evidence drawer powered by `EvidenceTracePanel` and verified deep-link action execution to DSA, Roadmap, Preparation, and Practice workspaces, paired with an accessible Add/Edit Company Profile modal.
 - **Daily Execution & Sealing Protocol**: Structured workflow featuring Morning Planning, Task Execution, Evidence Logging, Evening Reflection, and Day Sealing immutability.
 - **Daily Plan & Adaptive Session Convergence**: Unified "What should I do today?" execution loop directly connecting Morning Planning (`todayAssignments`) with the Adaptive Session Composer (`SessionDisplay`). Committed daily assignments seamlessly guide adaptive session composition (flagged with a `Plan Aligned` session indicator and `Daily Plan` activity badges), while completing mapped session activities deterministically synchronizes assignment completion back to the daily plan with strict day-sealing immutability, duplicate-candidate filtering, and zero duplicate evidence.
 - **Direct Leitner DSA Reviews in Morning Planning & Evening Reflection**: Morning Planning allows users to intentionally select and commit due Leitner DSA review and eligible new algorithmic problems directly into the Daily Plan. Committed DSA assignments converge deterministically into Adaptive Sessions without duplicate scheduling against the review engine. Completing a committed DSA problem through canonical attempt logging synchronously records evidence, advances Leitner box intervals and review dates, and marks the corresponding daily assignment as completed under strict day-sealing protection. Both roadmap curriculum tasks and direct DSA assignments seamlessly converge into Evening Reflection, enabling unified daily reflection, actual time logging, and immutable day sealing.
@@ -49,9 +54,9 @@ Unlike generic educational tools or consumer platforms, PlacementOS operates as 
 
 - **Framework**: React 19 + TypeScript 6.0
 - **Build Tool**: Vite 8
-- **Styling**: TailwindCSS 4 (Forest-green studio design system: deep obsidian `#0B100D`, primary forest `#2E8B62` / `#46B982`, warning bronze `#D19A45`)
+- **Styling**: TailwindCSS 4 (Forest-green studio design system: deep obsidian `#0B100D`, primary forest `#2E8B62` / `#46B982`, warning bronze `#D19A45`, action coral `#F43F5E`)
 - **Icons**: Lucide React
-- **Testing**: Vitest (1432+ automated tests across 70 test suites)
+- **Testing**: Vitest (1478+ automated tests across 73 test suites)
 - **Routing**: Client-side hash routing (`#/${route}`)
 - **Persistence**: `StorageAdapter` with JSON backup export/import
 
