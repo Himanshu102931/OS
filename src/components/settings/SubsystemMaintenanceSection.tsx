@@ -72,7 +72,7 @@ export const SubsystemMaintenanceSection: React.FC<SubsystemMaintenanceSectionPr
         <div className="pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-0.5">
             <span className="text-xs font-semibold text-[#E8F0E9] flex items-center gap-1.5">
-              <ClipboardCheck className="size-3.5 text-[#E5A93C]" />
+              <ClipboardCheck className="size-3.5 text-[#D19A45]" />
               <span>Reset Assessment Profile Only</span>
             </span>
             <p className="text-[11px] text-[#9AA99F] max-w-xl leading-relaxed">
@@ -87,9 +87,9 @@ export const SubsystemMaintenanceSection: React.FC<SubsystemMaintenanceSectionPr
             type="button"
             size="sm"
             onClick={onResetAssessmentProfile}
-            className="text-xs font-medium bg-[#161E19] hover:bg-[#1B241F] text-[#E8F0E9] border border-[#28352D] hover:border-[#E5A93C]/50 rounded-[4px] h-8 px-3.5 shrink-0 transition-colors"
+            className="text-xs font-medium bg-[#161E19] hover:bg-[#1B241F] text-[#E8F0E9] border border-[#28352D] hover:border-[#D19A45]/50 rounded-[4px] h-8 px-3.5 shrink-0 transition-colors"
           >
-            <RotateCcw className="size-3.5 mr-1.5 text-[#E5A93C]" />
+            <RotateCcw className="size-3.5 mr-1.5 text-[#D19A45]" />
             <span>Reset Profile Only</span>
           </Button>
         </div>
@@ -97,7 +97,7 @@ export const SubsystemMaintenanceSection: React.FC<SubsystemMaintenanceSectionPr
         {/* 3. Reset Assessment History & Data */}
         <div className="pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-0.5">
-            <span className="text-xs font-semibold text-[#E5A93C] flex items-center gap-1.5">
+            <span className="text-xs font-semibold text-[#D19A45] flex items-center gap-1.5">
               <RotateCcw className="size-3.5 text-[#D19A45]" />
               <span>Reset Assessment History & Data</span>
             </span>

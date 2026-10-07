@@ -60,7 +60,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             </div>
             <Button
               onClick={this.handleReset}
-              className="w-full h-9 px-4 font-bold text-xs bg-[#E5A93C] hover:bg-[#FFC665] text-[#432C00] rounded-md flex items-center justify-center gap-2"
+              className="w-full h-9 px-4 font-bold text-xs bg-primary hover:bg-primary-hover text-primary-foreground rounded-md flex items-center justify-center gap-2"
             >
               <RotateCcw className="size-3.5" />
               Reload Application

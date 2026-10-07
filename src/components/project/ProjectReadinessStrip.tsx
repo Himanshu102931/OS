@@ -170,7 +170,7 @@ export const ProjectReadinessStrip: React.FC<ProjectReadinessStripProps> = ({
           <span className="text-[10px] font-mono uppercase tracking-wider text-[#8E98A8]">
             Latest Score
           </span>
-          <Award className="size-3.5 text-[#E5A93C]" aria-hidden="true" />
+          <Award className="size-3.5 text-accent" aria-hidden="true" />
         </div>
         <div className="space-y-0.5">
           {latestAttempt ? (

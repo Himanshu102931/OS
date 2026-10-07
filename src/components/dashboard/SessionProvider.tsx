@@ -97,31 +97,78 @@ function SessionProviderInner({
     propSelectedCompanyId ?? (placement?.selectedCompanyOverlayId || undefined);
   const energyLevel =
     propEnergyLevel ?? (todayCheckIn?.energyLevel || 'medium');
-  const tasks = propTasks ?? (placement?.taskDefinitions || []);
-  const taskProgressMap = propTaskProgressMap ?? (placement?.taskProgress || {});
-  const dsaProblems = propDsaProblems ?? (placement?.dsaProblems || []);
-  const dsaProgressMap = propDsaProgressMap ?? (placement?.dsaProgress || {});
-  const topics = propTopics ?? (placement?.topics || []);
-  const domains = propDomains ?? (placement?.domains || []);
-  const skillStates = propSkillStates ?? (placement?.skillStates || {});
-  const companyOverlays = propCompanyOverlays ?? (placement?.companyOverlays || []);
-  const practiceSessions = propPracticeSessions ?? (placement?.practiceSessions || []);
-  const practiceAttempts = propPracticeAttempts ?? (placement?.practiceAttempts || []);
+  const tasks = useMemo(
+    () => propTasks ?? (placement?.taskDefinitions || []),
+    [propTasks, placement?.taskDefinitions]
+  );
+  const taskProgressMap = useMemo(
+    () => propTaskProgressMap ?? (placement?.taskProgress || {}),
+    [propTaskProgressMap, placement?.taskProgress]
+  );
+  const dsaProblems = useMemo(
+    () => propDsaProblems ?? (placement?.dsaProblems || []),
+    [propDsaProblems, placement?.dsaProblems]
+  );
+  const dsaProgressMap = useMemo(
+    () => propDsaProgressMap ?? (placement?.dsaProgress || {}),
+    [propDsaProgressMap, placement?.dsaProgress]
+  );
+  const topics = useMemo(
+    () => propTopics ?? (placement?.topics || []),
+    [propTopics, placement?.topics]
+  );
+  const domains = useMemo(
+    () => propDomains ?? (placement?.domains || []),
+    [propDomains, placement?.domains]
+  );
+  const skillStates = useMemo(
+    () => propSkillStates ?? (placement?.skillStates || {}),
+    [propSkillStates, placement?.skillStates]
+  );
+  const companyOverlays = useMemo(
+    () => propCompanyOverlays ?? (placement?.companyOverlays || []),
+    [propCompanyOverlays, placement?.companyOverlays]
+  );
+  const practiceSessions = useMemo(
+    () => propPracticeSessions ?? (placement?.practiceSessions || []),
+    [propPracticeSessions, placement?.practiceSessions]
+  );
+  const practiceAttempts = useMemo(
+    () => propPracticeAttempts ?? (placement?.practiceAttempts || []),
+    [propPracticeAttempts, placement?.practiceAttempts]
+  );
   const preparationTopics = propPreparationTopics ?? PREPARATION_TOPICS;
-  const preparationTopicProgress =
-    propPreparationTopicProgress ?? (placement?.preparationTopicProgress || {});
-  const domainResults =
-    propDomainResults ?? (placement?.assessmentState?.domainResults || []);
-  const weaknessSignals =
-    propWeaknessSignals ?? (placement?.assessmentState?.weaknessSignals || []);
+  const preparationTopicProgress = useMemo(
+    () => propPreparationTopicProgress ?? (placement?.preparationTopicProgress || {}),
+    [propPreparationTopicProgress, placement?.preparationTopicProgress]
+  );
+  const domainResults = useMemo(
+    () => propDomainResults ?? (placement?.assessmentState?.domainResults || []),
+    [propDomainResults, placement?.assessmentState?.domainResults]
+  );
+  const weaknessSignals = useMemo(
+    () => propWeaknessSignals ?? (placement?.assessmentState?.weaknessSignals || []),
+    [propWeaknessSignals, placement?.assessmentState?.weaknessSignals]
+  );
   const assessmentProfileReadout =
     propAssessmentProfileReadout ?? placement?.assessmentProfileReadout;
   const activePhase = propActivePhase ?? (placement?.activePhase.order || 1);
-  const todayAssignments =
-    propTodayAssignments ??
-    (placement?.dailyTaskAssignments.filter((a) => a.date === placement.todayDate) || []);
-  const dsaAttempts = propDsaAttempts ?? (placement?.dsaAttempts || []);
-  const evidenceLogs = propEvidenceLogs ?? (placement?.evidenceLogs || []);
+  const placementAssignments = placement?.dailyTaskAssignments;
+  const placementToday = placement?.todayDate;
+  const todayAssignments = useMemo(
+    () =>
+      propTodayAssignments ??
+      (placementAssignments?.filter((a) => a.date === placementToday) || []),
+    [propTodayAssignments, placementAssignments, placementToday]
+  );
+  const dsaAttempts = useMemo(
+    () => propDsaAttempts ?? (placement?.dsaAttempts || []),
+    [propDsaAttempts, placement?.dsaAttempts]
+  );
+  const evidenceLogs = useMemo(
+    () => propEvidenceLogs ?? (placement?.evidenceLogs || []),
+    [propEvidenceLogs, placement?.evidenceLogs]
+  );
 
   const [userDuration, setUserDuration] = useState<number | null>(null);
   const selectedDuration = userDuration ?? (availableMinutes > 0 ? availableMinutes : 60);
