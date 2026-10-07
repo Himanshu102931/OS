@@ -136,7 +136,7 @@
   --color-muted: var(--surface-muted);
   --color-muted-foreground: var(--foreground-muted);
   --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--foreground);
+  --color-secondary-foreground: var(--foreground-muted);
   --color-destructive: var(--danger);
   --color-ring: var(--ring);
   --color-input: var(--surface-muted);
@@ -1491,6 +1491,28 @@ button.bg-\[\#E5A93C\]:hover, a.bg-\[\#E5A93C\]:hover, .btn-primary:hover {
   --action-accent-subtle: var(--action-accent-companies-subtle);
   --action-accent-border: var(--action-accent-companies-border);
   --action-accent-ring: var(--action-accent-companies-ring);
+}
+
+/* ============================================================
+   INTERVIEW SUBSYSTEM SIGNATURE MOTION & ELECTRIC INDIGO ACTION LAYER
+   ============================================================ */
+:root {
+  --action-accent-interview: #6366F1;
+  --action-accent-interview-hover: #818CF8;
+  --action-accent-interview-subtle: rgba(99, 102, 241, 0.12);
+  --action-accent-interview-border: rgba(99, 102, 241, 0.35);
+  --action-accent-interview-ring: #C4B5FD;
+  --action-accent-interview-foreground: #FFFFFF;
+}
+
+[data-testid="interview-view"],
+.interview-view-container {
+  --action-accent: var(--action-accent-interview);
+  --action-accent-hover: var(--action-accent-interview-hover);
+  --action-accent-subtle: var(--action-accent-interview-subtle);
+  --action-accent-border: var(--action-accent-interview-border);
+  --action-accent-ring: var(--action-accent-interview-ring);
+  --action-accent-foreground: var(--action-accent-interview-foreground);
 }
 
 @keyframes company-deadline-sweep {

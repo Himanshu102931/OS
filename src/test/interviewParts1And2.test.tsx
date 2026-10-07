@@ -195,8 +195,8 @@ describe('Interview Manufacturing Parts 1 & 2', () => {
 
       const primaryBtn = screen.getByTestId('hero-primary-action');
       expect(primaryBtn).toBeInTheDocument();
-      // Primary button has electric indigo styling
-      expect(primaryBtn.className).toContain('bg-[#6366F1]');
+      // Primary button uses semantic Interview action accent
+      expect(primaryBtn.className).toContain('bg-action-accent');
 
       const secondaryBtn = screen.queryByTestId('hero-secondary-action');
       if (secondaryBtn) {

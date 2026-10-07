@@ -49,7 +49,7 @@ function deriveHeroMission(scorecard: InterviewReadinessScorecard): HeroMission 
   if (overallBand === 'unassessed' || !assessmentIntegration.isAssessed) {
     return {
       badge: 'Immediate Baseline Priority',
-      badgeClass: 'bg-[#6366F1]/10 text-[#818CF8] border-[#6366F1]/30',
+      badgeClass: 'bg-action-accent/10 text-action-accent-hover border-action-accent-border/30',
       icon: ClipboardCheck,
       title: 'Complete Baseline Diagnostic Assessment',
       dimensionName: 'All Interview Dimensions',
@@ -154,7 +154,7 @@ function deriveHeroMission(scorecard: InterviewReadinessScorecard): HeroMission 
 
   return {
     badge: 'Highest-Leverage Readiness Drill',
-    badgeClass: 'bg-[#6366F1]/10 text-[#818CF8] border-[#6366F1]/30',
+    badgeClass: 'bg-action-accent/10 text-action-accent-hover border-action-accent-border/30',
     icon: targetDim.id === 'coding_dsa' ? Code2 : Sparkles,
     title: targetDim.recommendedAction.label || `Strengthen ${targetDim.name}`,
     dimensionName: targetDim.name,
@@ -181,7 +181,7 @@ export const InterviewHeroSpotlight: React.FC<InterviewHeroSpotlightProps> = ({
 
   return (
     <section
-      className="bg-[#11141A] border border-[#232834] rounded-xl p-5 sm:p-6 relative overflow-hidden shadow-lg interview-signal-track"
+      className="bg-[#11141A] border border-[#232834] rounded-xl p-5 sm:p-6 relative overflow-hidden shadow-lg interview-signal-track interview-view-container"
       data-testid="interview-hero-spotlight"
       aria-label="Primary interview mission spotlight"
     >
@@ -204,7 +204,7 @@ export const InterviewHeroSpotlight: React.FC<InterviewHeroSpotlightProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5 text-[11px] text-[#7E8B9F] font-mono">
-            <CheckCircle2 className="size-3.5 text-[#6366F1]" />
+            <CheckCircle2 className="size-3.5 text-action-accent" />
             <span>Deterministic Next Step</span>
           </div>
         </div>
@@ -212,7 +212,7 @@ export const InterviewHeroSpotlight: React.FC<InterviewHeroSpotlightProps> = ({
         {/* Mission Headline & Description */}
         <div className="space-y-1.5">
           <h2 className="text-lg sm:text-xl font-bold text-[#F1F5F9] tracking-tight flex items-center gap-2.5">
-            <Icon className="size-5 text-[#6366F1] shrink-0" />
+            <Icon className="size-5 text-action-accent shrink-0" />
             <span data-testid="hero-mission-title">{mission.title}</span>
           </h2>
           <p className="text-xs sm:text-sm text-[#9AA6B8] leading-relaxed max-w-3xl">
@@ -250,7 +250,7 @@ export const InterviewHeroSpotlight: React.FC<InterviewHeroSpotlightProps> = ({
               size="sm"
               onClick={() => onAction(mission.primaryAction.route, mission.primaryAction.targetId)}
               data-testid="hero-primary-action"
-              className="h-8 text-xs font-semibold bg-[#6366F1] hover:bg-[#818CF8] text-white rounded-md shadow transition-all flex items-center gap-1.5 focus:ring-2 focus:ring-[#6366F1] focus:ring-offset-2 focus:ring-offset-[#0B0D10]"
+              className="h-8 text-xs font-semibold bg-action-accent hover:bg-action-accent-hover text-action-accent-foreground rounded-md shadow transition-all flex items-center gap-1.5 focus:ring-2 focus:ring-action-accent-ring focus:ring-offset-2 focus:ring-offset-background"
             >
               <span>{mission.primaryAction.label}</span>
               <ArrowRight className="size-3.5" />
