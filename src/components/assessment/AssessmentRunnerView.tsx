@@ -51,6 +51,7 @@ export const AssessmentRunnerView: React.FC = () => {
 
     recordAssessmentResponse,
     submitAssessmentAttempt,
+    cancelAssessmentAttempt,
     activeAssessmentAttempt,
     assessmentProfileReadout,
     setRoute,
@@ -77,6 +78,8 @@ export const AssessmentRunnerView: React.FC = () => {
   const [currentIdx, setCurrentIdx] = useState<number>(0);
   // Show submission confirmation modal
   const [showSubmitModal, setShowSubmitModal] = useState<boolean>(false);
+  // Show cancellation confirmation modal
+  const [showCancelModal, setShowCancelModal] = useState<boolean>(false);
   // Wall-clock remaining seconds
   const [timeRemainingSeconds, setTimeRemainingSeconds] = useState<number>(180 * 60);
 
@@ -307,6 +310,13 @@ export const AssessmentRunnerView: React.FC = () => {
   // ---------------------------------------------------------------------------
   // View 1: Mode B — Active Assessment Runner
   // ---------------------------------------------------------------------------
+  const handleConfirmCancel = useCallback(() => {
+    if (!activeAssessmentAttempt) return;
+    setShowCancelModal(false);
+    cancelAssessmentAttempt(activeAssessmentAttempt.id);
+    setCurrentIdx(0);
+  }, [activeAssessmentAttempt, cancelAssessmentAttempt]);
+
   if (activeAssessmentAttempt && activeAssessmentAttempt.status === 'in_progress') {
     const recordedCurrent = currentItem ? responseMap.get(currentItem.id) : undefined;
     const textInput = draftFromRecorded(recordedCurrent);
@@ -319,6 +329,7 @@ export const AssessmentRunnerView: React.FC = () => {
         responseMap={responseMap}
         timeRemainingSeconds={timeRemainingSeconds}
         showSubmitModal={showSubmitModal}
+        showCancelModal={showCancelModal}
         textInput={textInput}
         onSelectIndex={(idx) => setCurrentIdx(idx)}
         onAnswerChange={handleAnswerChange}
@@ -331,6 +342,9 @@ export const AssessmentRunnerView: React.FC = () => {
           setShowSubmitModal(false);
           submitAssessmentAttempt(activeAssessmentAttempt.id, false);
         }}
+        onOpenCancelModal={() => setShowCancelModal(true)}
+        onCloseCancelModal={() => setShowCancelModal(false)}
+        onConfirmCancel={handleConfirmCancel}
       />
     );
   }

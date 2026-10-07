@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import type {
   AssessmentAttempt,
   AssessmentItem,
@@ -9,6 +9,7 @@ import { AssessmentCommandBar } from './AssessmentCommandBar';
 import { AssessmentQuestionStage } from './AssessmentQuestionStage';
 import { AssessmentQuestionPalette } from './AssessmentQuestionPalette';
 import { AssessmentSubmitModal } from './AssessmentSubmitModal';
+import { AssessmentCancelModal } from './AssessmentCancelModal';
 
 interface AssessmentExecutionRunnerProps {
   activeAttempt: AssessmentAttempt;
@@ -25,6 +26,7 @@ interface AssessmentExecutionRunnerProps {
   >;
   timeRemainingSeconds: number;
   showSubmitModal: boolean;
+  showCancelModal: boolean;
   textInput: string;
   onSelectIndex: (index: number) => void;
   onAnswerChange: (userResponse: number | string | null, confidence?: AssessmentConfidence) => void;
@@ -34,6 +36,9 @@ interface AssessmentExecutionRunnerProps {
   onOpenSubmitModal: () => void;
   onCloseSubmitModal: () => void;
   onConfirmSubmit: () => void;
+  onOpenCancelModal: () => void;
+  onCloseCancelModal: () => void;
+  onConfirmCancel: () => void;
 }
 
 export const AssessmentExecutionRunner: React.FC<AssessmentExecutionRunnerProps> = ({
@@ -43,6 +48,7 @@ export const AssessmentExecutionRunner: React.FC<AssessmentExecutionRunnerProps>
   responseMap,
   timeRemainingSeconds,
   showSubmitModal,
+  showCancelModal,
   textInput,
   onSelectIndex,
   onAnswerChange,
@@ -52,11 +58,32 @@ export const AssessmentExecutionRunner: React.FC<AssessmentExecutionRunnerProps>
   onOpenSubmitModal,
   onCloseSubmitModal,
   onConfirmSubmit,
+  onOpenCancelModal,
+  onCloseCancelModal,
+  onConfirmCancel,
 }) => {
   const currentItem = orderedItems[currentIndex];
   const answeredCount = responseMap.size;
   const totalCount = orderedItems.length;
   const recordedCurrent = currentItem ? responseMap.get(currentItem.id) : undefined;
+
+  // Handle Escape key for cancel modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showCancelModal) {
+          onCloseCancelModal();
+        } else if (!showSubmitModal) {
+          onOpenCancelModal();
+        }
+      }
+    };
+
+    if (showCancelModal || showSubmitModal) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showCancelModal, showSubmitModal, onOpenCancelModal, onCloseCancelModal]);
 
   return (
     <main
@@ -74,6 +101,7 @@ export const AssessmentExecutionRunner: React.FC<AssessmentExecutionRunnerProps>
         timeRemainingSeconds={timeRemainingSeconds}
         currentItem={currentItem}
         onSubmitClick={onOpenSubmitModal}
+        onCancelClick={onOpenCancelModal}
       />
 
       {/* Main Workspace Grid (3 cols Question Stage + 1 col Question Palette) */}
@@ -115,6 +143,15 @@ export const AssessmentExecutionRunner: React.FC<AssessmentExecutionRunnerProps>
         totalCount={totalCount}
         onCancel={onCloseSubmitModal}
         onConfirm={onConfirmSubmit}
+      />
+
+      {/* Zone 6: Cancellation Confirmation Modal */}
+      <AssessmentCancelModal
+        isOpen={showCancelModal}
+        answeredCount={answeredCount}
+        totalCount={totalCount}
+        onCancel={onCloseCancelModal}
+        onConfirm={onConfirmCancel}
       />
     </main>
   );

@@ -173,6 +173,7 @@ interface PlacementContextType {
     timeSpentSeconds?: number
   ) => void;
   submitAssessmentAttempt: (attemptId: string, isAuto?: boolean) => AssessmentScoringResult;
+  cancelAssessmentAttempt: (attemptId: string) => void;
   activeAssessmentAttempt?: AssessmentAttempt;
   assessmentProfileReadout: AssessmentProfileReadout;
   selectedCompanyOverlayId: string | null;
@@ -1049,6 +1050,31 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return scoringResult;
   };
 
+  const cancelAssessmentAttempt = (attemptId: string) => {
+    setAppState((prev) => {
+      const curr = prev.assessmentState;
+      if (!curr) return prev;
+
+      const attempt = curr.attempts.find((a) => a.id === attemptId);
+      if (!attempt || attempt.status !== 'in_progress') return prev;
+
+      // Remove all responses for this attempt
+      const otherResponses = curr.responses.filter((r) => r.attemptId !== attemptId);
+
+      // Remove the attempt from the attempts array (discard it entirely)
+      const otherAttempts = curr.attempts.filter((a) => a.id !== attemptId);
+
+      return {
+        ...prev,
+        assessmentState: {
+          ...curr,
+          attempts: otherAttempts,
+          responses: otherResponses,
+        },
+      };
+    });
+  };
+
   const activeAssessmentAttempt = appState.assessmentState?.attempts.find(
     (a) => a.status === 'in_progress'
   );
@@ -1187,6 +1213,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         pendingSundayObligation,
         recordAssessmentResponse,
         submitAssessmentAttempt,
+        cancelAssessmentAttempt,
         activeAssessmentAttempt,
         assessmentProfileReadout,
         selectedCompanyOverlayId,

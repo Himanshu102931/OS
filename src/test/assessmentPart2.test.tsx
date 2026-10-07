@@ -101,6 +101,7 @@ describe('Assessment Manufacturing Part 2 — Mode B Active Runner', () => {
           timeRemainingSeconds={10795} // 02:59:55
           currentItem={BASELINE_ASSESSMENT_ITEMS[0]}
           onSubmitClick={() => {}}
+          onCancelClick={() => {}}
         />
       );
 
@@ -130,6 +131,7 @@ describe('Assessment Manufacturing Part 2 — Mode B Active Runner', () => {
           timeRemainingSeconds={800} // ~13 mins (urgent warning)
           currentItem={BASELINE_ASSESSMENT_ITEMS[0]}
           onSubmitClick={() => {}}
+          onCancelClick={() => {}}
         />
       );
 
@@ -145,6 +147,7 @@ describe('Assessment Manufacturing Part 2 — Mode B Active Runner', () => {
           timeRemainingSeconds={180} // 3 mins (critical)
           currentItem={BASELINE_ASSESSMENT_ITEMS[0]}
           onSubmitClick={() => {}}
+          onCancelClick={() => {}}
         />
       );
 

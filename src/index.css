@@ -129,6 +129,18 @@
   --color-info: var(--info);
   --color-foreground-subtle: var(--foreground-subtle);
 
+  /* shadcn/ui Button variant token mappings */
+  --color-border: var(--border);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--surface-muted);
+  --color-muted-foreground: var(--foreground-muted);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--foreground);
+  --color-destructive: var(--danger);
+  --color-ring: var(--ring);
+  --color-input: var(--surface-muted);
+
   /* Page Action Accent Token Mapping */
   --color-action-accent: var(--action-accent);
   --color-action-accent-hover: var(--action-accent-hover);

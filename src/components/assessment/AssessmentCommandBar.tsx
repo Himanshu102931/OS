@@ -10,6 +10,7 @@ interface AssessmentCommandBarProps {
   timeRemainingSeconds: number;
   currentItem?: AssessmentItem;
   onSubmitClick: () => void;
+  onCancelClick: () => void;
 }
 
 export const AssessmentCommandBar: React.FC<AssessmentCommandBarProps> = ({
@@ -20,6 +21,7 @@ export const AssessmentCommandBar: React.FC<AssessmentCommandBarProps> = ({
   timeRemainingSeconds,
   currentItem,
   onSubmitClick,
+  onCancelClick,
 }) => {
   const formatTime = (secs: number) => {
     const h = Math.floor(secs / 3600);
@@ -90,13 +92,23 @@ export const AssessmentCommandBar: React.FC<AssessmentCommandBarProps> = ({
             <span>{formatTime(timeRemainingSeconds)}</span>
           </div>
 
-          {/* Submit Action */}
+          {/* Cancel Assessment (Secondary) */}
+          <button
+            data-testid="assessment-cancel-btn"
+            onClick={onCancelClick}
+            className="px-3.5 py-1.5 rounded text-xs font-medium bg-[#1B2028] hover:bg-[#262D38] text-[#D05A52] border border-[#D05A52]/40 transition-colors cursor-pointer"
+            title="Cancel and discard this assessment attempt"
+          >
+            Cancel Assessment
+          </button>
+
+          {/* Submit Action (Primary) */}
           <button
             data-testid="assessment-finish-btn"
             onClick={onSubmitClick}
-            className="px-3.5 py-1.5 rounded text-xs font-medium bg-[#1B2028] hover:bg-[#262D38] text-[#F1F5F9] border border-[#3B4556] transition-colors cursor-pointer"
+            className="px-3.5 py-1.5 rounded text-xs font-medium bg-[#EAB308] hover:bg-[#CA8A04] text-[#0D0F12] border border-[#EAB308]/40 transition-colors cursor-pointer"
           >
-            Finish &amp; Submit
+            Finish & Submit
           </button>
         </div>
       </div>
