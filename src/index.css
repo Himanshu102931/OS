@@ -275,6 +275,24 @@
   --action-accent-ring: #34D399;
 }
 
+/* Assessment Diagnostic Action Accent (Benchmark Topaz) */
+[data-subsystem="assessment"],
+.assessment-scope,
+[data-testid="assessment-action"],
+[data-testid="start-diagnostic-btn"] {
+  --accent-diagnostic: #EAB308;
+  --accent-diagnostic-hover: #CA8A04;
+  --accent-diagnostic-ring: #FACC15;
+  --accent-diagnostic-subtle: rgba(234, 179, 8, 0.12);
+  --accent-diagnostic-border: rgba(234, 179, 8, 0.35);
+  --action-accent: #EAB308;
+  --action-accent-hover: #CA8A04;
+  --action-accent-foreground: #0D0F12;
+  --action-accent-subtle: rgba(234, 179, 8, 0.12);
+  --action-accent-border: rgba(234, 179, 8, 0.35);
+  --action-accent-ring: #FACC15;
+}
+
 [data-testid="primary-action"] .text-\[\#F1F5F9\],
 .today-guide-panel .text-\[\#F1F5F9\],
 .guide-spotlight-popover .text-\[\#F1F5F9\] {
