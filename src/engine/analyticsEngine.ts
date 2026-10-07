@@ -27,7 +27,7 @@ export interface ReviewPrompt {
   targetId?: string;
 }
 
-interface ActivityTelemetry {
+export interface ActivityTelemetry {
   completedTasksCount: number;
   totalTasksInWindow: number;
   dsaAttemptsCount: number;
@@ -54,7 +54,7 @@ interface ActivityTelemetry {
   consistencyRate: number; // 0 - 100%
 }
 
-interface QualityTelemetry {
+export interface QualityTelemetry {
   independentSolveRatio: number; // 0 - 100%
   assistedSolveRatio: number; // 0 - 100%
   remediationCount: number;
@@ -62,7 +62,7 @@ interface QualityTelemetry {
   boxDistribution: { 1: number; 2: number; 3: number; 4: number };
 }
 
-interface ProgressTelemetry {
+export interface ProgressTelemetry {
   roadmapCompletionRate: number; // 0 - 100%
   activePhaseCompletionRate: number; // 0 - 100%
   overallDomainReadiness: number; // 0 - 100%
@@ -70,7 +70,7 @@ interface ProgressTelemetry {
   totalPatternsCount: number;
 }
 
-interface GapNeglectTelemetry {
+export interface GapNeglectTelemetry {
   overdueDsaCount: number;
   staleEvidenceTopicsCount: number;
   repeatedlyPostponedTasksCount: number;

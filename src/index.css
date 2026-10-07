@@ -827,18 +827,61 @@ button.bg-\[\#E5A93C\]:hover, a.bg-\[\#E5A93C\]:hover, .btn-primary:hover {
   animation: evidence-pulse 0.4s var(--ease-out);
 }
 
-/* ---- Analytics KPI Card ---- */
+/* ---- Analytics KPI & Telemetry Cards ---- */
 .kpi-card {
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .kpi-card:hover {
-  border-color: #3B4556;
-  box-shadow: 0 0 0 1px rgba(229, 169, 60, 0.08);
+  border-color: #384252;
+  box-shadow: 0 0 0 1px rgba(244, 63, 94, 0.12);
 }
 
 .kpi-value {
   transition: color 0.3s ease;
+}
+
+.telemetry-card {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.telemetry-card:hover {
+  border-color: #384252;
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(244, 63, 94, 0.15);
+}
+
+@keyframes telemetry-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(244, 63, 94, 0.15); }
+  50% { box-shadow: 0 0 0 1px rgba(244, 63, 94, 0.35); }
+}
+
+.telemetry-pulse {
+  animation: telemetry-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes telemetry-sweep {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.telemetry-sweep {
+  animation: telemetry-sweep 0.35s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .telemetry-pulse,
+  .telemetry-sweep,
+  .telemetry-card {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
 }
 
 /* ---- Companies Readiness Glow ---- */
