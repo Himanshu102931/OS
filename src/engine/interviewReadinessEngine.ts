@@ -408,7 +408,7 @@ function aggregateDimensionFromTopics(
 /**
  * Project Lab readiness assessment
  */
-function calculateProjectReadiness(
+export function calculateProjectReadiness(
   practiceAttempts: PracticeAttempt[],
   evidenceLogs: EvidenceLog[]
 ): InterviewReadinessScorecard['projectReadiness'] {

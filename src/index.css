@@ -1477,6 +1477,69 @@ button.bg-\[\#E5A93C\]:hover, a.bg-\[\#E5A93C\]:hover, .btn-primary:hover {
   animation: company-drawer-slide-in 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* ============================================================
+   PROJECT LAB SIGNATURE MOTION: DATA FLOW PIPELINE PULSE
+   ============================================================ */
+:root {
+  --action-accent-project: #0D9488;
+  --action-accent-project-hover: #14B8A6;
+  --action-accent-project-active: #0F766E;
+  --action-accent-project-subtle: rgba(13, 148, 136, 0.12);
+  --action-accent-project-border: rgba(13, 148, 136, 0.35);
+  --action-accent-project-glow: rgba(20, 184, 166, 0.20);
+  --action-accent-project-text: #2DD4BF;
+}
+
+[data-testid="project-lab-view"],
+.project-lab-container {
+  --action-accent: var(--action-accent-project);
+  --action-accent-hover: var(--action-accent-project-hover);
+  --action-accent-subtle: var(--action-accent-project-subtle);
+  --action-accent-border: var(--action-accent-project-border);
+  --action-accent-ring: var(--action-accent-project-text);
+}
+
+@keyframes data-flow-pulse-sweep {
+  0% {
+    left: -12%;
+    opacity: 0;
+  }
+  4% {
+    opacity: 0.85;
+  }
+  96% {
+    opacity: 0.85;
+  }
+  100% {
+    left: 108%;
+    opacity: 0;
+  }
+}
+
+.data-flow-pulse-track {
+  position: relative;
+  overflow: hidden;
+}
+
+.data-flow-pulse-beam {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 120px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(13, 148, 136, 0.15) 20%,
+    rgba(45, 212, 191, 0.75) 50%,
+    rgba(13, 148, 136, 0.15) 80%,
+    transparent 100%
+  );
+  filter: blur(0.5px);
+  animation: data-flow-pulse-sweep 16s linear infinite;
+  pointer-events: none;
+  will-change: left;
+}
+
 /* Reduced motion overrides for signature motion layer */
 @media (prefers-reduced-motion: reduce) {
   .prep-knowledge-traveler,
@@ -1487,7 +1550,8 @@ button.bg-\[\#E5A93C\]:hover, a.bg-\[\#E5A93C\]:hover, .btn-primary:hover {
   .drill-question-enter,
   .drill-result-reveal,
   .skills-drawer-slide,
-  .company-drawer-slide {
+  .company-drawer-slide,
+  .data-flow-pulse-beam {
     animation: none !important;
     transition: none !important;
     transform: none !important;
@@ -1496,7 +1560,8 @@ button.bg-\[\#E5A93C\]:hover, a.bg-\[\#E5A93C\]:hover, .btn-primary:hover {
   .roadmap-trajectory-traveler,
   .dsa-trace-traveler,
   .skills-signal-beam,
-  .company-deadline-beam {
+  .company-deadline-beam,
+  .data-flow-pulse-beam {
     display: none !important;
     animation: none !important;
   }
