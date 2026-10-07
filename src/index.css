@@ -1323,6 +1323,83 @@ button.bg-\[\#E5A93C\]:hover, a.bg-\[\#E5A93C\]:hover, .btn-primary:hover {
   animation: placement-fade-in var(--duration-normal, 200ms) var(--ease-out) forwards;
 }
 
+/* ============================================================
+   SKILLS SUBSYSTEM SIGNATURE MOTION & VIOLET ACTION LAYER
+   ============================================================ */
+:root {
+  --action-accent-skills: #8B5CF6;
+  --action-accent-skills-hover: #A78BFA;
+  --action-accent-skills-subtle: rgba(139, 92, 246, 0.12);
+  --action-accent-skills-border: rgba(139, 92, 246, 0.35);
+  --action-accent-skills-ring: #C4B5FD;
+}
+
+[data-testid="skills-view"],
+.skills-view-container {
+  --action-accent: var(--action-accent-skills);
+  --action-accent-hover: var(--action-accent-skills-hover);
+  --action-accent-subtle: var(--action-accent-skills-subtle);
+  --action-accent-border: var(--action-accent-skills-border);
+  --action-accent-ring: var(--action-accent-skills-ring);
+}
+
+@keyframes skills-signal-sweep {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.85;
+  }
+  80% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateX(350%);
+    opacity: 0;
+  }
+}
+
+.skills-signal-track {
+  position: relative;
+  overflow: hidden;
+}
+
+.skills-signal-beam {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 30%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(139, 92, 246, 0.15) 25%,
+    rgba(139, 92, 246, 0.8) 50%,
+    rgba(139, 92, 246, 0.15) 75%,
+    transparent 100%
+  );
+  filter: blur(0.5px);
+  animation: skills-signal-sweep 3.5s ease-in-out infinite;
+  pointer-events: none;
+  will-change: transform;
+}
+
+@keyframes skills-drawer-slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0.85;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.skills-drawer-slide {
+  animation: skills-drawer-slide-in 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 /* Reduced motion overrides for signature motion layer */
 @media (prefers-reduced-motion: reduce) {
   .prep-knowledge-traveler,
@@ -1331,14 +1408,17 @@ button.bg-\[\#E5A93C\]:hover, a.bg-\[\#E5A93C\]:hover, .btn-primary:hover {
   .dsa-trace-traveler,
   .dsa-station-pulse,
   .drill-question-enter,
-  .drill-result-reveal {
+  .drill-result-reveal,
+  .skills-drawer-slide {
     animation: none !important;
     transition: none !important;
     transform: none !important;
   }
   .prep-knowledge-traveler,
   .roadmap-trajectory-traveler,
-  .dsa-trace-traveler {
+  .dsa-trace-traveler,
+  .skills-signal-beam {
     display: none !important;
+    animation: none !important;
   }
 }

@@ -6,17 +6,16 @@ import {
   explainSkillFreshness,
   type TopicReadiness,
 } from '../../engine/skillsEngine';
-import { SkillOverrideModal } from './SkillOverrideModal';
+import { resolveTraceDestination } from '../../engine/evidenceTrace';
+import { useEvidenceCatalog } from '../evidence/useEvidenceCatalog';
+import { SkillsHeader } from './SkillsHeader';
+import { SkillsProvingStrip } from './SkillsProvingStrip';
+import { PrimaryGapHero } from './PrimaryGapHero';
+import { DomainMatrixGrid } from './DomainMatrixGrid';
+import { TopicEvidenceLedger } from './TopicEvidenceLedger';
 import { EvidenceTraceabilityModal } from './EvidenceTraceabilityModal';
-import { DomainSummaryCards } from './DomainSummaryCards';
-import { GuideTrigger } from '../guide/GuideTrigger';
+import { SkillOverrideModal } from './SkillOverrideModal';
 import type { Topic } from '../../types';
-import {
-  Search,
-  LayoutGrid,
-  List,
-} from 'lucide-react';
-import { Button } from '../ui/button';
 
 export const SkillsView: React.FC = () => {
   const {
@@ -32,7 +31,11 @@ export const SkillsView: React.FC = () => {
     companyOverlays,
     todayDate,
     updateSkillState,
+    routeState,
+    setRoute,
   } = usePlacement();
+
+  const catalog = useEvidenceCatalog();
 
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [selectedReadiness, setSelectedReadiness] = useState<TopicReadiness | null>(null);
@@ -43,6 +46,7 @@ export const SkillsView: React.FC = () => {
   // Filters & Views
   const [filterDomain, setFilterDomain] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterFreshness, setFilterFreshness] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<'matrix' | 'domains'>('matrix');
 
@@ -63,24 +67,22 @@ export const SkillsView: React.FC = () => {
         companyOverlays,
         todayDate
       );
-      // Compute skill freshness explanation using canonical function
       const skillState = skillStates[top.id];
       const explanation = skillState
         ? explainSkillFreshness(skillState, todayDate)
         : {
-            freshness: 'untested',
+            freshness: 'untested' as const,
             explanation: 'Untested because there is insufficient demonstrated evidence. No practice or assessment records found.',
             latestEvidence: {
               sourceType: 'none',
               timestamp: '',
               daysAgo: 0,
-              details: 'No practice or assessment records found'
+              details: 'No practice or assessment records found',
             },
             daysSinceLastPractice: undefined,
           };
       return {
         ...readiness,
-        // Attach freshness explanation for UI display
         freshnessExplanation: explanation.explanation,
         latestEvidence: explanation.latestEvidence,
         daysSinceLastPractice: explanation.daysSinceLastPractice,
@@ -126,15 +128,59 @@ export const SkillsView: React.FC = () => {
     [topicReadinessList]
   );
   const atRiskCount = useMemo(
-    () => topicReadinessList.filter((t) => t.readinessStatus === 'at_risk').length,
+    () => topicReadinessList.filter((t) => t.readinessStatus === 'at_risk' || t.freshness === 'stale').length,
     [topicReadinessList]
   );
 
-  // Filtered topics
+  const totalEvidenceCount = useMemo(() => {
+    return topicReadinessList.reduce((sum, tr) => sum + tr.supportingEvidence.length, 0);
+  }, [topicReadinessList]);
+
+  // Primary Gap Candidate Selection:
+  // Deterministically selects the #1 highest priority topic:
+  // 1. Topics with importance >= 7 and (at_risk OR stale OR lowest evidence strength)
+  // 2. Fallback to lowest evidence strength overall
+  const primaryGap = useMemo(() => {
+    if (topicReadinessList.length === 0) return null;
+
+    // Filter at-risk or stale high-importance topics first
+    const criticalAtRisk = topicReadinessList
+      .filter((t) => t.importance >= 7 && (t.readinessStatus === 'at_risk' || t.freshness === 'stale'))
+      .sort((a, b) => b.importance - a.importance || a.evidenceStrength - b.evidenceStrength);
+
+    if (criticalAtRisk.length > 0) return criticalAtRisk[0];
+
+    // Otherwise find lowest readiness with highest importance
+    const unmastered = topicReadinessList
+      .filter((t) => t.readinessStatus !== 'ready')
+      .sort((a, b) => b.importance - a.importance || a.evidenceStrength - b.evidenceStrength);
+
+    if (unmastered.length > 0) return unmastered[0];
+
+    return null;
+  }, [topicReadinessList]);
+
+  const [dismissedTargetId, setDismissedTargetId] = useState<string | null>(null);
+
+  // Deep Link Handling: Pure derived state without setState in useEffect
+  const activeDeepLinkReadiness = useMemo(() => {
+    if (!routeState.targetId || routeState.targetId === dismissedTargetId) return null;
+    return (
+      topicReadinessList.find(
+        (t) => t.topicId === routeState.targetId || t.domainId === routeState.targetId
+      ) ?? null
+    );
+  }, [routeState.targetId, dismissedTargetId, topicReadinessList]);
+
+  const effectiveSelectedReadiness = selectedReadiness ?? activeDeepLinkReadiness;
+  const isDrawerOpen = isTraceabilityModalOpen || Boolean(activeDeepLinkReadiness);
+
+  // Filtered topics for ledger
   const filteredReadinessList = useMemo(() => {
     return topicReadinessList.filter((tr) => {
       if (filterDomain !== 'all' && tr.domainId !== filterDomain) return false;
       if (filterStatus !== 'all' && tr.readinessStatus !== filterStatus) return false;
+      if (filterFreshness !== 'all' && tr.freshness !== filterFreshness) return false;
       if (searchQuery.trim() !== '') {
         const q = searchQuery.toLowerCase();
         const matchName = tr.topicName.toLowerCase().includes(q);
@@ -143,7 +189,7 @@ export const SkillsView: React.FC = () => {
       }
       return true;
     });
-  }, [topicReadinessList, filterDomain, filterStatus, searchQuery]);
+  }, [topicReadinessList, filterDomain, filterStatus, filterFreshness, searchQuery]);
 
   const handleOpenTraceability = (tr: TopicReadiness) => {
     setSelectedReadiness(tr);
@@ -157,205 +203,87 @@ export const SkillsView: React.FC = () => {
     setIsOverrideModalOpen(true);
   };
 
+  const handleExecuteAction = (tr: TopicReadiness) => {
+    const destination = resolveTraceDestination(
+      tr.recommendedAction.route,
+      tr.recommendedAction.targetId,
+      catalog
+    );
+    setRoute(destination.route, destination.targetId);
+  };
+
   return (
-    <div className="space-y-6 max-w-7xl xl:max-w-[1400px] mx-auto font-sans">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#262D38]">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#F1F5F9]">
-            Skills Matrix & Evidence Readiness
-          </h1>
-          <p className="text-xs text-[#8E98A8] mt-1">
-            Authoritative topic evidence strength calculated from completed tasks, DSA attempts, and freshness decay.
-          </p>
-        </div>
+    <div
+      data-testid="skills-view"
+      className="skills-view-container space-y-6 max-w-7xl xl:max-w-[1400px] mx-auto font-sans text-foreground"
+    >
+      {/* Zone 1: Skills Header */}
+      <SkillsHeader viewMode={viewMode} onViewModeChange={setViewMode} />
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          <GuideTrigger route="skills" />
-          <div className="flex items-center gap-1.5 bg-[#14171D] p-1 border border-[#262D38] rounded-lg">
-            <button
-              onClick={() => setViewMode('matrix')}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                viewMode === 'matrix'
-                  ? 'bg-[#E5A93C] text-[#432C00]'
-                  : 'text-[#8E98A8] hover:text-[#F1F5F9]'
-              }`}
-            >
-              <List className="size-3.5" /> Topics Matrix
-            </button>
-            <button
-              onClick={() => setViewMode('domains')}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                viewMode === 'domains'
-                  ? 'bg-[#E5A93C] text-[#432C00]'
-                  : 'text-[#8E98A8] hover:text-[#F1F5F9]'
-              }`}
-            >
-              <LayoutGrid className="size-3.5" /> Domains Breakdown
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* Zone 1: Proving Strip */}
+      <SkillsProvingStrip
+        overallPlacementReadiness={overallPlacementReadiness}
+        readyCount={readyCount}
+        totalTopicsCount={topics.length}
+        onTrackCount={onTrackCount}
+        atRiskCount={atRiskCount}
+        totalEvidenceCount={totalEvidenceCount}
+      />
 
-      {/* Hero Overview Card */}
-      <div className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 sm:p-6 space-y-4 readiness-glow">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <span className="text-xs font-semibold text-[#E5A93C] uppercase tracking-wider">
-              Overall Placement Readiness
-            </span>
-            <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-extrabold text-[#F1F5F9]">{overallPlacementReadiness}%</span>
-              <span className="text-xs text-[#8E98A8]">weighted evidence confidence score</span>
-            </div>
-          </div>
+      {/* Zone 2: Primary Skill Gap Focus Hero */}
+      <PrimaryGapHero
+        primaryGap={primaryGap}
+        onExecuteAction={handleExecuteAction}
+        onOpenTraceability={handleOpenTraceability}
+      />
 
-          {/* Metrics Pills */}
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <div className="px-3 py-1.5 rounded-lg bg-[#10B981]/10 border border-[#10B981]/30 text-[#10B981] font-medium readiness-badge">
-              Ready: <strong>{readyCount}</strong>
-            </div>
-            <div className="px-3 py-1.5 rounded-lg bg-[#E5A93C]/10 border border-[#E5A93C]/30 text-[#FFC665] font-medium readiness-badge">
-              On Track: <strong>{onTrackCount}</strong>
-            </div>
-            <div className="px-3 py-1.5 rounded-lg bg-[#F59E0B]/10 border border-[#F59E0B]/30 text-[#F59E0B] font-medium readiness-badge">
-              At Risk: <strong>{atRiskCount}</strong>
-            </div>
-          </div>
-        </div>
+      {/* Zone 3: 11-Domain Competence Radar */}
+      <DomainMatrixGrid
+        domainReadinessList={domainReadinessList}
+        selectedDomainId={filterDomain}
+        onSelectDomain={(domId) => setFilterDomain(domId)}
+      />
 
-        {/* Progress bar with shimmer */}
-        <div className="w-full bg-[#0D0F12] rounded-full h-2 overflow-hidden border border-[#262D38]">
-          <div
-            className="bg-[#E5A93C] h-full transition-all duration-500 rounded-full phase-progress-bar"
-            style={{ width: `${overallPlacementReadiness}%` }}
-          />
-        </div>
-      </div>
-
-      {viewMode === 'domains' ? (
-        <DomainSummaryCards
-          domainReadinessList={domainReadinessList}
-          selectedDomainId={filterDomain}
-          onSelectDomain={(domId) => {
-            setFilterDomain(domId);
-            setViewMode('matrix');
-          }}
+      {/* Zone 4: Topic Evidence Ledger */}
+      {viewMode === 'matrix' && (
+        <TopicEvidenceLedger
+          topics={filteredReadinessList}
+          domains={domains}
+          filterDomain={filterDomain}
+          onFilterDomainChange={setFilterDomain}
+          filterStatus={filterStatus}
+          onFilterStatusChange={setFilterStatus}
+          filterFreshness={filterFreshness}
+          onFilterFreshnessChange={setFilterFreshness}
+          searchQuery={searchQuery}
+          onSearchQueryChange={setSearchQuery}
+          onOpenTraceability={handleOpenTraceability}
+          onOpenOverride={handleOpenOverride}
+          onExecuteAction={handleExecuteAction}
         />
-      ) : (
-        <div className="space-y-4">
-          {/* Filters */}
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-[#14171D] p-3 border border-[#262D38] rounded-lg">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="size-3.5 text-[#8E98A8] absolute left-3 top-2.5" />
-              <input
-                type="text"
-                placeholder="Search topic or domain..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[#1B2028] border border-[#262D38] rounded-md pl-9 pr-3 py-1.5 text-xs text-[#F1F5F9] placeholder-[#5C6675] focus:outline-none settings-control"
-              />
-            </div>
-
-            <div className="flex items-center gap-2 text-xs">
-              <select
-                value={filterDomain}
-                onChange={(e) => setFilterDomain(e.target.value)}
-                className="bg-[#1B2028] border border-[#262D38] rounded-md px-2.5 py-1.5 text-xs text-[#F1F5F9] focus:outline-none settings-control"
-              >
-                <option value="all">All Domains ({domains.length})</option>
-                {domains.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
-
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="bg-[#1B2028] border border-[#262D38] rounded-md px-2.5 py-1.5 text-xs text-[#F1F5F9] focus:outline-none settings-control"
-              >
-                <option value="all">All Statuses</option>
-                <option value="ready">Ready</option>
-                <option value="on_track">On Track</option>
-                <option value="at_risk">At Risk</option>
-                <option value="needs_baseline">Needs Baseline</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Topics List with stagger entrance */}
-          <div className="space-y-4 stagger-in">
-            {filteredReadinessList.map((tr) => {
-              const statusColor =
-                tr.readinessStatus === 'ready'
-                  ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/30'
-                  : tr.readinessStatus === 'on_track'
-                  ? 'bg-[#E5A93C]/10 text-[#FFC665] border-[#E5A93C]/30'
-                  : tr.readinessStatus === 'at_risk'
-                  ? 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30'
-                  : 'bg-[#14171D] text-[#8E98A8] border-[#262D38]';
-
-              return (
-                <div
-                  key={tr.topicId}
-                  className="p-3.5 bg-[#14171D] hover:bg-[#1B2028]/60 border border-[#262D38] rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all hover-lift"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-[#F1F5F9]">{tr.topicName}</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded border text-[#FFC665] bg-[#1B2028]">
-                        {tr.domainName}
-                      </span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded border capitalize font-medium readiness-badge ${statusColor}`}>
-                        {tr.readinessStatus.replace('_', ' ')}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-[#8E98A8]">
-                      Evidence Confidence: <strong className="text-[#F1F5F9]">{tr.evidenceStrength}%</strong> · Freshness:
-<span className="capitalize freshness-animate">{tr.freshness}</span>
-{tr.freshnessExplanation && (
-<span className="text-[10px] text-[#6B7280] ml-1 capitalize">
-{tr.freshnessExplanation}</span>)}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2 self-end sm:self-auto">
-                    <Button
-                      size="xs"
-                      variant="outline"
-                      onClick={() => handleOpenTraceability(tr)}
-                      className="h-7 text-xs border-[#262D38] bg-[#1B2028] text-[#F1F5F9] rounded-md"
-                    >
-                      Traceability
-                    </Button>
-                    <Button
-                      size="xs"
-                      onClick={() => handleOpenOverride(tr)}
-                      className="h-7 text-xs bg-[#1B2028] hover:bg-[#222833] text-[#FFC665] border border-[#E5A93C]/40 rounded-md"
-                    >
-                      Override
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
       )}
 
-      {/* Traceability Modal */}
-      {selectedReadiness && (
+      {/* Zone 5: Traceability Drawer */}
+      {effectiveSelectedReadiness && (
         <EvidenceTraceabilityModal
-          isOpen={isTraceabilityModalOpen}
+          isOpen={isDrawerOpen}
           onClose={() => {
             setIsTraceabilityModalOpen(false);
             setSelectedReadiness(null);
+            if (routeState.targetId) {
+              setDismissedTargetId(routeState.targetId);
+            }
           }}
-          readiness={selectedReadiness}
+          onOpenOverride={() => {
+            const top = topics.find((t) => t.id === effectiveSelectedReadiness.topicId) || null;
+            setSelectedTopic(top);
+            setIsOverrideModalOpen(true);
+          }}
+          readiness={effectiveSelectedReadiness}
         />
       )}
 
-      {/* Override Modal */}
+      {/* Zone 5: Manual Override Modal */}
       {selectedTopic && (
         <SkillOverrideModal
           isOpen={isOverrideModalOpen}
