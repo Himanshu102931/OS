@@ -1643,6 +1643,28 @@ button.bg-\[\#E5A93C\]:hover, a.bg-\[\#E5A93C\]:hover, .btn-primary:hover {
   will-change: left;
 }
 
+/* ============================================================
+   SETTINGS PAGE ACTION ACCENT & CONTAINER TOKENS
+   ============================================================ */
+:root {
+  --action-accent-settings: #0EA5E9;
+  --action-accent-settings-hover: #0284C7;
+  --action-accent-settings-active: #0369A1;
+  --action-accent-settings-subtle: rgba(14, 165, 233, 0.12);
+  --action-accent-settings-border: rgba(14, 165, 233, 0.35);
+  --action-accent-settings-glow: rgba(56, 189, 248, 0.20);
+  --action-accent-settings-text: #38BDF8;
+}
+
+[data-testid="settings-view"],
+.settings-container {
+  --action-accent: var(--action-accent-settings);
+  --action-accent-hover: var(--action-accent-settings-hover);
+  --action-accent-subtle: var(--action-accent-settings-subtle);
+  --action-accent-border: var(--action-accent-settings-border);
+  --action-accent-ring: var(--action-accent-settings-text);
+}
+
 /* Reduced motion overrides for signature motion layer */
 @media (prefers-reduced-motion: reduce) {
   .prep-knowledge-traveler,

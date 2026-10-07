@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
 import { usePlacement } from '../../context/PlacementContext';
+import { SettingsHeader } from './SettingsHeader';
+import { StudyParametersSection } from './StudyParametersSection';
+import { DisplayPreferencesSection } from './DisplayPreferencesSection';
+import { BackupStorageSection } from './BackupStorageSection';
+import { SubsystemMaintenanceSection } from './SubsystemMaintenanceSection';
+import { DangerZoneSection } from './DangerZoneSection';
 import { ConfirmFullResetModal } from './ConfirmFullResetModal';
-import { GuideTrigger } from '../guide/GuideTrigger';
-import type { PlacementMode } from '../../types';
-import {
-  Download,
-  Upload,
-  RotateCcw,
-  CheckCircle2,
-  Database,
-} from 'lucide-react';
-import { Button } from '../ui/button';
+import { CheckCircle2 } from 'lucide-react';
+import type { UserSettings } from '../../types';
 
 export const SettingsView: React.FC = () => {
   const {
@@ -24,11 +22,24 @@ export const SettingsView: React.FC = () => {
     storageBytes,
     resetAssessmentProfileOnly,
     resetAssessmentHistoryOnly,
+    phases,
   } = usePlacement();
 
   const [importStatus, setImportStatus] = useState<{ message: string; isError: boolean } | null>(null);
   const [showFullResetModal, setShowFullResetModal] = useState(false);
   const [saveNotification, setSaveNotification] = useState<string | null>(null);
+
+  const triggerSaveNotify = (msg: string) => {
+    setSaveNotification(msg);
+    setTimeout(() => setSaveNotification(null), 3000);
+  };
+
+  const handleUpdate = (partial: Partial<UserSettings>, notifyMessage?: string) => {
+    updateUserSettings(partial);
+    if (notifyMessage) {
+      triggerSaveNotify(notifyMessage);
+    }
+  };
 
   const handleExport = () => {
     const jsonStr = exportBackupJSON();
@@ -39,23 +50,40 @@ export const SettingsView: React.FC = () => {
     a.download = `placementos-backup-${todayDate}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    triggerSaveNotify(`Backup exported as placementos-backup-${todayDate}.json`);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
+  const handleImportFile = async (file: File) => {
+    try {
+      let content = '';
+      if (typeof file.text === 'function') {
+        content = await file.text();
+      } else {
+        content = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve((e.target?.result as string) || '');
+          reader.onerror = () => reject(new Error('Failed to read file'));
+          reader.readAsText(file);
+        });
+      }
       const result = importBackupJSON(content);
       if (result.success) {
-        setImportStatus({ message: 'Backup JSON state successfully restored!', isError: false });
+        setImportStatus({
+          message: 'Backup JSON state successfully restored and validated.',
+          isError: false,
+        });
       } else {
-        setImportStatus({ message: result.error || 'Import failed.', isError: true });
+        setImportStatus({
+          message: result.error ? `Import failed: ${result.error}` : 'Import failed schema validation.',
+          isError: true,
+        });
       }
-    };
-    reader.readAsText(file);
+    } catch (err) {
+      setImportStatus({
+        message: err instanceof Error ? err.message : 'Failed to read backup file.',
+        isError: true,
+      });
+    }
   };
 
   const handleResetConfigOnly = () => {
@@ -63,191 +91,78 @@ export const SettingsView: React.FC = () => {
     triggerSaveNotify('Configuration settings restored to baseline defaults.');
   };
 
+  const handleResetAssessmentProfile = () => {
+    resetAssessmentProfileOnly();
+    triggerSaveNotify('Assessment domain profile reset to 0 (history preserved).');
+  };
+
+  const handleResetAssessmentHistory = () => {
+    resetAssessmentHistoryOnly();
+    triggerSaveNotify('Assessment history, attempts, and exposures cleared.');
+  };
+
   const handleFullResetConfirmed = () => {
     resetApplicationData();
-    setImportStatus({ message: 'Full application data reset to baseline defaults.', isError: false });
+    setImportStatus({
+      message: 'Full application data reset to default seed baseline.',
+      isError: false,
+    });
   };
-
-  const triggerSaveNotify = (msg: string) => {
-    setSaveNotification(msg);
-    setTimeout(() => setSaveNotification(null), 3000);
-  };
-
-  const formattedKB = (storageBytes / 1024).toFixed(2);
 
   return (
-    <div className="space-y-6 max-w-6xl xl:max-w-[1300px] mx-auto font-sans">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#262D38]">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#F1F5F9]">
-            Settings & Operational Parameters
-          </h1>
-          <p className="text-xs text-[#8E98A8] mt-1">
-            Configure adaptive mode defaults, data backups, and storage safeguards.
-          </p>
-        </div>
+    <div
+      data-testid="settings-view"
+      className="settings-container space-y-6 max-w-6xl xl:max-w-[1300px] mx-auto font-sans pb-12"
+    >
+      {/* Zone 1: Console Header & Storage Footprint Strip */}
+      <SettingsHeader storageBytes={storageBytes} />
 
-        <div className="flex flex-wrap items-center gap-2.5 text-xs">
-          <GuideTrigger route="settings" />
-          <span className="px-3 py-1 rounded-md bg-[#14171D] border border-[#262D38] text-[#8E98A8]">
-            Storage Used: <span className="text-[#FFC665] font-bold font-mono">{formattedKB} KB</span>
-          </span>
-        </div>
-      </div>
-
-      {/* Notifications */}
+      {/* Auto-Save Notification Toast */}
       {saveNotification && (
-        <div className="p-3 rounded-lg bg-[#10B981]/15 border border-[#10B981]/40 text-[#10B981] text-xs flex items-center gap-2 font-medium save-notify">
+        <div
+          role="status"
+          aria-live="polite"
+          className="p-3 rounded-[4px] bg-[#161E19] border border-[#46B982]/50 text-[#46B982] text-xs flex items-center gap-2.5 font-medium animate-fade-in shadow-sm"
+        >
           <CheckCircle2 className="size-4 shrink-0" />
           <span>{saveNotification}</span>
         </div>
       )}
 
-      {importStatus && (
-        <div
-          className={`p-3 rounded-lg border text-xs flex items-center justify-between font-medium ${
-            importStatus.isError
-              ? 'bg-rose-950/40 border-rose-800/80 text-rose-300'
-              : 'bg-emerald-950/40 border-emerald-800/80 text-emerald-300'
-          }`}
-        >
-          <span>{importStatus.message}</span>
-          <button onClick={() => setImportStatus(null)} className="underline ml-4 hover:text-white">
-            Dismiss
-          </button>
-        </div>
-      )}
+      {/* Zone 2: Study Horizon & Operational Parameters */}
+      <StudyParametersSection
+        userSettings={userSettings}
+        phases={phases}
+        onUpdate={handleUpdate}
+      />
 
-      {/* Section 1: Placement Mode */}
-      <section className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-4 settings-section">
-        <div className="flex items-center justify-between border-b border-[#262D38] pb-3">
-          <h2 className="text-sm font-semibold text-[#F1F5F9] flex items-center gap-2">
-            <Database className="size-4 text-[#E5A93C]" /> Placement Mode
-          </h2>
-        </div>
+      {/* Zone 3: Workspace & Display Preferences */}
+      <DisplayPreferencesSection
+        userSettings={userSettings}
+        onUpdate={handleUpdate}
+      />
 
-        <div className="space-y-1.5 text-xs">
-          <label className="text-[#8E98A8] block font-medium">Default Placement Mode</label>
-          <select
-            value={userSettings.placementMode}
-            onChange={(e) => {
-              updateUserSettings({ placementMode: e.target.value as PlacementMode });
-              triggerSaveNotify('Placement mode updated');
-            }}
-            className="w-full bg-[#1B2028] border border-[#262D38] rounded-md p-2.5 text-[#FFC665] font-semibold focus:outline-none cursor-pointer settings-control"
-          >
-            <option value="normal">Normal Mode (Standard daily load)</option>
-            <option value="reduced">Reduced Mode (Light work schedule)</option>
-            <option value="exam">Exam Mode (Pause non-essential topics)</option>
-            <option value="placement_sprint">Placement Sprint (High priority sprint)</option>
-          </select>
-          <p className="text-[10px] text-[#8E98A8] mt-1">
-            Affects Today candidate scoring — sprint mode prioritizes company-aligned work.
-          </p>
-        </div>
-      </section>
+      {/* Zone 4: Data Portability & Storage Safeguards */}
+      <BackupStorageSection
+        todayDate={todayDate}
+        storageBytes={storageBytes}
+        onExport={handleExport}
+        onImportFile={handleImportFile}
+        importStatus={importStatus}
+        onDismissImportStatus={() => setImportStatus(null)}
+      />
 
-      {/* Section 2: Storage & Backup Management */}
-      <section className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-4 settings-section">
-        <div className="flex items-center justify-between border-b border-[#262D38] pb-3">
-          <h2 className="text-sm font-semibold text-[#F1F5F9] flex items-center gap-2">
-            <Database className="size-4 text-[#E5A93C]" /> Backup & Storage Safeguards
-          </h2>
-        </div>
+      {/* Zone 5: Scoped Subsystem Maintenance */}
+      <SubsystemMaintenanceSection
+        onResetUserSettings={handleResetConfigOnly}
+        onResetAssessmentProfile={handleResetAssessmentProfile}
+        onResetAssessmentHistory={handleResetAssessmentHistory}
+      />
 
-        <div className="flex flex-wrap items-center gap-3 pt-1">
-          <Button
-            size="sm"
-            onClick={handleExport}
-            className="text-xs font-semibold bg-[#1B2028] hover:bg-[#222833] text-[#F1F5F9] border border-[#262D38] rounded-md h-9 px-3.5 transition-all settings-control"
-          >
-            <Download className="size-3.5 mr-2 text-[#E5A93C]" /> Export State JSON
-          </Button>
+      {/* Zone 6: Danger Zone & Factory Reset */}
+      <DangerZoneSection onOpenFullResetModal={() => setShowFullResetModal(true)} />
 
-          <label className="cursor-pointer">
-            <span className="inline-flex items-center justify-center px-3.5 h-9 rounded-md bg-[#1B2028] hover:bg-[#222833] text-[#F1F5F9] border border-[#262D38] text-xs font-semibold settings-control">
-              <Upload className="size-3.5 mr-2 text-[#10B981]" /> Import State JSON
-            </span>
-            <input type="file" accept=".json" onChange={handleFileChange} className="hidden" />
-          </label>
-
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleResetConfigOnly}
-            className="text-xs text-[#8E98A8] hover:text-[#F1F5F9] h-9 px-3 rounded-md settings-control"
-          >
-            <RotateCcw className="size-3.5 mr-1.5" /> Reset Settings Only
-          </Button>
-        </div>
-
-        <div className="pt-4 border-t border-[#262D38] flex items-center justify-between">
-          <div className="space-y-0.5">
-            <span className="text-xs font-bold text-rose-400">Destructive Reset</span>
-            <p className="text-[11px] text-[#8E98A8]">Clears all local evidence and resets PlacementOS data to factory defaults.</p>
-          </div>
-
-          <Button
-            size="sm"
-            onClick={() => setShowFullResetModal(true)}
-            className="text-xs font-bold bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/80 rounded-md h-8 px-3 transition-all settings-control"
-          >
-            Reset Application Data
-          </Button>
-        </div>
-      </section>
-
-      {/* Section 3: Diagnostic Assessment Maintenance (DECIDED 3) */}
-      <section className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-4 settings-section">
-        <div className="flex items-center justify-between border-b border-[#262D38] pb-3">
-          <h2 className="text-sm font-semibold text-[#F1F5F9] flex items-center gap-2">
-            <RotateCcw className="size-4 text-[#E5A93C]" /> Diagnostic Assessment Maintenance (DECIDED 3)
-          </h2>
-        </div>
-
-        <div className="pt-1 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="space-y-0.5">
-            <span className="text-xs font-semibold text-[#F1F5F9]">Reset Assessment Profile Only</span>
-            <p className="text-[11px] text-[#8E98A8]">
-              Resets calculated domain proficiency levels to 0 and unassessed. Retains attempt history, item exposures, and snapshots.
-            </p>
-          </div>
-
-          <Button
-            size="sm"
-            onClick={() => {
-              resetAssessmentProfileOnly();
-              triggerSaveNotify('Assessment domain profile reset to 0 (history preserved).');
-            }}
-            className="text-xs font-semibold bg-[#1B2028] hover:bg-[#222833] text-[#F1F5F9] border border-[#262D38] rounded-md h-8 px-3 shrink-0 settings-control"
-          >
-            Reset Profile Only
-          </Button>
-        </div>
-
-        <div className="pt-4 border-t border-[#262D38] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="space-y-0.5">
-            <span className="text-xs font-semibold text-amber-400">Reset Assessment History & Data</span>
-            <p className="text-[11px] text-[#8E98A8]">
-              Clears all assessment attempts, responses, exposures, and snapshots back to clean unassessed state. Does not touch curriculum or DSA progress.
-            </p>
-          </div>
-
-          <Button
-            size="sm"
-            onClick={() => {
-              resetAssessmentHistoryOnly();
-              triggerSaveNotify('Assessment history, attempts, and exposures cleared.');
-            }}
-            className="text-xs font-semibold bg-amber-950/40 hover:bg-amber-900/60 text-amber-300 border border-amber-800/80 rounded-md h-8 px-3 shrink-0 settings-control"
-          >
-            Reset Assessment History
-          </Button>
-        </div>
-      </section>
-
-      {/* Confirm Full Reset Modal */}
+      {/* Zone 6: Confirmation Modal */}
       <ConfirmFullResetModal
         isOpen={showFullResetModal}
         onClose={() => setShowFullResetModal(false)}
