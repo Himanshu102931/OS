@@ -1540,6 +1540,48 @@ button.bg-\[\#E5A93C\]:hover, a.bg-\[\#E5A93C\]:hover, .btn-primary:hover {
   will-change: left;
 }
 
+/* Interview Telemetry Signal Sweep */
+@keyframes interview-signal-sweep {
+  0% {
+    left: -15%;
+    opacity: 0;
+  }
+  5% {
+    opacity: 0.8;
+  }
+  95% {
+    opacity: 0.8;
+  }
+  100% {
+    left: 115%;
+    opacity: 0;
+  }
+}
+
+.interview-signal-track {
+  position: relative;
+  overflow: hidden;
+}
+
+.interview-signal-beam {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 140px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(99, 102, 241, 0.12) 20%,
+    rgba(129, 140, 248, 0.6) 50%,
+    rgba(99, 102, 241, 0.12) 80%,
+    transparent 100%
+  );
+  filter: blur(0.5px);
+  animation: interview-signal-sweep 18s linear infinite;
+  pointer-events: none;
+  will-change: left;
+}
+
 /* Reduced motion overrides for signature motion layer */
 @media (prefers-reduced-motion: reduce) {
   .prep-knowledge-traveler,
@@ -1551,7 +1593,8 @@ button.bg-\[\#E5A93C\]:hover, a.bg-\[\#E5A93C\]:hover, .btn-primary:hover {
   .drill-result-reveal,
   .skills-drawer-slide,
   .company-drawer-slide,
-  .data-flow-pulse-beam {
+  .data-flow-pulse-beam,
+  .interview-signal-beam {
     animation: none !important;
     transition: none !important;
     transform: none !important;
@@ -1561,7 +1604,8 @@ button.bg-\[\#E5A93C\]:hover, a.bg-\[\#E5A93C\]:hover, .btn-primary:hover {
   .dsa-trace-traveler,
   .skills-signal-beam,
   .company-deadline-beam,
-  .data-flow-pulse-beam {
+  .data-flow-pulse-beam,
+  .interview-signal-beam {
     display: none !important;
     animation: none !important;
   }

@@ -44,6 +44,12 @@ Unlike generic educational tools or consumer platforms, PlacementOS operates as 
   - **Zone 3: Target Companies Portfolio & Radar Grid**: Searchable, status-filtered, multi-criteria sorted portfolio cards with readiness meters, assessment countdown tags, required domain/language chips, top 2 preparation gaps, and inline delete safety.
   - **Zone 4: Requirement Coverage Matrix & Gap Breakdown**: Dense technical ledger for the focused company categorized across Domains, Topics, and Languages with evidence strength progressbars, level progress ($L1..L4$), canonical requirement status badges, and 1-touch gap closure triggers.
   - **Zone 5: Requirement Traceability Drawer & Modal Workbench**: Slide-over causal evidence drawer powered by `EvidenceTracePanel` and verified deep-link action execution to DSA, Roadmap, Preparation, and Practice workspaces, paired with an accessible Add/Edit Company Profile modal.
+- **Interview Readiness Scorecard & Multi-Vector Telemetry Console**:
+  - **Zone 1: Header & Readiness Telemetry Strip**: Multi-meter telemetry console reporting categorical Readiness Band (`Strong`, `Developing`, `Needs Work`, `Unassessed`), three strictly independent meters (*Evidence Strength %*, *Confidence %*, *Freshness %*), target company alignment filter, and active anomaly counters (DSA remediation, stale dimensions, weak evidence).
+  - **Zone 2: Primary Readiness Mission Spotlight**: Dominant hero directing the candidate to the single highest-leverage exercise (Diagnostic Assessment, DSA Remediation, Mock Interview Drills, Project Defense) with the defining Electric Indigo action accent (`#6366F1`).
+  - **Zone 3: 6-Vector Readiness Dimension Matrix**: Exhaustive evaluation across all 6 canonical dimensions (*Coding/DSA*, *Core CS*, *SQL/Programming*, *Communication*, *Interview Execution*, *Projects*) with independent mini-meters, company requirement chips, and expandable `EvidenceTracePanel` drill-downs.
+  - **Zone 4: Subsystem Cross-Readiness & Signal Hub**: Dual-column deep dive linking Baseline Diagnostic status, Project Lab defense proof, and Active Weakness & Remediation triage shortcuts.
+  - **Zone 5: Target Company Alignment Radar & Evidence Ledger**: Company requirement coverage list with assessment event countdowns and transparent proof-of-work evidence traceability.
 - **Daily Execution & Sealing Protocol**: Structured workflow featuring Morning Planning, Task Execution, Evidence Logging, Evening Reflection, and Day Sealing immutability.
 - **Daily Plan & Adaptive Session Convergence**: Unified "What should I do today?" execution loop directly connecting Morning Planning (`todayAssignments`) with the Adaptive Session Composer (`SessionDisplay`). Committed daily assignments seamlessly guide adaptive session composition (flagged with a `Plan Aligned` session indicator and `Daily Plan` activity badges), while completing mapped session activities deterministically synchronizes assignment completion back to the daily plan with strict day-sealing immutability, duplicate-candidate filtering, and zero duplicate evidence.
 - **Direct Leitner DSA Reviews in Morning Planning & Evening Reflection**: Morning Planning allows users to intentionally select and commit due Leitner DSA review and eligible new algorithmic problems directly into the Daily Plan. Committed DSA assignments converge deterministically into Adaptive Sessions without duplicate scheduling against the review engine. Completing a committed DSA problem through canonical attempt logging synchronously records evidence, advances Leitner box intervals and review dates, and marks the corresponding daily assignment as completed under strict day-sealing protection. Both roadmap curriculum tasks and direct DSA assignments seamlessly converge into Evening Reflection, enabling unified daily reflection, actual time logging, and immutable day sealing.
@@ -54,9 +60,9 @@ Unlike generic educational tools or consumer platforms, PlacementOS operates as 
 
 - **Framework**: React 19 + TypeScript 6.0
 - **Build Tool**: Vite 8
-- **Styling**: TailwindCSS 4 (Forest-green studio design system: deep obsidian `#0B100D`, primary forest `#2E8B62` / `#46B982`, warning bronze `#D19A45`, action coral `#F43F5E`)
+- **Styling**: TailwindCSS 4 (Forest-green studio design system: deep obsidian `#0B100D`, primary forest `#2E8B62` / `#46B982`, warning bronze `#D19A45`, action coral `#F43F5E`, action indigo `#6366F1`)
 - **Icons**: Lucide React
-- **Testing**: Vitest (1478+ automated tests across 73 test suites)
+- **Testing**: Vitest (1529+ automated tests across 78 test suites)
 - **Routing**: Client-side hash routing (`#/${route}`)
 - **Persistence**: `StorageAdapter` with JSON backup export/import
 
