@@ -1573,6 +1573,28 @@ button.bg-\[\#E5A93C\]:hover, a.bg-\[\#E5A93C\]:hover, .btn-primary:hover {
 }
 
 /* ============================================================
+   ANALYTICS SIGNATURE MOTION & CRIMSON PULSE ACTION LAYER
+   ============================================================ */
+:root {
+  --action-accent-analytics: #F43F5E;
+  --action-accent-analytics-hover: #FB7185;
+  --action-accent-analytics-subtle: rgba(244, 63, 94, 0.10);
+  --action-accent-analytics-border: rgba(244, 63, 94, 0.30);
+  --action-accent-analytics-foreground: #FDA4AF;
+  --action-accent-analytics-ring: #F43F5E;
+}
+
+[data-testid="analytics-view"],
+.telemetry-sweep {
+  --action-accent: var(--action-accent-analytics);
+  --action-accent-hover: var(--action-accent-analytics-hover);
+  --action-accent-subtle: var(--action-accent-analytics-subtle);
+  --action-accent-border: var(--action-accent-analytics-border);
+  --action-accent-ring: var(--action-accent-analytics-ring);
+  --action-accent-foreground: var(--action-accent-analytics-foreground);
+}
+
+/* ============================================================
    PROJECT LAB SIGNATURE MOTION: DATA FLOW PIPELINE PULSE
    ============================================================ */
 :root {

@@ -71,8 +71,8 @@ export const AnalyticsReviewGrid: React.FC<AnalyticsReviewGridProps> = ({
     switch (severity) {
       case 'high':
         return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border capitalize bg-[#F43F5E]/10 text-[#FDA4AF] border-[#F43F5E]/30 font-semibold">
-            <AlertCircle className="size-3 text-[#F43F5E]" />
+          <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border capitalize bg-[var(--action-accent-subtle)] text-[var(--action-accent-foreground)] border-[var(--action-accent-border)] font-semibold">
+            <AlertCircle className="size-3 text-[var(--action-accent)]" />
             High Priority
           </span>
         );
@@ -104,16 +104,16 @@ export const AnalyticsReviewGrid: React.FC<AnalyticsReviewGridProps> = ({
       {/* Primary Review Spotlight */}
       <div
         data-testid="primary-review-spotlight"
-        className="p-5 rounded-xl border border-[#F43F5E]/40 bg-surface-panel space-y-4 shadow-lg relative overflow-hidden"
+        className="p-5 rounded-xl border border-[var(--action-accent-border)] bg-surface-panel space-y-4 shadow-lg relative overflow-hidden"
       >
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#F43F5E] via-[#FB7185] to-[#F43F5E]" />
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[var(--action-accent)] via-[var(--action-accent-hover)] to-[var(--action-accent)]" />
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <div className="flex items-center gap-2">
-            <span className="size-6 rounded-full bg-[#F43F5E]/20 text-[#FDA4AF] flex items-center justify-center">
-              <AlertTriangle className="size-3.5 text-[#F43F5E]" />
+            <span className="size-6 rounded-full bg-[var(--action-accent-subtle)] text-[var(--action-accent-foreground)] flex items-center justify-center">
+              <AlertTriangle className="size-3.5 text-[var(--action-accent)]" />
             </span>
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#FDA4AF]">
+            <span className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--action-accent-foreground)]">
               Primary Operational Focus
             </span>
           </div>
@@ -143,7 +143,7 @@ export const AnalyticsReviewGrid: React.FC<AnalyticsReviewGridProps> = ({
             size="sm"
             onClick={() => onAction(primaryPrompt.route, primaryPrompt.targetId)}
             data-testid="primary-operational-review-action"
-            className="h-8 text-xs bg-[#F43F5E] hover:bg-[#FB7185] text-white rounded-md font-semibold font-sans flex items-center gap-1.5 shadow-sm transition-all focus-visible:ring-2 focus-visible:ring-[#F43F5E]"
+            className="h-8 text-xs bg-[var(--action-accent)] hover:bg-[var(--action-accent-hover)] text-white rounded-md font-semibold font-sans flex items-center gap-1.5 shadow-sm transition-all focus-visible:ring-2 focus-visible:ring-[var(--action-accent-ring)]"
           >
             Execute Operational Review ({primaryPrompt.actionLabel}) <ArrowRight className="size-3.5 ml-1" />
           </Button>
@@ -154,7 +154,7 @@ export const AnalyticsReviewGrid: React.FC<AnalyticsReviewGridProps> = ({
       {remainingPrompts.length > 0 && (
         <div className="space-y-2.5">
           <h4 className="text-xs font-mono font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
-            <Sparkles className="size-3.5 text-[#F43F5E]" /> Additional Operational Cues ({remainingPrompts.length})
+            <Sparkles className="size-3.5 text-[var(--action-accent)]" /> Additional Operational Cues ({remainingPrompts.length})
           </h4>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 list-stagger">
@@ -190,7 +190,7 @@ export const AnalyticsReviewGrid: React.FC<AnalyticsReviewGridProps> = ({
                     size="xs"
                     onClick={() => onAction(p.route, p.targetId)}
                     data-testid={`${p.id}-action`}
-                    className="h-7 text-xs bg-surface-elevated hover:bg-[#F43F5E]/20 text-[#FDA4AF] border border-[#F43F5E]/30 rounded-md font-semibold font-mono flex items-center gap-1 transition-colors"
+                    className="h-7 text-xs bg-surface-elevated hover:bg-[var(--action-accent-subtle)] text-[var(--action-accent-foreground)] border border-[var(--action-accent-border)] rounded-md font-semibold font-mono flex items-center gap-1 transition-colors"
                   >
                     {p.actionLabel} <ArrowRight className="size-3 ml-1" />
                   </Button>

@@ -36,8 +36,8 @@ export const AnalyticsHeader: React.FC<AnalyticsHeaderProps> = ({
             <h1 className="text-2xl font-bold tracking-tight text-text-primary">
               Analytics & Operational Review
             </h1>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-[#F43F5E]/10 text-[#FDA4AF] border border-[#F43F5E]/30 tracking-wider">
-              <span className="size-1.5 rounded-full bg-[#F43F5E] animate-pulse" />
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-[var(--action-accent-subtle)] text-[var(--action-accent-foreground)] border border-[var(--action-accent-border)] tracking-wider">
+              <span className="size-1.5 rounded-full bg-[var(--action-accent)] animate-pulse" />
               TELEMETRY V1 • DETERMINISTIC
             </span>
           </div>
@@ -65,9 +65,9 @@ export const AnalyticsHeader: React.FC<AnalyticsHeaderProps> = ({
                   aria-selected={isActive}
                   aria-label={opt.fullLabel}
                   onClick={() => onTimeWindowChange(opt.id)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all min-h-[32px] sm:min-h-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F43F5E] ${
+                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all min-h-[32px] sm:min-h-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--action-accent-ring)] ${
                     isActive
-                      ? 'bg-[#F43F5E] text-white shadow-sm font-bold'
+                      ? 'bg-[var(--action-accent)] text-white shadow-sm font-bold'
                       : 'text-text-secondary hover:text-text-primary hover:bg-surface-elevated'
                   }`}
                   data-testid={`time-window-${opt.id}`}
@@ -83,7 +83,7 @@ export const AnalyticsHeader: React.FC<AnalyticsHeaderProps> = ({
       {/* Date Range Scope Banner */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-surface-panel border border-border-default rounded-xl text-xs text-text-secondary">
         <div className="flex items-center gap-2 font-mono">
-          <Calendar className="size-3.5 text-[#F43F5E]" />
+          <Calendar className="size-3.5 text-[var(--action-accent)]" />
           <span>
             Period: <strong className="text-text-primary font-semibold">{startDateISO}</strong> to{' '}
             <strong className="text-text-primary font-semibold">{endDateISO}</strong>{' '}
@@ -95,9 +95,9 @@ export const AnalyticsHeader: React.FC<AnalyticsHeaderProps> = ({
           type="button"
           onClick={onOpenRawLogs}
           data-testid="open-raw-telemetry-btn"
-          className="text-xs text-[#FDA4AF] hover:text-white bg-[#F43F5E]/10 hover:bg-[#F43F5E]/20 border border-[#F43F5E]/30 px-2.5 py-1 rounded-md font-semibold font-mono flex items-center gap-1.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F43F5E]"
+          className="text-xs text-[var(--action-accent-foreground)] hover:text-white bg-[var(--action-accent-subtle)] hover:bg-[var(--action-accent)]/20 border border-[var(--action-accent-border)] px-2.5 py-1 rounded-md font-semibold font-mono flex items-center gap-1.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--action-accent-ring)]"
         >
-          <Info className="size-3.5 text-[#F43F5E]" /> Raw Telemetry Logs
+          <Info className="size-3.5 text-[var(--action-accent)]" /> Raw Telemetry Logs
         </button>
       </div>
     </header>

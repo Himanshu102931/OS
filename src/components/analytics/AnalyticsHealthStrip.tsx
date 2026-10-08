@@ -44,7 +44,7 @@ export const AnalyticsHealthStrip: React.FC<AnalyticsHealthStripProps> = ({
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-mono font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
-                <Clock className="size-3.5 text-[#F43F5E]" /> Study Velocity
+                <Clock className="size-3.5 text-[var(--action-accent)]" /> Study Velocity
               </span>
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-elevated text-text-secondary border border-border-default">
                 {activity.sealedDaysCount}d Sealed
@@ -117,14 +117,14 @@ export const AnalyticsHealthStrip: React.FC<AnalyticsHealthStripProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-mono font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
                 <AlertTriangle
-                  className={`size-3.5 ${totalBottlenecks > 0 ? 'text-[#F43F5E]' : 'text-status-success'}`}
+                  className={`size-3.5 ${totalBottlenecks > 0 ? 'text-[var(--action-accent)]' : 'text-status-success'}`}
                 />{' '}
                 Bottleneck Debt
               </span>
               <span
                 className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
                   totalBottlenecks > 0
-                    ? 'bg-[#F43F5E]/10 text-[#FDA4AF] border-[#F43F5E]/30'
+                    ? 'bg-[var(--action-accent-subtle)] text-[var(--action-accent-foreground)] border-[var(--action-accent-border)]'
                     : 'bg-status-success/10 text-status-success border-status-success/30'
                 }`}
               >

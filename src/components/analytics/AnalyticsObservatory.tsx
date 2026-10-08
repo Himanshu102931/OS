@@ -55,7 +55,7 @@ export const AnalyticsObservatory: React.FC<AnalyticsObservatoryProps> = ({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <BrainCircuit className="size-4 text-[#F43F5E]" />
+                <BrainCircuit className="size-4 text-[var(--action-accent)]" />
                 <h2 className="text-sm font-bold text-text-primary font-sans">
                   Leitner Spaced Repetition Radar
                 </h2>
@@ -79,8 +79,8 @@ export const AnalyticsObservatory: React.FC<AnalyticsObservatoryProps> = ({
                 <span>Box Distribution (150 Problems)</span>
                 <span>
                   {gaps.overdueDsaCount > 0 ? (
-                    <span className="text-[#FDA4AF] font-semibold flex items-center gap-1">
-                      <AlertCircle className="size-3 text-[#F43F5E]" />
+                    <span className="text-[var(--action-accent-foreground)] font-semibold flex items-center gap-1">
+                      <AlertCircle className="size-3 text-[var(--action-accent)]" />
                       {gaps.overdueDsaCount} Due Today
                     </span>
                   ) : (
@@ -199,7 +199,7 @@ export const AnalyticsObservatory: React.FC<AnalyticsObservatoryProps> = ({
               >
                 <div
                   style={{ width: `${patternPct}%` }}
-                  className="bg-[#F43F5E] h-full transition-all duration-300 rounded-full"
+                  className="bg-[var(--action-accent)] h-full transition-all duration-300 rounded-full"
                 />
               </div>
             </div>

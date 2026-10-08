@@ -53,20 +53,18 @@ const SCOPES: Array<{ name: string; sources: Record<string, string>; src: string
 /**
  * Documented intentional remainders — Class A / G exceptions.
  *
- * 1. Crimson Pulse family (ANALYTICS_SPEC_V1.md §13 LOCKED).
- *    Analytics' defining action accent is `#F43F5E` with `#FB7185` hover and
- *    `#FDA4AF` on-container text. No `--action-accent-analytics` token exists
- *    in src/index.css (§14 Part 3 is still unimplemented) and inventing a
- *    global token in this phase is prohibited, so the family stays literal.
- *
- * 2. Leitner distribution series (ANALYTICS_SPEC_V1.md §17 LOCKED).
+ * 1. Leitner distribution series (ANALYTICS_SPEC_V1.md §17 LOCKED).
  *    Box 1 `#384252`, Box 2 `#3B82F6`, Box 3 `#8B5CF6`, Box 4 `#10B981` are
  *    a locked four-series chart palette — four visually distinct stacked
  *    segments plus their legend swatches. File-scoped to the observatory.
  *
+ * 2. [Task 126] Analytics Crimson Pulse family legitimately introduced per
+ *    ANALYTICS_SPEC_V1.md §13 LOCKED. The raw literals have been migrated to
+ *    the scoped `--action-accent-analytics` token family. No raw #F43F5E/
+ *    #FB7185/#FDA4AF remain in Analytics action-accent locations.
+ *
  * No other literal may survive in the three subsystems.
  */
-const CRIMSON_PULSE_HEX = new Set(['f43f5e', 'fda4af', 'fb7185']);
 const LEITNER_SERIES_HEX = new Set(['384252', '3b82f6', '8b5cf6', '10b981']);
 const LEITNER_SERIES_FILE = '../components/analytics/AnalyticsObservatory.tsx';
 
@@ -91,9 +89,6 @@ function colorFunctionsIn(src: string): string[] {
 }
 
 function allowedHex(file: string, hex: string): boolean {
-  if (CRIMSON_PULSE_HEX.has(hex)) {
-    return file.startsWith('../components/analytics/');
-  }
   if (LEITNER_SERIES_HEX.has(hex)) {
     return file === LEITNER_SERIES_FILE;
   }
@@ -162,9 +157,9 @@ describe('Skills / Interview / Analytics token migration (P2-01 Phase 3)', () =>
     expect(interviewSrc).not.toContain('var(--action-accent-skills');
     expect(interviewSrc).not.toContain('var(--action-accent-companies');
 
-    // Analytics — Crimson Pulse. No token exists, so the LOCKED literal
-    // survives as a documented exception (see allowlist above).
-    expect(analyticsSrc).toContain('#F43F5E');
+    // Analytics — Crimson Pulse. Now uses the scoped token family per Task 126.
+    // Components use the generic var(--action-accent) which is scoped via CSS.
+    expect(analyticsSrc).toContain('var(--action-accent)');
     expect(analyticsSrc).not.toContain('var(--action-accent-companies');
     expect(analyticsSrc).not.toContain('var(--action-accent-skills');
     expect(analyticsSrc).not.toContain('var(--action-accent-interview');
@@ -244,11 +239,6 @@ describe('Skills / Interview / Analytics token migration (P2-01 Phase 3)', () =>
   });
 
   it('the documented exceptions are present exactly as allowlisted', () => {
-    // Crimson Pulse remains Analytics' defining accent.
-    expect(analyticsSrc).toContain('#F43F5E');
-    expect(analyticsSrc).toContain('#FDA4AF');
-    expect(analyticsSrc).toContain('#FB7185');
-
     // Locked Leitner series (stacked bar segments + legend swatches).
     const observatory = ANALYTICS_SOURCES[LEITNER_SERIES_FILE];
     expect(observatory, 'AnalyticsObservatory.tsx missing from glob').toBeTruthy();
@@ -270,11 +260,17 @@ describe('Skills / Interview / Analytics token migration (P2-01 Phase 3)', () =>
       sha,
       'src/index.css changed. This migration must not add or edit global tokens. ' +
         'If a later task legitimately adds one, update this pin together with the audit record.'
-    ).toBe('3c604491c3cbc1e88f3ea57c686f6f8316146ce9e6ff6244476bc8f46dc83a0b');
+    ).toBe('87baac88ba6446e9ec10d84c0387a3c2fe6a5db1fc1dad736ecc7ed5c80e9c5b');
 
-    // No Analytics action-accent family was invented (reported as a gap).
-    expect(indexCss).not.toMatch(/--action-accent-analytics/i);
-    expect(indexCss).not.toMatch(/--color-action-accent-analytics/i);
+    // [Task 126] Analytics Crimson Pulse action-accent family legitimately added per ANALYTICS_SPEC_V1 §13.
+    expect(indexCss).toContain('--action-accent-analytics: #F43F5E;');
+    expect(indexCss).toContain('--action-accent-analytics-hover: #FB7185;');
+    expect(indexCss).toContain('--action-accent-analytics-subtle: rgba(244, 63, 94, 0.10);');
+    expect(indexCss).toContain('--action-accent-analytics-border: rgba(244, 63, 94, 0.30);');
+    expect(indexCss).toContain('--action-accent-analytics-foreground: #FDA4AF;');
+    expect(indexCss).toContain('--action-accent-analytics-ring: #F43F5E;');
+
+    // No --analytics-* surface family was introduced by this task.
     expect(indexCss).not.toMatch(/--analytics-[a-z0-9-]+\s*:/i);
     expect(indexCss).not.toMatch(/--color-action-accent-(skills|interview)\s*:/);
 
