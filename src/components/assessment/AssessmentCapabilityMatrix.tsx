@@ -27,15 +27,15 @@ export const AssessmentCapabilityMatrix: React.FC<AssessmentCapabilityMatrixProp
       <div
         key={dp.domainId}
         data-testid={`domain-card-${dp.domainId}`}
-        className="diagnostic-sweep bg-[#14171D] border border-[#262D38] rounded-md p-4 space-y-3 shadow-sm hover:border-[#3B4556] transition-colors"
+        className="diagnostic-sweep bg-surface-panel border border-border rounded-md p-4 space-y-3 shadow-sm hover:border-border-active transition-colors"
       >
         <div className="flex items-start justify-between gap-2">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-[#F1F5F9]">
+            <div className="text-xs font-semibold uppercase tracking-wider text-foreground">
               {dp.domainId.toUpperCase()}
             </div>
-            <div className="text-[11px] text-[#CBD5E1] font-medium">{dp.name}</div>
-            <div className="text-[11px] text-[#8E98A8] mt-0.5">{dp.levelLabel}</div>
+            <div className="text-[11px] text-foreground font-medium">{dp.name}</div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">{dp.levelLabel}</div>
           </div>
 
           <div className="flex items-center gap-1.5 flex-wrap justify-end">
@@ -58,8 +58,8 @@ export const AssessmentCapabilityMatrix: React.FC<AssessmentCapabilityMatrixProp
             <span
               className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
                 dp.provisional
-                  ? 'bg-[#1B2028] text-amber-300 border-amber-800/40'
-                  : 'bg-[#1B2028] text-emerald-300 border-emerald-800/40'
+                  ? 'bg-surface-elevated text-amber-300 border-amber-800/40'
+                  : 'bg-surface-elevated text-emerald-300 border-emerald-800/40'
               }`}
             >
               {dp.provisional ? 'Provisional' : 'Confirmed'}
@@ -67,10 +67,10 @@ export const AssessmentCapabilityMatrix: React.FC<AssessmentCapabilityMatrixProp
             <span
               className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
                 dp.confidence === 'high'
-                  ? 'bg-[#1B2028] text-emerald-400 border-emerald-800/40'
+                  ? 'bg-surface-elevated text-emerald-400 border-emerald-800/40'
                   : dp.confidence === 'medium'
-                  ? 'bg-[#1B2028] text-amber-400 border-amber-800/40'
-                  : 'bg-[#1B2028] text-[#8E98A8] border-[#262D38]'
+                  ? 'bg-surface-elevated text-amber-400 border-amber-800/40'
+                  : 'bg-surface-elevated text-muted-foreground border-border'
               }`}
             >
               Conf: {dp.confidence.toUpperCase()}
@@ -81,8 +81,8 @@ export const AssessmentCapabilityMatrix: React.FC<AssessmentCapabilityMatrixProp
         {/* Ability Score Progress Bar */}
         <div className="space-y-1">
           <div className="flex items-center justify-between text-[11px]">
-            <span className="text-[#8E98A8]">Demonstrated Ability</span>
-            <span className="font-mono text-[#F1F5F9] font-semibold">
+            <span className="text-muted-foreground">Demonstrated Ability</span>
+            <span className="font-mono text-foreground font-semibold">
               {dp.status === 'unassessed' ? 'Unassessed' : `${dp.abilityScore}% Ability`}
             </span>
           </div>
@@ -92,16 +92,16 @@ export const AssessmentCapabilityMatrix: React.FC<AssessmentCapabilityMatrixProp
             aria-valuenow={dp.abilityScore}
             aria-valuemin={0}
             aria-valuemax={100}
-            className="h-1.5 bg-[#1B2028] rounded-full overflow-hidden"
+            className="h-1.5 bg-surface-elevated rounded-full overflow-hidden"
           >
             <div
               className={`h-full rounded-full transition-all duration-300 ${
                 dp.abilityScore >= 65
-                  ? 'bg-[#10B981]'
+                  ? 'bg-success'
                   : dp.abilityScore >= 40
-                  ? 'bg-[#EAB308]'
+                  ? 'bg-action-accent'
                   : dp.abilityScore > 0
-                  ? 'bg-[#EF4444]'
+                  ? 'bg-danger'
                   : 'bg-transparent'
               }`}
               style={{ width: `${Math.min(100, Math.max(0, dp.abilityScore))}%` }}
@@ -111,15 +111,15 @@ export const AssessmentCapabilityMatrix: React.FC<AssessmentCapabilityMatrixProp
 
         {/* Construct Scope Note if present */}
         {dp.constructScopeNote && (
-          <div className="text-[10px] text-[#5C6675] leading-snug border-l-2 border-[#262D38] pl-2">
+          <div className="text-[10px] text-secondary leading-snug border-l-2 border-border pl-2">
             {dp.constructScopeNote}
           </div>
         )}
 
         {/* Target Company Requirement Indicator if active */}
         {roleReadiness && (
-          <div className="p-2 rounded bg-[#1B2028] border border-[#262D38] text-[11px] flex items-center justify-between">
-            <span className="text-[#8E98A8]">Target Requirement:</span>
+          <div className="p-2 rounded bg-surface-elevated border border-border text-[11px] flex items-center justify-between">
+            <span className="text-muted-foreground">Target Requirement:</span>
             <span
               className={
                 roleReadiness.status === 'met'
@@ -135,7 +135,7 @@ export const AssessmentCapabilityMatrix: React.FC<AssessmentCapabilityMatrixProp
         )}
 
         {/* Card Footer: Assessment Kind and Level */}
-        <div className="text-[11px] text-[#5C6675] flex items-center justify-between pt-1 border-t border-[#262D38]/60">
+        <div className="text-[11px] text-secondary flex items-center justify-between pt-1 border-t border-border/60">
           <span>
             {dp.latestAssessmentKind
               ? `${
@@ -147,7 +147,7 @@ export const AssessmentCapabilityMatrix: React.FC<AssessmentCapabilityMatrixProp
                 } (${dp.latestAssessmentDate?.slice(0, 10)})`
               : `Status: ${dp.status}`}
           </span>
-          <span className="font-mono text-[#8E98A8]">Level {dp.level}</span>
+          <span className="font-mono text-muted-foreground">Level {dp.level}</span>
         </div>
       </div>
     );
@@ -156,20 +156,20 @@ export const AssessmentCapabilityMatrix: React.FC<AssessmentCapabilityMatrixProp
   return (
     <section aria-label="Domain Capability Matrix" className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h2 className="text-base font-semibold text-[#F1F5F9] flex items-center gap-2">
-          <Target className="size-4 text-[#EAB308]" aria-hidden="true" />
+        <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+          <Target className="size-4 text-action-accent" aria-hidden="true" />
           <span>Domain Capability Matrix (All 11 Domains)</span>
         </h2>
-        <span className="text-xs text-[#8E98A8]">
+        <span className="text-xs text-muted-foreground">
           Provisional Levels (0 to 5) · Ability (0–100)
         </span>
       </div>
 
       {/* Class A: Core Technical Domains */}
       <div className="space-y-3">
-        <div className="text-xs font-semibold uppercase tracking-wider text-[#8E98A8] flex items-center gap-2">
+        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
           <span>Class A — Standard Standardized Modules</span>
-          <span className="text-[10px] text-[#5C6675] font-normal">
+          <span className="text-[10px] text-secondary font-normal">
             (Objective + algorithmic + theoretical constructs)
           </span>
         </div>
@@ -181,9 +181,9 @@ export const AssessmentCapabilityMatrix: React.FC<AssessmentCapabilityMatrixProp
 
       {/* Class B: Partial Construct Domains */}
       <div className="space-y-3 pt-2">
-        <div className="text-xs font-semibold uppercase tracking-wider text-[#8E98A8] flex items-center gap-2">
+        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
           <span>Class B — Coding &amp; Execution Constructs</span>
-          <span className="text-[10px] text-[#5C6675] font-normal">
+          <span className="text-[10px] text-secondary font-normal">
             (Reasoning / practical execution / knowledge proxies)
           </span>
         </div>
@@ -196,37 +196,37 @@ export const AssessmentCapabilityMatrix: React.FC<AssessmentCapabilityMatrixProp
       {/* Class C: Projects (Excluded from automated baseline) */}
       {classCProfile && (
         <div className="space-y-3 pt-2">
-          <div className="text-xs font-semibold uppercase tracking-wider text-[#8E98A8] flex items-center gap-2">
+          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <span>Class C — Non-Objective &amp; Extended Domain Scope</span>
-            <span className="text-[10px] text-[#5C6675] font-normal">
+            <span className="text-[10px] text-secondary font-normal">
               (Special Scope: Evidence Tracked in Project Lab)
             </span>
           </div>
 
-          <div className="diagnostic-sweep bg-[#14171D] border border-[#262D38] rounded-md p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="diagnostic-sweep bg-surface-panel border border-border rounded-md p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-[#F1F5F9]">
+                <span className="text-xs font-semibold uppercase tracking-wider text-foreground">
                   PROJECTS
                 </span>
-                <span className="text-xs font-semibold text-[#CBD5E1]">
+                <span className="text-xs font-semibold text-foreground">
                   · {classCProfile.name || 'Engineering Projects Portfolio'}
                 </span>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-[#1B2028] text-[#8E98A8] border border-[#262D38]">
+                <span className="text-[10px] px-2 py-0.5 rounded bg-surface-elevated text-muted-foreground border border-border">
                   Level 0 · Unassessed · Confidence: None
                 </span>
                 <span className="text-[10px] font-mono text-amber-400">
                   Class C Special Scope: Evidence Tracked in Project Lab
                 </span>
               </div>
-              <p className="text-xs text-[#8E98A8] max-w-2xl leading-relaxed">
+              <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
                 {classCProfile.constructScopeNote}
               </p>
             </div>
 
             <button
               onClick={onOpenProjectLab}
-              className="px-4 py-2 rounded text-xs font-medium bg-[#1B2028] text-[#CBD5E1] hover:text-[#F1F5F9] border border-[#3B4556] whitespace-nowrap transition-colors cursor-pointer"
+              className="px-4 py-2 rounded text-xs font-medium bg-surface-elevated text-foreground hover:text-foreground border border-border-active whitespace-nowrap transition-colors cursor-pointer"
             >
               Open Project Lab
             </button>

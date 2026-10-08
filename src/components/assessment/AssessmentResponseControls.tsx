@@ -21,7 +21,7 @@ export const AssessmentResponseControls: React.FC<AssessmentResponseControlsProp
   const hasResponse = currentResponse && currentResponse.response !== 'unanswered';
 
   return (
-    <div className="space-y-4 pt-4 border-t border-[#262D38]">
+    <div className="space-y-4 pt-4 border-t border-border">
       {/* Honesty Action & Clear Controls */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button
@@ -30,7 +30,7 @@ export const AssessmentResponseControls: React.FC<AssessmentResponseControlsProp
           className={`px-3 py-1.5 rounded text-xs transition-colors border flex items-center gap-1.5 cursor-pointer ${
             isDontKnow
               ? 'bg-amber-950/30 border-amber-600/70 text-amber-300 font-medium'
-              : 'bg-transparent border-[#262D38] text-[#8E98A8] hover:text-[#CBD5E1] hover:border-[#3B4556]'
+              : 'bg-transparent border-border text-muted-foreground hover:text-foreground hover:border-border-active'
           }`}
           title="Flag as 'I don't know' without guessing. This separates lack of knowledge from unlucky guessing and prevents chance-correction penalties."
         >
@@ -42,7 +42,7 @@ export const AssessmentResponseControls: React.FC<AssessmentResponseControlsProp
           <button
             type="button"
             onClick={() => onAnswerChange(null)}
-            className="text-xs text-[#8E98A8] hover:text-red-400 transition-colors flex items-center gap-1 cursor-pointer"
+            className="text-xs text-muted-foreground hover:text-red-400 transition-colors flex items-center gap-1 cursor-pointer"
           >
             <RefreshCw className="size-3" aria-hidden="true" />
             <span>Clear response</span>
@@ -53,9 +53,9 @@ export const AssessmentResponseControls: React.FC<AssessmentResponseControlsProp
       {/* Confidence Self-Reporting (3-Tier) */}
       <div className="space-y-2 pt-2">
         <div className="flex items-center justify-between">
-          <label className="text-xs text-[#8E98A8] flex items-center gap-1.5">
-            <span className="font-medium text-[#CBD5E1]">How confident are you in this answer?</span>
-            <span className="text-[11px] text-[#5C6675]">(Used for error diagnosis only; never alters points)</span>
+          <label className="text-xs text-muted-foreground flex items-center gap-1.5">
+            <span className="font-medium text-foreground">How confident are you in this answer?</span>
+            <span className="text-[11px] text-secondary">(Used for error diagnosis only; never alters points)</span>
           </label>
         </div>
 
@@ -69,8 +69,8 @@ export const AssessmentResponseControls: React.FC<AssessmentResponseControlsProp
                 onClick={() => onConfidenceChange(conf)}
                 className={`py-1.5 px-3 rounded text-xs capitalize transition-all border cursor-pointer ${
                   isConfSelected
-                    ? 'bg-[#1B2028] border-[#EAB308] text-[#EAB308] font-semibold ring-1 ring-[#EAB308]'
-                    : 'bg-[#0D0F12]/60 border-[#262D38] text-[#8E98A8] hover:text-[#CBD5E1] hover:bg-[#1B2028]/40'
+                    ? 'bg-surface-elevated border-action-accent text-action-accent font-semibold ring-1 ring-action-accent'
+                    : 'bg-background/60 border-border text-muted-foreground hover:text-foreground hover:bg-surface-elevated/40'
                 }`}
               >
                 {conf === 'somewhat' ? 'Somewhat confident' : conf}

@@ -54,21 +54,21 @@ export const AssessmentCommandBar: React.FC<AssessmentCommandBarProps> = ({
   return (
     <div
       data-testid="assessment-command-bar"
-      className="bg-[#14171D] border border-[#262D38] rounded-md p-4 sticky top-16 z-30 shadow-lg backdrop-blur-md space-y-3"
+      className="bg-surface-panel border border-border rounded-md p-4 sticky top-16 z-30 shadow-lg backdrop-blur-md space-y-3"
       aria-label="Assessment Control Bar"
     >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         {/* Left: Test Identity & Question Count */}
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs font-mono uppercase tracking-wider px-2.5 py-0.5 rounded bg-[#1B2028] text-[#EAB308] border border-[#3B4556]">
+          <span className="text-xs font-mono uppercase tracking-wider px-2.5 py-0.5 rounded bg-surface-elevated text-action-accent border border-border-active">
             {getKindLabel(attempt.kind)}
           </span>
 
-          <span className="text-sm font-semibold text-[#F1F5F9]">
+          <span className="text-sm font-semibold text-foreground">
             Question {currentIndex + 1} of {totalCount}
           </span>
 
-          <span className="text-xs text-[#8E98A8]">
+          <span className="text-xs text-muted-foreground">
             ({answeredCount} answered, {totalCount - answeredCount} remaining)
           </span>
         </div>
@@ -84,11 +84,11 @@ export const AssessmentCommandBar: React.FC<AssessmentCommandBarProps> = ({
                 ? 'bg-red-950/40 text-red-400 border-red-800 animate-pulse'
                 : isTimerUrgent
                 ? 'bg-amber-950/40 text-amber-400 border-amber-800'
-                : 'bg-[#1B2028] text-[#F1F5F9] border-[#262D38]'
+                : 'bg-surface-elevated text-foreground border-border'
             }`}
             title="Authoritative wall-clock time limit. Auto-submits upon expiration."
           >
-            <Clock className="size-4 text-[#EAB308]" aria-hidden="true" />
+            <Clock className="size-4 text-action-accent" aria-hidden="true" />
             <span>{formatTime(timeRemainingSeconds)}</span>
           </div>
 
@@ -96,7 +96,7 @@ export const AssessmentCommandBar: React.FC<AssessmentCommandBarProps> = ({
           <button
             data-testid="assessment-cancel-btn"
             onClick={onCancelClick}
-            className="px-3.5 py-1.5 rounded text-xs font-medium bg-[#1B2028] hover:bg-[#262D38] text-[#D05A52] border border-[#D05A52]/40 transition-colors cursor-pointer"
+            className="px-3.5 py-1.5 rounded text-xs font-medium bg-surface-elevated hover:bg-border text-danger border border-danger/40 transition-colors cursor-pointer"
             title="Cancel and discard this assessment attempt"
           >
             Cancel Assessment
@@ -106,7 +106,7 @@ export const AssessmentCommandBar: React.FC<AssessmentCommandBarProps> = ({
           <button
             data-testid="assessment-finish-btn"
             onClick={onSubmitClick}
-            className="px-3.5 py-1.5 rounded text-xs font-medium bg-[#EAB308] hover:bg-[#CA8A04] text-[#0D0F12] border border-[#EAB308]/40 transition-colors cursor-pointer"
+            className="px-3.5 py-1.5 rounded text-xs font-medium bg-action-accent hover:bg-action-accent-hover text-action-accent-foreground border border-action-accent-border transition-colors cursor-pointer"
           >
             Finish & Submit
           </button>
@@ -114,17 +114,17 @@ export const AssessmentCommandBar: React.FC<AssessmentCommandBarProps> = ({
       </div>
 
       {/* Module Context Strip */}
-      <div className="pt-3 border-t border-[#262D38]/60 flex flex-wrap items-center justify-between gap-2 text-xs text-[#8E98A8]">
+      <div className="pt-3 border-t border-border/60 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <div className="flex items-center gap-2">
-          <span className="text-[#EAB308] font-medium uppercase tracking-wide">
+          <span className="text-action-accent font-medium uppercase tracking-wide">
             Domain: {currentItem?.domainId.toUpperCase()}
           </span>
           <span>·</span>
-          <span className="text-[#CBD5E1]">{currentItem?.competency}</span>
+          <span className="text-foreground">{currentItem?.competency}</span>
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="capitalize px-2 py-0.5 rounded bg-[#1B2028] text-[11px] border border-[#262D38]">
+          <span className="capitalize px-2 py-0.5 rounded bg-surface-elevated text-[11px] border border-border">
             Difficulty: {getDifficultyLabel(currentItem?.difficulty)}
           </span>
           <span>Est: ~{currentItem?.estimatedMinutes} min</span>

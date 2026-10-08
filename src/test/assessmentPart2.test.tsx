@@ -254,7 +254,7 @@ describe('Assessment Manufacturing Part 2 — Mode B Active Runner', () => {
       });
 
       // Active confidence border/style check
-      expect(confidentBtn.className).toContain('text-[#EAB308]');
+      expect(confidentBtn.className).toContain('text-action-accent');
     });
   });
 

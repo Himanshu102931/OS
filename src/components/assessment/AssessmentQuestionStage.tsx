@@ -46,7 +46,7 @@ export const AssessmentQuestionStage: React.FC<AssessmentQuestionStageProps> = (
 }) => {
   if (!currentItem) {
     return (
-      <div className="bg-[#14171D] border border-[#262D38] rounded-md p-12 text-center text-[#8E98A8]">
+      <div className="bg-surface-panel border border-border rounded-md p-12 text-center text-muted-foreground">
         No question found in active assessment.
       </div>
     );
@@ -55,26 +55,26 @@ export const AssessmentQuestionStage: React.FC<AssessmentQuestionStageProps> = (
   const isFinalQuestion = currentIndex === totalCount - 1;
 
   return (
-    <div className="bg-[#14171D] border border-[#262D38] rounded-md p-6 space-y-6">
+    <div className="bg-surface-panel border border-border rounded-md p-6 space-y-6">
       {/* Question Prompt Header */}
       <div className="space-y-4">
         <div className="flex items-center justify-between text-xs font-mono">
-          <span className="text-[#8E98A8] bg-[#1B2028] px-2 py-0.5 rounded border border-[#262D38]">
+          <span className="text-muted-foreground bg-surface-elevated px-2 py-0.5 rounded border border-border">
             ID: {currentItem.id}
           </span>
-          <span className="text-[#5C6675] uppercase">
+          <span className="text-secondary uppercase">
             {currentItem.assessmentRole} stage
           </span>
         </div>
 
-        <div className="text-base text-[#F1F5F9] leading-relaxed whitespace-pre-wrap font-sans bg-[#0D0F12]/60 p-4.5 rounded border border-[#262D38]/60">
+        <div className="text-base text-foreground leading-relaxed whitespace-pre-wrap font-sans bg-background/60 p-4.5 rounded border border-border/60">
           {currentItem.prompt}
         </div>
       </div>
 
       {/* Response Workspace */}
       <div className="space-y-4 pt-1">
-        <h3 className="text-xs font-semibold text-[#8E98A8] uppercase tracking-wider">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           Your Response
         </h3>
 
@@ -92,13 +92,13 @@ export const AssessmentQuestionStage: React.FC<AssessmentQuestionStageProps> = (
                   onClick={() => onAnswerChange(oIdx)}
                   className={`w-full text-left p-3.5 rounded text-sm transition-all border flex items-start gap-3 cursor-pointer ${
                     isSelected
-                      ? 'bg-[#EAB308]/10 border-[#EAB308] text-[#F1F5F9] font-medium ring-1 ring-[#EAB308]'
-                      : 'bg-[#1B2028]/60 border-[#262D38] text-[#CBD5E1] hover:bg-[#1B2028] hover:border-[#3B4556]'
+                      ? 'bg-action-accent/10 border-action-accent text-foreground font-medium ring-1 ring-action-accent'
+                      : 'bg-surface-elevated/60 border-border text-foreground hover:bg-surface-elevated hover:border-border-active'
                   }`}
                 >
                   <span
                     className={`size-5 rounded flex items-center justify-center text-xs font-mono shrink-0 mt-0.5 ${
-                      isSelected ? 'bg-[#EAB308] text-[#0D0F12] font-bold' : 'bg-[#262D38] text-[#8E98A8]'
+                      isSelected ? 'bg-action-accent text-action-accent-foreground font-bold' : 'bg-border text-muted-foreground'
                     }`}
                   >
                     {String.fromCharCode(65 + oIdx)}
@@ -113,12 +113,12 @@ export const AssessmentQuestionStage: React.FC<AssessmentQuestionStageProps> = (
         {/* 2. SQL Query Normalization Input */}
         {currentItem.scoring.kind === 'normalized_match' && (
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs text-[#8E98A8]">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5 font-mono">
-                <FileCode className="size-3.5 text-[#EAB308]" aria-hidden="true" />
+                <FileCode className="size-3.5 text-action-accent" aria-hidden="true" />
                 <span>SQL Query Editor</span>
               </span>
-              <span className="text-[11px] text-[#5C6675]">
+              <span className="text-[11px] text-secondary">
                 Exact syntactic normalization AST match
               </span>
             </div>
@@ -129,7 +129,7 @@ export const AssessmentQuestionStage: React.FC<AssessmentQuestionStageProps> = (
               placeholder="SELECT ... FROM ... WHERE ..."
               rows={5}
               spellCheck={false}
-              className="w-full bg-[#0D0F12] text-[#F1F5F9] font-mono text-xs p-3.5 rounded border border-[#262D38] focus:border-[#EAB308] focus:outline-none transition-colors"
+              className="w-full bg-background text-foreground font-mono text-xs p-3.5 rounded border border-border focus:border-action-accent focus:outline-none transition-colors"
             />
           </div>
         )}
@@ -137,7 +137,7 @@ export const AssessmentQuestionStage: React.FC<AssessmentQuestionStageProps> = (
         {/* 3. Written Rubric Input */}
         {currentItem.scoring.kind === 'rubric' && (
           <div className="space-y-2">
-            <p className="text-xs text-[#8E98A8]">
+            <p className="text-xs text-muted-foreground">
               Provide your written response below. (Evaluated deterministically according to authored rubric criteria).
             </p>
             <textarea
@@ -146,7 +146,7 @@ export const AssessmentQuestionStage: React.FC<AssessmentQuestionStageProps> = (
               placeholder="Write your explanation or reasoning..."
               rows={6}
               spellCheck={false}
-              className="w-full bg-[#0D0F12] text-[#F1F5F9] font-sans text-xs p-3.5 rounded border border-[#262D38] focus:border-[#EAB308] focus:outline-none transition-colors"
+              className="w-full bg-background text-foreground font-sans text-xs p-3.5 rounded border border-border focus:border-action-accent focus:outline-none transition-colors"
             />
           </div>
         )}
@@ -154,12 +154,12 @@ export const AssessmentQuestionStage: React.FC<AssessmentQuestionStageProps> = (
         {/* 4. Execution-Backed Python/SQL Test */}
         {currentItem.scoring.kind === 'execution_test' && (
           <div className="space-y-3">
-            <div className="flex items-center justify-between text-xs text-[#8E98A8]">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5 font-mono">
-                <Code2 className="size-3.5 text-[#EAB308]" aria-hidden="true" />
+                <Code2 className="size-3.5 text-action-accent" aria-hidden="true" />
                 <span>{currentItem.domainId === 'python' ? 'Python 3 Sandbox' : 'SQL Relational Fixture'}</span>
               </span>
-              <span className="text-[11px] text-[#64748B]">
+              <span className="text-[11px] text-foreground-subtle">
                 Deterministic sandboxed execution
               </span>
             </div>
@@ -174,7 +174,7 @@ export const AssessmentQuestionStage: React.FC<AssessmentQuestionStageProps> = (
               }
               rows={7}
               spellCheck={false}
-              className="w-full bg-[#0D0F12] text-[#F1F5F9] font-mono text-xs p-3.5 rounded border border-[#262D38] focus:border-[#EAB308] focus:outline-none transition-colors"
+              className="w-full bg-background text-foreground font-mono text-xs p-3.5 rounded border border-border focus:border-action-accent focus:outline-none transition-colors"
             />
 
             {/* Execution Feedback Readout */}
@@ -212,7 +212,7 @@ export const AssessmentQuestionStage: React.FC<AssessmentQuestionStageProps> = (
                       ? 'Unsupported Execution'
                       : 'Execution Assertion Failed'}
                   </span>
-                  <span className="text-[11px] font-normal text-[#8E98A8]">
+                  <span className="text-[11px] font-normal text-muted-foreground">
                     {recordedCurrent.executionResult.executionTimeMs}ms
                   </span>
                 </div>
@@ -237,18 +237,18 @@ export const AssessmentQuestionStage: React.FC<AssessmentQuestionStageProps> = (
       </div>
 
       {/* Bottom Navigation Controls */}
-      <div className="flex items-center justify-between pt-6 border-t border-[#262D38]">
+      <div className="flex items-center justify-between pt-6 border-t border-border">
         <button
           type="button"
           disabled={currentIndex === 0}
           onClick={onPrevious}
-          className="flex items-center gap-2 px-4 py-2 rounded text-xs font-medium bg-[#1B2028] text-[#F1F5F9] border border-[#262D38] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#262D38] transition-colors cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2 rounded text-xs font-medium bg-surface-elevated text-foreground border border-border disabled:opacity-30 disabled:cursor-not-allowed hover:bg-border transition-colors cursor-pointer"
         >
           <ChevronLeft className="size-4" aria-hidden="true" />
           <span>Previous Question</span>
         </button>
 
-        <div className="text-xs font-mono text-[#8E98A8]">
+        <div className="text-xs font-mono text-muted-foreground">
           {currentIndex + 1} / {totalCount}
         </div>
 
@@ -256,7 +256,7 @@ export const AssessmentQuestionStage: React.FC<AssessmentQuestionStageProps> = (
           <button
             type="button"
             onClick={onNext}
-            className="flex items-center gap-2 px-4.5 py-2 rounded text-xs font-semibold bg-[#EAB308] text-[#0D0F12] hover:bg-[#CA8A04] transition-colors shadow-sm cursor-pointer"
+            className="flex items-center gap-2 px-4.5 py-2 rounded text-xs font-semibold bg-action-accent text-action-accent-foreground hover:bg-action-accent-hover transition-colors shadow-sm cursor-pointer"
           >
             <span>Next Question</span>
             <ChevronRight className="size-4" aria-hidden="true" />
@@ -265,7 +265,7 @@ export const AssessmentQuestionStage: React.FC<AssessmentQuestionStageProps> = (
           <button
             type="button"
             onClick={onSubmitClick}
-            className="flex items-center gap-2 px-4.5 py-2 rounded text-xs font-bold bg-[#10B981] text-[#0D0F12] hover:bg-[#059669] transition-colors shadow-sm cursor-pointer"
+            className="flex items-center gap-2 px-4.5 py-2 rounded text-xs font-bold bg-success text-action-accent-foreground hover:bg-[#059669] transition-colors shadow-sm cursor-pointer"
           >
             <span>Finish &amp; Submit</span>
             <CheckCircle2 className="size-4" aria-hidden="true" />

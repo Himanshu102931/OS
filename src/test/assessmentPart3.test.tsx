@@ -397,7 +397,7 @@ describe('Assessment Manufacturing Part 3 — Mode C Diagnostic Benchmark Readou
     renderWithProviders(<AssessmentRunnerView />);
 
     const primaryCta = screen.getByRole('button', { name: /Review Diagnostic/i });
-    expect(primaryCta.className).toContain('bg-amber-400');
+    expect(primaryCta.className).toContain('bg-action-accent');
   });
 
   it('14. accessibility semantics exist for tablist, tabs, tabpanels, and progressbars', () => {

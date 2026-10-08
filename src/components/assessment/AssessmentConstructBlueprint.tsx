@@ -21,30 +21,30 @@ export const AssessmentConstructBlueprint: React.FC = () => {
   const totalTime = BASELINE_ASSESSMENT_DEFINITION.timeLimitMinutes;
 
   return (
-    <section aria-labelledby="construct-blueprint-heading" className="bg-[#14171D] border border-[#262D38] rounded-md overflow-hidden space-y-0">
+    <section aria-labelledby="construct-blueprint-heading" className="bg-surface-panel border border-border rounded-md overflow-hidden space-y-0">
       {/* Header Bar */}
-      <div className="px-5 py-3.5 border-b border-[#262D38] bg-[#1B2028]/60 flex flex-wrap items-center justify-between gap-3">
+      <div className="px-5 py-3.5 border-b border-border bg-surface-elevated/60 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Layers className="size-4 text-[#EAB308]" aria-hidden="true" />
-          <h2 id="construct-blueprint-heading" className="text-xs font-semibold text-[#CBD5E1] uppercase tracking-wider">
+          <Layers className="size-4 text-action-accent" aria-hidden="true" />
+          <h2 id="construct-blueprint-heading" className="text-xs font-semibold text-foreground uppercase tracking-wider">
             10-Module Construct Blueprint
           </h2>
         </div>
-        <div className="flex items-center gap-4 text-xs font-mono text-[#8E98A8]">
+        <div className="flex items-center gap-4 text-xs font-mono text-muted-foreground">
           <span className="flex items-center gap-1.5">
-            <CheckCircle className="size-3.5 text-[#10B981]" aria-hidden="true" />
-            <strong className="text-[#F1F5F9]">{totalItems} Standardized Items</strong>
+            <CheckCircle className="size-3.5 text-success" aria-hidden="true" />
+            <strong className="text-foreground">{totalItems} Standardized Items</strong>
           </span>
           <span>·</span>
           <span className="flex items-center gap-1.5">
-            <Clock className="size-3.5 text-[#EAB308]" aria-hidden="true" />
-            <strong className="text-[#F1F5F9]">{totalTime} min Limit</strong>
+            <Clock className="size-3.5 text-action-accent" aria-hidden="true" />
+            <strong className="text-foreground">{totalTime} min Limit</strong>
           </span>
         </div>
       </div>
 
       {/* Modules Table */}
-      <div className="divide-y divide-[#262D38]/60 text-xs">
+      <div className="divide-y divide-border/60 text-xs">
         {BASELINE_ASSESSMENT_DEFINITION.modules.map((mod, idx) => {
           const info = DOMAIN_DETAILS[mod.domainId] || {
             label: mod.domainId.toUpperCase(),
@@ -55,33 +55,33 @@ export const AssessmentConstructBlueprint: React.FC = () => {
           return (
             <div
               key={mod.domainId}
-              className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[#1B2028]/40 transition-colors"
+              className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-surface-elevated/40 transition-colors"
             >
               <div className="flex items-start gap-3">
-                <span className="size-6 rounded flex items-center justify-center font-mono text-[11px] bg-[#1B2028] text-[#EAB308] border border-[#262D38] shrink-0 mt-0.5">
+                <span className="size-6 rounded flex items-center justify-center font-mono text-[11px] bg-surface-elevated text-action-accent border border-border shrink-0 mt-0.5">
                   M{idx + 1}
                 </span>
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold uppercase tracking-wider text-[#F1F5F9]">
+                    <span className="font-semibold uppercase tracking-wider text-foreground">
                       {mod.domainId}
                     </span>
-                    <span className="text-[#8E98A8]">— {info.label}</span>
+                    <span className="text-muted-foreground">— {info.label}</span>
                   </div>
-                  <div className="text-[11px] text-[#5C6675]">
+                  <div className="text-[11px] text-secondary">
                     {info.construct}
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-4 shrink-0 text-[11px] font-mono sm:text-right">
-                <span className="px-2 py-0.5 rounded bg-[#1B2028] text-[#9AA99F] border border-[#262D38]">
+                <span className="px-2 py-0.5 rounded bg-surface-elevated text-muted-foreground border border-border">
                   {info.category}
                 </span>
-                <span className="text-[#CBD5E1] font-semibold w-16 text-right">
+                <span className="text-foreground font-semibold w-16 text-right">
                   {mod.itemCount} items
                 </span>
-                <span className="text-[#8E98A8] w-20 text-right">
+                <span className="text-muted-foreground w-20 text-right">
                   ~{mod.timeBudget} min
                 </span>
               </div>
@@ -90,25 +90,25 @@ export const AssessmentConstructBlueprint: React.FC = () => {
         })}
 
         {/* Class C Projects Explicit Callout */}
-        <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#1B2028]/20 text-[#5C6675]">
+        <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-elevated/20 text-secondary">
           <div className="flex items-start gap-3">
-            <span className="size-6 rounded flex items-center justify-center font-mono text-[11px] bg-[#14171D] text-[#5C6675] border border-[#262D38] shrink-0 mt-0.5">
+            <span className="size-6 rounded flex items-center justify-center font-mono text-[11px] bg-surface-panel text-secondary border border-border shrink-0 mt-0.5">
               —
             </span>
             <div className="space-y-0.5">
               <div className="flex items-center gap-2">
-                <span className="font-semibold uppercase tracking-wider text-[#8E98A8]">
+                <span className="font-semibold uppercase tracking-wider text-muted-foreground">
                   Projects & Portfolio
                 </span>
-                <span className="text-[#5C6675]">— Full-Stack & System Defense</span>
+                <span className="text-secondary">— Full-Stack & System Defense</span>
               </div>
-              <div className="text-[11px] text-[#5C6675] italic">
+              <div className="text-[11px] text-secondary italic">
                 Class C construct: Excluded from automated baseline. Evaluated through viva defense in Project Lab.
               </div>
             </div>
           </div>
 
-          <div className="text-[11px] font-mono text-[#5C6675]">
+          <div className="text-[11px] font-mono text-secondary">
             Evaluated in Project Lab
           </div>
         </div>
