@@ -31,10 +31,10 @@ const DOMAIN_ICON: Record<string, React.FC<{ className?: string }>> = {
  * skillsEngine; this map must never re-derive a status from a percentage.
  */
 const STATUS_META: Record<string, { color: string; label: string }> = {
-  ready: { color: '#10B981', label: 'Ready' },
-  on_track: { color: '#F59E0B', label: 'On Track' },
-  at_risk: { color: '#F43F5E', label: 'At Risk' },
-  needs_baseline: { color: '#6B7280', label: 'Needs Baseline' },
+  ready: { color: 'var(--success)', label: 'Ready' },
+  on_track: { color: 'var(--warning)', label: 'On Track' },
+  at_risk: { color: 'var(--danger)', label: 'At Risk' },
+  needs_baseline: { color: 'var(--foreground-subtle)', label: 'Needs Baseline' },
 };
 
 const statusMeta = (status: string) => STATUS_META[status] ?? STATUS_META.needs_baseline;
@@ -54,9 +54,9 @@ export interface SignalConnector {
 }
 
 const CONNECTOR_COLOR: Record<string, string> = {
-  dsa: '#10B981',
-  sql: '#3B82F6',
-  os: '#F43F5E',
+  dsa: 'var(--success)',
+  sql: 'var(--info)',
+  os: 'var(--danger)',
 };
 
 /**
@@ -145,14 +145,14 @@ export const DailySignalGraph: React.FC = () => {
   return (
     <section className="space-y-4" data-testid="daily-signal-graph">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-[#F1F5F9] flex items-center gap-2">
-          <AlertCircle className="size-4 text-[#E5A93C]" /> Daily Placement Signals
+        <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+          <AlertCircle className="size-4 text-accent" /> Daily Placement Signals
         </h3>
         {urgentComps.length > 0 && (
-          <span className="text-[10px] px-2 py-0.5 rounded bg-[#F59E0B]/10 text-[#F59E0B] border border-[#F59E0B]/30 font-mono">{urgentComps.length} urgent</span>
+          <span className="text-[10px] px-2 py-0.5 rounded bg-status-warning/10 text-status-warning border border-status-warning/30 font-mono">{urgentComps.length} urgent</span>
         )}
       </div>
-      <div className="bg-[#14171D] border border-[#262D38] rounded-xl p-4 sm:p-5">
+      <div className="bg-surface-panel border border-border-default rounded-xl p-4 sm:p-5">
         <div className="relative h-48 w-full overflow-hidden">
           {/* C7-05 — `preserveAspectRatio="none"` maps viewBox x linearly onto
               the row width, so a connector centred on slot i lands on the i-th
@@ -165,9 +165,9 @@ export const DailySignalGraph: React.FC = () => {
           >
             <defs>
               <linearGradient id="signalFlow" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#46B982" stopOpacity="0" />
-                <stop offset="50%" stopColor="#46B982" stopOpacity="0.6" />
-                <stop offset="100%" stopColor="#46B982" stopOpacity="0" />
+                <stop offset="0%" stopColor="var(--accent)" stopOpacity="0" />
+                <stop offset="50%" stopColor="var(--accent)" stopOpacity="0.6" />
+                <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
               </linearGradient>
             </defs>
             {connectors.map((c) => (
@@ -177,7 +177,7 @@ export const DailySignalGraph: React.FC = () => {
                 y1={96}
                 x2={c.x2}
                 y2={96}
-                stroke={CONNECTOR_COLOR[c.from] ?? '#6B7280'}
+                stroke={CONNECTOR_COLOR[c.from] ?? 'var(--foreground-subtle)'}
                 strokeWidth="1"
                 strokeOpacity={0.3}
                 strokeDasharray="4 6"
@@ -205,7 +205,7 @@ export const DailySignalGraph: React.FC = () => {
                     tabIndex={0}
                     role="button"
                     aria-label={`${r.shortName}: ${r.overallReadiness}% (${meta.label})`}
-                    className="flex flex-col items-center gap-1.5 cursor-pointer transition-all duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#46B982] rounded-md p-1"
+                    className="flex flex-col items-center gap-1.5 cursor-pointer transition-all duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent rounded-md p-1"
                     style={{
                       opacity: isHovered ? 1 : 0.88,
                       transform: isHovered ? 'scale(1.06)' : 'scale(1)',
@@ -222,7 +222,7 @@ export const DailySignalGraph: React.FC = () => {
                     }}
                   >
                     <div
-                      className="w-9 sm:w-10 bg-[#0E1410] rounded-t border border-[#212D26] relative overflow-hidden flex flex-col justify-end"
+                      className="w-9 sm:w-10 bg-surface-canvas rounded-t border border-border-default relative overflow-hidden flex flex-col justify-end"
                       style={{ height: '96px' }}
                     >
                       {/* Honest bar fill: height corresponds directly to r.overallReadiness% */}
@@ -231,17 +231,17 @@ export const DailySignalGraph: React.FC = () => {
                         style={{
                           height: `${Math.max(r.overallReadiness > 0 ? 6 : 0, r.overallReadiness)}%`,
                           background: r.overallReadiness > 0
-                            ? `linear-gradient(to top, ${statusColor}50, ${statusColor})`
+                            ? `linear-gradient(to top, color-mix(in srgb, ${statusColor} 31%, transparent), ${statusColor})`
                             : 'transparent',
                         }}
                       />
                       {/* Subdued baseline indicator when at 0% */}
                       {r.overallReadiness === 0 && (
-                        <div className="w-full h-0.5 bg-[#28352D]" />
+                        <div className="w-full h-0.5 bg-border-default" />
                       )}
                     </div>
-                    <Icon className="size-4 text-[#9AA99F]" />
-                    <span className="text-[9px] font-mono font-medium text-[#9AA99F]">{r.shortName}</span>
+                    <Icon className="size-4 text-text-secondary" />
+                    <span className="text-[9px] font-mono font-medium text-text-secondary">{r.shortName}</span>
                     <span className="text-[10px] font-bold font-mono" style={{ color: statusColor }}>
                       {r.overallReadiness}%
                     </span>
@@ -252,7 +252,7 @@ export const DailySignalGraph: React.FC = () => {
           </div>
         </div>
         {hoveredDomain && (
-          <div className="mt-3 pt-3 border-t border-[#262D38] animate-fade-in">
+          <div className="mt-3 pt-3 border-t border-border-default animate-fade-in">
             {(() => {
               const r = readinessByDomain.find((d) => d.domainId === hoveredDomain);
               if (!r) return null;
@@ -262,10 +262,10 @@ export const DailySignalGraph: React.FC = () => {
               return (
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
-                    <span className="text-[#F1F5F9] font-semibold">{r.shortName}</span>
-                    <span className="text-[11px] text-[#9AA99F]">Domain Readiness Signal</span>
+                    <span className="text-text-primary font-semibold">{r.shortName}</span>
+                    <span className="text-[11px] text-text-secondary">Domain Readiness Signal</span>
                   </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded border font-mono font-medium" style={{ color: statusColor, borderColor: `${statusColor}40`, background: `${statusColor}10` }}>
+                  <span className="text-[10px] px-2 py-0.5 rounded border font-mono font-medium" style={{ color: statusColor, borderColor: `color-mix(in srgb, ${statusColor} 25%, transparent)`, background: `color-mix(in srgb, ${statusColor} 6%, transparent)` }}>
                     {statusLabel} — {r.overallReadiness}%
                   </span>
                 </div>
@@ -277,10 +277,10 @@ export const DailySignalGraph: React.FC = () => {
       {urgentComps.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {urgentComps.map((comp) => (
-            <div key={comp.id} className="flex items-center gap-2 px-3 py-2 bg-[#14171D] border border-[#F59E0B]/30 rounded-lg">
-              <div className="w-2 h-2 rounded-full bg-[#F59E0B]" style={{ animation: reducedMotion ? 'none' : 'pulse-dot 2s ease-in-out infinite' }} />
-              <span className="text-xs text-[#F1F5F9]">{comp.companyName}</span>
-              <span className="text-[10px] font-mono text-[#F59E0B]">{comp.applicationStatus.replace('_', ' ')}</span>
+            <div key={comp.id} className="flex items-center gap-2 px-3 py-2 bg-surface-panel border border-status-warning/30 rounded-lg">
+              <div className="w-2 h-2 rounded-full bg-status-warning" style={{ animation: reducedMotion ? 'none' : 'pulse-dot 2s ease-in-out infinite' }} />
+              <span className="text-xs text-text-primary">{comp.companyName}</span>
+              <span className="text-[10px] font-mono text-status-warning">{comp.applicationStatus.replace('_', ' ')}</span>
             </div>
           ))}
         </div>

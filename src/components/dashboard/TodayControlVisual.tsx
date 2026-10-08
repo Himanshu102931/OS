@@ -155,8 +155,8 @@ export const TodayControlVisual: React.FC = () => {
         shortLabel: state.isDone ? 'DONE' : 'ACTION',
         icon: state.isDone ? CheckCircle2 : Sparkles,
         angle: 0,
-        color: state.isDone ? '#10B981' : '#E5A93C',
-        glowColor: state.isDone ? 'rgba(16,185,129,0.3)' : 'rgba(229,169,60,0.3)',
+        color: state.isDone ? 'var(--success)' : 'var(--primary)',
+        glowColor: state.isDone ? 'color-mix(in srgb, var(--success) 30%, transparent)' : 'color-mix(in srgb, var(--primary) 30%, transparent)',
         pulseState: state.isDone ? 'glow' : 'pulse',
       },
       {
@@ -165,8 +165,8 @@ export const TodayControlVisual: React.FC = () => {
         shortLabel: 'DSA',
         icon: Code2,
         angle: Math.PI * 0.7,
-        color: '#10B981',
-        glowColor: 'rgba(16,185,129,0.3)',
+        color: 'var(--success)',
+        glowColor: 'color-mix(in srgb, var(--success) 30%, transparent)',
         pulseState: state.dsaDue > 0 ? 'pulse' : 'glow',
       },
       {
@@ -175,8 +175,8 @@ export const TodayControlVisual: React.FC = () => {
         shortLabel: 'SKILLS',
         icon: BookOpen,
         angle: Math.PI * 1.4,
-        color: '#FFC665',
-        glowColor: 'rgba(255,198,101,0.3)',
+        color: 'var(--accent)',
+        glowColor: 'color-mix(in srgb, var(--accent) 30%, transparent)',
         pulseState: state.staleCount > 0 ? 'pulse' : 'glow',
       },
       {
@@ -185,8 +185,8 @@ export const TodayControlVisual: React.FC = () => {
         shortLabel: 'COMPANIES',
         icon: Building2,
         angle: Math.PI * 2.1,
-        color: '#F59E0B',
-        glowColor: 'rgba(245,158,11,0.3)',
+        color: 'var(--warning)',
+        glowColor: 'color-mix(in srgb, var(--warning) 30%, transparent)',
         pulseState: state.urgentComps > 0 ? 'pulse' : 'glow',
       },
       {
@@ -259,7 +259,7 @@ export const TodayControlVisual: React.FC = () => {
           cy={cy}
           r={orbitRadius}
           fill="none"
-          stroke="#262D38"
+          stroke="var(--border)"
           strokeWidth="0.5"
           strokeDasharray="3 6"
           opacity="0.4"
@@ -377,7 +377,7 @@ export const TodayControlVisual: React.FC = () => {
                 width: 36,
                 height: 36,
                 borderRadius: '50%',
-                background: '#14171D',
+                background: 'var(--surface)',
                 border: `2px solid ${node.color}`,
                 cursor: 'pointer',
                 display: 'flex',
@@ -427,13 +427,13 @@ export const TodayControlVisual: React.FC = () => {
               }}
             >
               <div
-                className="bg-[#1B2028] border border-[#3B4556] rounded-md px-2.5 py-1.5 shadow-lg"
-                style={{ borderColor: hNode.color + '60' }}
+                className="bg-surface-elevated border border-border-active rounded-md px-2.5 py-1.5 shadow-lg"
+                style={{ borderColor: `color-mix(in srgb, ${hNode.color} 38%, transparent)` }}
               >
                 <p className="text-[10px] font-bold" style={{ color: hNode.color }}>
                   {hNode.label}
                 </p>
-                <p className="text-[8px] text-[#8E98A8] mt-0.5">Click to navigate</p>
+                <p className="text-[8px] text-text-secondary mt-0.5">Click to navigate</p>
               </div>
             </div>
           );
@@ -442,7 +442,7 @@ export const TodayControlVisual: React.FC = () => {
 
       {/* Bottom label */}
       <div className="absolute bottom-1 left-0 right-0 text-center">
-        <span className="text-[9px] font-mono tracking-widest text-[#5C6675] uppercase">
+        <span className="text-[9px] font-mono tracking-widest text-text-secondary uppercase">
           {state.isDone ? '✓ All targets complete — Reflect & Seal' : 'PlaceOS Daily Control'}
         </span>
       </div>
