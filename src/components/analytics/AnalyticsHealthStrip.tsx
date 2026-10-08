@@ -30,7 +30,7 @@ export const AnalyticsHealthStrip: React.FC<AnalyticsHealthStripProps> = ({
 
   return (
     <section aria-label="Operational Health & Velocity Strip" className="space-y-2">
-      <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-[#5A6578] px-0.5">
+      <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-text-tertiary px-0.5">
         <span>Zone 2: Operational Health Telemetry</span>
         <span>Deterministic Evidence Readouts</span>
       </div>
@@ -39,23 +39,23 @@ export const AnalyticsHealthStrip: React.FC<AnalyticsHealthStripProps> = ({
         {/* 1. Study Velocity */}
         <div
           data-testid="telemetry-card-study-velocity"
-          className="kpi-card telemetry-card bg-[#14171D] border border-[#262D38] rounded-xl p-4.5 flex flex-col justify-between space-y-3"
+          className="kpi-card telemetry-card bg-surface-panel border border-border-default rounded-xl p-4.5 flex flex-col justify-between space-y-3"
         >
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-mono font-semibold text-[#8E98A8] uppercase tracking-wider flex items-center gap-1.5">
+              <span className="text-[11px] font-mono font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
                 <Clock className="size-3.5 text-[#F43F5E]" /> Study Velocity
               </span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#1B2028] text-[#8E98A8] border border-[#262D38]">
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-elevated text-text-secondary border border-border-default">
                 {activity.sealedDaysCount}d Sealed
               </span>
             </div>
-            <div className="text-2xl font-bold font-mono text-[#F1F5F9] kpi-value flex items-baseline gap-1.5">
+            <div className="text-2xl font-bold font-mono text-text-primary kpi-value flex items-baseline gap-1.5">
               <span>{activity.studyHours}h</span>
-              <span className="text-xs font-sans font-normal text-[#5A6578]">logged</span>
+              <span className="text-xs font-sans font-normal text-text-tertiary">logged</span>
             </div>
           </div>
-          <p className="text-[11px] text-[#8E98A8] leading-tight">
+          <p className="text-[11px] text-text-secondary leading-tight">
             Across {activity.sealedDaysCount} sealed days ({activity.consistencyRate}% consistency rate)
           </p>
         </div>
@@ -63,23 +63,23 @@ export const AnalyticsHealthStrip: React.FC<AnalyticsHealthStripProps> = ({
         {/* 2. Curriculum Progress */}
         <div
           data-testid="telemetry-card-curriculum-velocity"
-          className="kpi-card telemetry-card bg-[#14171D] border border-[#262D38] rounded-xl p-4.5 flex flex-col justify-between space-y-3"
+          className="kpi-card telemetry-card bg-surface-panel border border-border-default rounded-xl p-4.5 flex flex-col justify-between space-y-3"
         >
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-mono font-semibold text-[#8E98A8] uppercase tracking-wider flex items-center gap-1.5">
-                <CheckCircle2 className="size-3.5 text-[#10B981]" /> Curriculum Velocity
+              <span className="text-[11px] font-mono font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                <CheckCircle2 className="size-3.5 text-status-success" /> Curriculum Velocity
               </span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#10B981]/10 text-[#6EE7B7] border border-[#10B981]/30">
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-status-success/10 text-status-success border border-status-success/30">
                 Phase {progress.activePhaseCompletionRate}%
               </span>
             </div>
-            <div className="text-2xl font-bold font-mono text-[#F1F5F9] kpi-value flex items-baseline gap-1.5">
+            <div className="text-2xl font-bold font-mono text-text-primary kpi-value flex items-baseline gap-1.5">
               <span>{activity.completedTasksCount}</span>
-              <span className="text-xs font-sans font-normal text-[#5A6578]">tasks</span>
+              <span className="text-xs font-sans font-normal text-text-tertiary">tasks</span>
             </div>
           </div>
-          <p className="text-[11px] text-[#8E98A8] leading-tight">
+          <p className="text-[11px] text-text-secondary leading-tight">
             Phase: {progress.activePhaseCompletionRate}% • Roadmap: {progress.roadmapCompletionRate}% overall
           </p>
         </div>
@@ -87,23 +87,23 @@ export const AnalyticsHealthStrip: React.FC<AnalyticsHealthStripProps> = ({
         {/* 3. DSA Quality & Independence */}
         <div
           data-testid="telemetry-card-dsa-quality"
-          className="kpi-card telemetry-card bg-[#14171D] border border-[#262D38] rounded-xl p-4.5 flex flex-col justify-between space-y-3"
+          className="kpi-card telemetry-card bg-surface-panel border border-border-default rounded-xl p-4.5 flex flex-col justify-between space-y-3"
         >
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-mono font-semibold text-[#8E98A8] uppercase tracking-wider flex items-center gap-1.5">
-                <Code2 className="size-3.5 text-[#2DD4BF]" /> DSA Solve Quality
+              <span className="text-[11px] font-mono font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                <Code2 className="size-3.5 text-info" /> DSA Solve Quality
               </span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#2DD4BF]/10 text-[#5EEAD4] border border-[#2DD4BF]/30">
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-info/10 text-info border border-info/30">
                 {quality.independentSolveRatio}% Indep
               </span>
             </div>
-            <div className="text-2xl font-bold font-mono text-[#F1F5F9] kpi-value flex items-baseline gap-1.5">
+            <div className="text-2xl font-bold font-mono text-text-primary kpi-value flex items-baseline gap-1.5">
               <span>{activity.dsaPassedCount}</span>
-              <span className="text-xs font-sans font-normal text-[#5A6578]">solved</span>
+              <span className="text-xs font-sans font-normal text-text-tertiary">solved</span>
             </div>
           </div>
-          <p className="text-[11px] text-[#8E98A8] leading-tight">
+          <p className="text-[11px] text-text-secondary leading-tight">
             {quality.independentSolveRatio}% independent • {quality.assistedSolveRatio}% assisted solves
           </p>
         </div>
@@ -111,13 +111,13 @@ export const AnalyticsHealthStrip: React.FC<AnalyticsHealthStripProps> = ({
         {/* 4. Operational Bottleneck Debt */}
         <div
           data-testid="telemetry-card-bottleneck-debt"
-          className="kpi-card telemetry-card bg-[#14171D] border border-[#262D38] rounded-xl p-4.5 flex flex-col justify-between space-y-3"
+          className="kpi-card telemetry-card bg-surface-panel border border-border-default rounded-xl p-4.5 flex flex-col justify-between space-y-3"
         >
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-mono font-semibold text-[#8E98A8] uppercase tracking-wider flex items-center gap-1.5">
+              <span className="text-[11px] font-mono font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
                 <AlertTriangle
-                  className={`size-3.5 ${totalBottlenecks > 0 ? 'text-[#F43F5E]' : 'text-[#10B981]'}`}
+                  className={`size-3.5 ${totalBottlenecks > 0 ? 'text-[#F43F5E]' : 'text-status-success'}`}
                 />{' '}
                 Bottleneck Debt
               </span>
@@ -125,18 +125,18 @@ export const AnalyticsHealthStrip: React.FC<AnalyticsHealthStripProps> = ({
                 className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
                   totalBottlenecks > 0
                     ? 'bg-[#F43F5E]/10 text-[#FDA4AF] border-[#F43F5E]/30'
-                    : 'bg-[#10B981]/10 text-[#6EE7B7] border-[#10B981]/30'
+                    : 'bg-status-success/10 text-status-success border-status-success/30'
                 }`}
               >
                 {totalBottlenecks > 0 ? `${totalBottlenecks} Actionable` : 'Healthy'}
               </span>
             </div>
-            <div className="text-2xl font-bold font-mono text-[#F1F5F9] kpi-value flex items-baseline gap-1.5">
+            <div className="text-2xl font-bold font-mono text-text-primary kpi-value flex items-baseline gap-1.5">
               <span>{totalBottlenecks}</span>
-              <span className="text-xs font-sans font-normal text-[#5A6578]">gaps</span>
+              <span className="text-xs font-sans font-normal text-text-tertiary">gaps</span>
             </div>
           </div>
-          <p className="text-[11px] text-[#8E98A8] leading-tight">
+          <p className="text-[11px] text-text-secondary leading-tight">
             {gaps.overdueDsaCount} overdue • {gaps.staleEvidenceTopicsCount} stale •{' '}
             {gaps.remediationRequiredCount} remediation
           </p>

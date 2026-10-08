@@ -21,7 +21,7 @@ export const PrimaryGapHero: React.FC<PrimaryGapHeroProps> = ({
         className="skills-signal-track bg-surface border border-border rounded-xl p-5 sm:p-6"
       >
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-[var(--success,#4CAF78)]/15 text-[var(--success,#4CAF78)] border border-[var(--success,#4CAF78)]/30">
+          <div className="p-2 rounded-lg bg-status-success/15 text-status-success border border-status-success/30">
             <Sparkles className="size-5" />
           </div>
           <div>
@@ -48,7 +48,7 @@ export const PrimaryGapHero: React.FC<PrimaryGapHeroProps> = ({
       {/* Header Badge */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-[4px] bg-[var(--action-accent-skills-subtle,#8b5cf61f)] border border-[var(--action-accent-skills-border,#8b5cf659)] text-[var(--action-accent-skills,#8B5CF6)]">
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-[4px] bg-[var(--action-accent-skills-subtle)] border border-[var(--action-accent-skills-border)] text-[var(--action-accent-skills)]">
             <ShieldAlert className="size-3.5" aria-hidden="true" />
             Top Priority Competence Gap
           </span>
@@ -58,7 +58,7 @@ export const PrimaryGapHero: React.FC<PrimaryGapHeroProps> = ({
         </div>
 
         {primaryGap.targetLevel >= 4 && (
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded-[3px] bg-[var(--warning,#D19A45)]/15 text-[var(--warning,#D19A45)] border border-[var(--warning,#D19A45)]/30 font-semibold">
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded-[3px] bg-status-warning/15 text-status-warning border border-status-warning/30 font-semibold">
             Company Target Req: Level {primaryGap.targetLevel}
           </span>
         )}
@@ -74,9 +74,9 @@ export const PrimaryGapHero: React.FC<PrimaryGapHeroProps> = ({
             <span
               className={`text-xs font-mono px-2 py-0.5 rounded-[4px] font-semibold border ${
                 primaryGap.readinessStatus === 'at_risk'
-                  ? 'bg-[var(--danger,#D05A52)]/15 text-[var(--danger,#D05A52)] border-[var(--danger,#D05A52)]/30'
+                  ? 'bg-status-danger/15 text-status-danger border-status-danger/30'
                   : primaryGap.readinessStatus === 'on_track'
-                  ? 'bg-[var(--warning,#D19A45)]/15 text-[var(--warning,#D19A45)] border-[var(--warning,#D19A45)]/30'
+                  ? 'bg-status-warning/15 text-status-warning border-status-warning/30'
                   : 'bg-surface-elevated text-foreground-muted border-border'
               }`}
             >
@@ -91,15 +91,15 @@ export const PrimaryGapHero: React.FC<PrimaryGapHeroProps> = ({
           {/* Causal / Freshness indicators */}
           <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-foreground-muted pt-1">
             <div className="flex items-center gap-1.5">
-              <Compass className="size-3.5 text-[var(--action-accent-skills,#8B5CF6)]" />
+              <Compass className="size-3.5 text-[var(--action-accent-skills)]" />
               <span>Evidence Strength: <strong className="text-foreground">{primaryGap.evidenceStrength}%</strong></span>
             </div>
             <div className="flex items-center gap-1.5">
-              <Clock className="size-3.5 text-[var(--warning,#D19A45)]" />
+              <Clock className="size-3.5 text-status-warning" />
               <span>Freshness: <strong className="text-foreground capitalize">{primaryGap.freshness}</strong></span>
             </div>
             <div className="flex items-center gap-1.5">
-              <Target className="size-3.5 text-[var(--action-accent-skills,#8B5CF6)]" />
+              <Target className="size-3.5 text-[var(--action-accent-skills)]" />
               <span>Level Progress: <strong className="text-foreground">L{primaryGap.currentLevel} / L{primaryGap.targetLevel}</strong></span>
             </div>
           </div>
@@ -110,7 +110,7 @@ export const PrimaryGapHero: React.FC<PrimaryGapHeroProps> = ({
           <Button
             size="sm"
             onClick={() => onExecuteAction(primaryGap)}
-            className="w-full h-9 text-xs font-mono font-bold text-white bg-[var(--action-accent-skills,#8B5CF6)] hover:bg-[var(--action-accent-skills-hover,#A78BFA)] rounded-[4px] shadow-sm transition-all flex items-center justify-center gap-2 focus-visible:ring-2 focus-visible:ring-[var(--action-accent-skills-ring,#C4B5FD)]"
+            className="w-full h-9 text-xs font-mono font-bold text-white bg-[var(--action-accent-skills)] hover:bg-[var(--action-accent-skills-hover)] rounded-[4px] shadow-sm transition-all flex items-center justify-center gap-2 focus-visible:ring-2 focus-visible:ring-[var(--action-accent-skills-ring)]"
           >
             <span>Strengthen Skill</span>
             <ArrowRight className="size-3.5" aria-hidden="true" />

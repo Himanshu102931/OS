@@ -30,10 +30,10 @@ export const AnalyticsHeader: React.FC<AnalyticsHeaderProps> = ({
   return (
     <header className="space-y-4 font-sans" aria-label="Analytics & Operational Review Header">
       {/* Title, Subtitle, Guide, Window Selector */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#262D38]">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border-default">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2.5 flex-wrap">
-            <h1 className="text-2xl font-bold tracking-tight text-[#F1F5F9]">
+            <h1 className="text-2xl font-bold tracking-tight text-text-primary">
               Analytics & Operational Review
             </h1>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-[#F43F5E]/10 text-[#FDA4AF] border border-[#F43F5E]/30 tracking-wider">
@@ -41,7 +41,7 @@ export const AnalyticsHeader: React.FC<AnalyticsHeaderProps> = ({
               TELEMETRY V1 • DETERMINISTIC
             </span>
           </div>
-          <p className="text-xs text-[#8E98A8] max-w-2xl leading-relaxed">
+          <p className="text-xs text-text-secondary max-w-2xl leading-relaxed">
             Weekly telemetry summary, learning velocity, retention radar, and evidence-backed review actions.
           </p>
         </div>
@@ -53,7 +53,7 @@ export const AnalyticsHeader: React.FC<AnalyticsHeaderProps> = ({
           <div
             role="tablist"
             aria-label="Analytics Time Window Selector"
-            className="flex items-center gap-1 bg-[#14171D] p-1 border border-[#262D38] rounded-lg"
+            className="flex items-center gap-1 bg-surface-panel p-1 border border-border-default rounded-lg"
           >
             {windowOptions.map((opt) => {
               const isActive = timeWindow === opt.id;
@@ -68,7 +68,7 @@ export const AnalyticsHeader: React.FC<AnalyticsHeaderProps> = ({
                   className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all min-h-[32px] sm:min-h-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F43F5E] ${
                     isActive
                       ? 'bg-[#F43F5E] text-white shadow-sm font-bold'
-                      : 'text-[#8E98A8] hover:text-[#F1F5F9] hover:bg-[#1B2028]'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-elevated'
                   }`}
                   data-testid={`time-window-${opt.id}`}
                 >
@@ -81,13 +81,13 @@ export const AnalyticsHeader: React.FC<AnalyticsHeaderProps> = ({
       </div>
 
       {/* Date Range Scope Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-[#14171D] border border-[#262D38] rounded-xl text-xs text-[#8E98A8]">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-surface-panel border border-border-default rounded-xl text-xs text-text-secondary">
         <div className="flex items-center gap-2 font-mono">
           <Calendar className="size-3.5 text-[#F43F5E]" />
           <span>
-            Period: <strong className="text-[#F1F5F9] font-semibold">{startDateISO}</strong> to{' '}
-            <strong className="text-[#F1F5F9] font-semibold">{endDateISO}</strong>{' '}
-            <span className="text-[#5A6578]">({totalDaysInWindow} {totalDaysInWindow === 1 ? 'day' : 'days'})</span>
+            Period: <strong className="text-text-primary font-semibold">{startDateISO}</strong> to{' '}
+            <strong className="text-text-primary font-semibold">{endDateISO}</strong>{' '}
+            <span className="text-text-tertiary">({totalDaysInWindow} {totalDaysInWindow === 1 ? 'day' : 'days'})</span>
           </span>
         </div>
 

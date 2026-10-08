@@ -71,19 +71,19 @@ export const EvidenceTraceabilityModal: React.FC<EvidenceTraceabilityModalProps>
     switch (readiness.readinessStatus) {
       case 'ready':
         return (
-          <span className="inline-flex items-center gap-1 text-xs font-mono font-semibold text-[var(--success,#4CAF78)] bg-[var(--success,#4CAF78)]/15 border border-[var(--success,#4CAF78)]/30 px-2.5 py-1 rounded-[4px]">
+          <span className="inline-flex items-center gap-1 text-xs font-mono font-semibold text-status-success bg-status-success/15 border border-status-success/30 px-2.5 py-1 rounded-[4px]">
             <ShieldCheck className="size-3.5" aria-hidden="true" /> Placement Ready
           </span>
         );
       case 'on_track':
         return (
-          <span className="inline-flex items-center gap-1 text-xs font-mono font-semibold text-[var(--warning,#D19A45)] bg-[var(--warning,#D19A45)]/15 border border-[var(--warning,#D19A45)]/30 px-2.5 py-1 rounded-[4px]">
+          <span className="inline-flex items-center gap-1 text-xs font-mono font-semibold text-status-warning bg-status-warning/15 border border-status-warning/30 px-2.5 py-1 rounded-[4px]">
             <TrendingUp className="size-3.5" aria-hidden="true" /> On Track
           </span>
         );
       case 'at_risk':
         return (
-          <span className="inline-flex items-center gap-1 text-xs font-mono font-semibold text-[var(--danger,#D05A52)] bg-[var(--danger,#D05A52)]/15 border border-[var(--danger,#D05A52)]/30 px-2.5 py-1 rounded-[4px]">
+          <span className="inline-flex items-center gap-1 text-xs font-mono font-semibold text-status-danger bg-status-danger/15 border border-status-danger/30 px-2.5 py-1 rounded-[4px]">
             <AlertTriangle className="size-3.5" aria-hidden="true" /> At Risk / Aging
           </span>
         );
@@ -101,13 +101,13 @@ export const EvidenceTraceabilityModal: React.FC<EvidenceTraceabilityModalProps>
     switch (readiness.evidenceClassification) {
       case 'demonstrated':
         return (
-          <span className="text-[11px] font-mono px-2 py-0.5 rounded-[4px] bg-[var(--success,#4CAF78)]/15 text-[var(--success,#4CAF78)] border border-[var(--success,#4CAF78)]/30 font-semibold">
+          <span className="text-[11px] font-mono px-2 py-0.5 rounded-[4px] bg-status-success/15 text-status-success border border-status-success/30 font-semibold">
             Demonstrated Evidence
           </span>
         );
       case 'inferred':
         return (
-          <span className="text-[11px] font-mono px-2 py-0.5 rounded-[4px] bg-[var(--action-accent-skills-subtle,#8b5cf61f)] text-[var(--action-accent-skills,#8B5CF6)] border border-[var(--action-accent-skills-border,#8b5cf659)] font-semibold">
+          <span className="text-[11px] font-mono px-2 py-0.5 rounded-[4px] bg-[var(--action-accent-skills-subtle)] text-[var(--action-accent-skills)] border border-[var(--action-accent-skills-border)] font-semibold">
             Inferred Readiness
           </span>
         );
@@ -132,7 +132,7 @@ export const EvidenceTraceabilityModal: React.FC<EvidenceTraceabilityModalProps>
         {/* Drawer Header */}
         <div className="flex items-start justify-between border-b border-border pb-4">
           <div className="space-y-1">
-            <div className="flex items-center gap-2 text-xs font-mono text-[var(--action-accent-skills,#8B5CF6)]">
+            <div className="flex items-center gap-2 text-xs font-mono text-[var(--action-accent-skills)]">
               <span className="uppercase font-bold tracking-wider">{readiness.domainName}</span>
               <span className="text-secondary">•</span>
               <span className="text-foreground-muted">Importance: {readiness.importance}/10</span>
@@ -164,7 +164,7 @@ export const EvidenceTraceabilityModal: React.FC<EvidenceTraceabilityModalProps>
 
           <div>
             <span className="text-foreground-muted text-[11px] block">Level Progress</span>
-            <span className="text-lg font-bold text-[var(--action-accent-skills,#8B5CF6)]">
+            <span className="text-lg font-bold text-[var(--action-accent-skills)]">
               Level {readiness.currentLevel} <span className="text-secondary text-xs font-normal">/ {readiness.targetLevel}</span>
             </span>
           </div>
@@ -174,11 +174,11 @@ export const EvidenceTraceabilityModal: React.FC<EvidenceTraceabilityModalProps>
             <span
               className={`text-xs font-bold capitalize mt-1 inline-block ${
                 readiness.freshness === 'fresh'
-                  ? 'text-[var(--success,#4CAF78)]'
+                  ? 'text-status-success'
                   : readiness.freshness === 'aging'
-                  ? 'text-[var(--warning,#D19A45)]'
+                  ? 'text-status-warning'
                   : readiness.freshness === 'stale'
-                  ? 'text-[var(--danger,#D05A52)]'
+                  ? 'text-status-danger'
                   : 'text-foreground-muted'
               }`}
             >
@@ -197,7 +197,7 @@ export const EvidenceTraceabilityModal: React.FC<EvidenceTraceabilityModalProps>
         {/* What Caused This / Traceability Section */}
         <div className="space-y-3">
           <h3 className="text-xs font-bold font-mono text-foreground uppercase tracking-wider flex items-center gap-1.5">
-            <HelpCircle className="size-3.5 text-[var(--action-accent-skills,#8B5CF6)]" aria-hidden="true" />
+            <HelpCircle className="size-3.5 text-[var(--action-accent-skills)]" aria-hidden="true" />
             What Caused This Readiness Rating?
           </h3>
 
@@ -226,7 +226,7 @@ export const EvidenceTraceabilityModal: React.FC<EvidenceTraceabilityModalProps>
         {/* Supporting Evidence Log Timeline */}
         <div className="space-y-3">
           <h3 className="text-xs font-bold font-mono text-foreground uppercase tracking-wider flex items-center gap-1.5">
-            <CheckCircle2 className="size-3.5 text-[var(--success,#4CAF78)]" aria-hidden="true" />
+            <CheckCircle2 className="size-3.5 text-status-success" aria-hidden="true" />
             Supporting Evidence Timeline ({readiness.supportingEvidence.length})
           </h3>
 
@@ -247,11 +247,11 @@ export const EvidenceTraceabilityModal: React.FC<EvidenceTraceabilityModalProps>
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       {ev.sourceType === 'dsa_problem' || ev.sourceType === 'dsa_attempt' ? (
-                        <Code className="size-4 text-[var(--success,#4CAF78)]" aria-hidden="true" />
+                        <Code className="size-4 text-status-success" aria-hidden="true" />
                       ) : ev.sourceType === 'task' ? (
-                        <FileCode className="size-4 text-[var(--action-accent-skills,#8B5CF6)]" aria-hidden="true" />
+                        <FileCode className="size-4 text-[var(--action-accent-skills)]" aria-hidden="true" />
                       ) : ev.sourceType === 'manual_override' ? (
-                        <Sliders className="size-4 text-[var(--warning,#D19A45)]" aria-hidden="true" />
+                        <Sliders className="size-4 text-status-warning" aria-hidden="true" />
                       ) : (
                         <FileText className="size-4 text-foreground-muted" aria-hidden="true" />
                       )}
@@ -264,8 +264,8 @@ export const EvidenceTraceabilityModal: React.FC<EvidenceTraceabilityModalProps>
                             data-testid={`topic-evidence-status-${index}`}
                             className={
                               source.availability === 'missing'
-                                ? 'px-1.5 py-0.5 rounded-[3px] border border-[var(--danger,#D05A52)]/40 text-[var(--danger,#D05A52)]'
-                                : 'px-1.5 py-0.5 rounded-[3px] border border-[var(--success,#4CAF78)]/40 text-[var(--success,#4CAF78)]'
+                                ? 'px-1.5 py-0.5 rounded-[3px] border border-status-danger/40 text-status-danger'
+                                : 'px-1.5 py-0.5 rounded-[3px] border border-status-success/40 text-status-success'
                             }
                           >
                             {source.availability === 'missing' ? 'source unavailable' : 'source found'}
@@ -275,7 +275,7 @@ export const EvidenceTraceabilityModal: React.FC<EvidenceTraceabilityModalProps>
                     </div>
 
                     <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
-                      <span className="font-bold text-[var(--action-accent-skills,#8B5CF6)] text-xs">+{ev.scoreContribution}%</span>
+                      <span className="font-bold text-[var(--action-accent-skills)] text-xs">+{ev.scoreContribution}%</span>
                       {ev.timestamp && (
                         <span className="text-[10px] text-foreground-muted block">
                           {ev.timestamp.slice(0, 10)}
@@ -316,7 +316,7 @@ export const EvidenceTraceabilityModal: React.FC<EvidenceTraceabilityModalProps>
         {/* Gap Explanation & Recommended Action */}
         <div className="p-4 bg-surface-elevated rounded-lg border border-border space-y-3 text-xs font-mono">
           <div className="flex items-start gap-2">
-            <Target className="size-4 text-[var(--action-accent-skills,#8B5CF6)] shrink-0 mt-0.5" aria-hidden="true" />
+            <Target className="size-4 text-[var(--action-accent-skills)] shrink-0 mt-0.5" aria-hidden="true" />
             <div>
               <span className="font-bold text-foreground block text-[11px] uppercase tracking-wider">Gap Analysis & Target Requirement</span>
               <p className="text-foreground-muted mt-1 leading-relaxed">{readiness.gapExplanation}</p>
@@ -326,7 +326,7 @@ export const EvidenceTraceabilityModal: React.FC<EvidenceTraceabilityModalProps>
           <div className="pt-2 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="text-xs text-foreground">
               <span className="text-foreground-muted">Recommended Action: </span>
-              <span className="font-bold text-[var(--action-accent-skills,#8B5CF6)]">{readiness.recommendedAction.label}</span>
+              <span className="font-bold text-[var(--action-accent-skills)]">{readiness.recommendedAction.label}</span>
             </div>
 
             <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -347,7 +347,7 @@ export const EvidenceTraceabilityModal: React.FC<EvidenceTraceabilityModalProps>
               <Button
                 size="sm"
                 onClick={handleActionClick}
-                className="text-xs bg-[var(--action-accent-skills,#8B5CF6)] hover:bg-[var(--action-accent-skills-hover,#A78BFA)] text-white font-bold font-mono rounded-[4px] w-full sm:w-auto shadow-xs"
+                className="text-xs bg-[var(--action-accent-skills)] hover:bg-[var(--action-accent-skills-hover)] text-white font-bold font-mono rounded-[4px] w-full sm:w-auto shadow-xs"
               >
                 Execute Action <ArrowRight className="size-3.5 ml-1" aria-hidden="true" />
               </Button>

@@ -41,7 +41,7 @@ export const AnalyticsObservatory: React.FC<AnalyticsObservatoryProps> = ({
 
   return (
     <section aria-label="Zone 3: Telemetry Observatory" className="space-y-3">
-      <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-[#5A6578] px-0.5">
+      <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-text-tertiary px-0.5">
         <span>Zone 3: Telemetry Observatory</span>
         <span>Dual-Panel Memory & Progression Radar</span>
       </div>
@@ -50,32 +50,32 @@ export const AnalyticsObservatory: React.FC<AnalyticsObservatoryProps> = ({
         {/* Panel A: Leitner Spaced Repetition Radar */}
         <div
           data-testid="observatory-panel-leitner"
-          className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-4 flex flex-col justify-between"
+          className="bg-surface-panel border border-border-default rounded-xl p-5 space-y-4 flex flex-col justify-between"
         >
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <BrainCircuit className="size-4 text-[#F43F5E]" />
-                <h2 className="text-sm font-bold text-[#F1F5F9] font-sans">
+                <h2 className="text-sm font-bold text-text-primary font-sans">
                   Leitner Spaced Repetition Radar
                 </h2>
               </div>
               <span
-                className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-[#1B2028] text-[#6EE7B7] border border-[#10B981]/30 flex items-center gap-1"
+                className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-surface-elevated text-status-success border border-status-success/30 flex items-center gap-1"
                 aria-label={`Review Retention Rate: ${quality.reviewRetentionRate}%`}
               >
-                <ShieldCheck className="size-3 text-[#10B981]" />
+                <ShieldCheck className="size-3 text-status-success" />
                 {quality.reviewRetentionRate}% Retention
               </span>
             </div>
 
-            <p className="text-xs text-[#8E98A8] leading-relaxed">
+            <p className="text-xs text-text-secondary leading-relaxed">
               Tracking forgetting-curve transitions across all 150 curated algorithmic problems.
             </p>
 
             {/* Proportional Stacked Box Bar */}
             <div className="space-y-1.5 pt-1">
-              <div className="flex items-center justify-between text-[11px] font-mono text-[#8E98A8]">
+              <div className="flex items-center justify-between text-[11px] font-mono text-text-secondary">
                 <span>Box Distribution (150 Problems)</span>
                 <span>
                   {gaps.overdueDsaCount > 0 ? (
@@ -84,7 +84,7 @@ export const AnalyticsObservatory: React.FC<AnalyticsObservatoryProps> = ({
                       {gaps.overdueDsaCount} Due Today
                     </span>
                   ) : (
-                    <span className="text-[#6EE7B7]">All Reviews Clear</span>
+                    <span className="text-status-success">All Reviews Clear</span>
                   )}
                 </span>
               </div>
@@ -95,7 +95,7 @@ export const AnalyticsObservatory: React.FC<AnalyticsObservatoryProps> = ({
                 aria-valuenow={quality.boxDistribution[4]}
                 aria-valuemin={0}
                 aria-valuemax={totalBoxes}
-                className="h-3 w-full bg-[#0F1216] rounded-full overflow-hidden flex border border-[#262D38]"
+                className="h-3 w-full bg-surface-canvas rounded-full overflow-hidden flex border border-border-default"
               >
                 <div
                   style={{ width: `${box1Pct}%` }}
@@ -122,34 +122,34 @@ export const AnalyticsObservatory: React.FC<AnalyticsObservatoryProps> = ({
 
             {/* 4 Box Pills */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 font-mono text-xs">
-              <div className="p-2 rounded bg-[#1B2028] border border-[#262D38] space-y-0.5">
-                <div className="flex items-center gap-1.5 text-[10px] text-[#8E98A8]">
+              <div className="p-2 rounded bg-surface-elevated border border-border-default space-y-0.5">
+                <div className="flex items-center gap-1.5 text-[10px] text-text-secondary">
                   <span className="size-2 rounded-full bg-[#384252]" /> Box 1 (1d)
                 </div>
-                <div className="font-bold text-[#F1F5F9]">{quality.boxDistribution[1] || 0}</div>
+                <div className="font-bold text-text-primary">{quality.boxDistribution[1] || 0}</div>
               </div>
-              <div className="p-2 rounded bg-[#1B2028] border border-[#262D38] space-y-0.5">
-                <div className="flex items-center gap-1.5 text-[10px] text-[#8E98A8]">
+              <div className="p-2 rounded bg-surface-elevated border border-border-default space-y-0.5">
+                <div className="flex items-center gap-1.5 text-[10px] text-text-secondary">
                   <span className="size-2 rounded-full bg-[#3B82F6]" /> Box 2 (3d)
                 </div>
-                <div className="font-bold text-[#F1F5F9]">{quality.boxDistribution[2] || 0}</div>
+                <div className="font-bold text-text-primary">{quality.boxDistribution[2] || 0}</div>
               </div>
-              <div className="p-2 rounded bg-[#1B2028] border border-[#262D38] space-y-0.5">
-                <div className="flex items-center gap-1.5 text-[10px] text-[#8E98A8]">
+              <div className="p-2 rounded bg-surface-elevated border border-border-default space-y-0.5">
+                <div className="flex items-center gap-1.5 text-[10px] text-text-secondary">
                   <span className="size-2 rounded-full bg-[#8B5CF6]" /> Box 3 (7d)
                 </div>
-                <div className="font-bold text-[#F1F5F9]">{quality.boxDistribution[3] || 0}</div>
+                <div className="font-bold text-text-primary">{quality.boxDistribution[3] || 0}</div>
               </div>
-              <div className="p-2 rounded bg-[#1B2028] border border-[#262D38] space-y-0.5">
-                <div className="flex items-center gap-1.5 text-[10px] text-[#8E98A8]">
+              <div className="p-2 rounded bg-surface-elevated border border-border-default space-y-0.5">
+                <div className="flex items-center gap-1.5 text-[10px] text-text-secondary">
                   <span className="size-2 rounded-full bg-[#10B981]" /> Box 4 (14d)
                 </div>
-                <div className="font-bold text-[#F1F5F9]">{quality.boxDistribution[4] || 0}</div>
+                <div className="font-bold text-text-primary">{quality.boxDistribution[4] || 0}</div>
               </div>
             </div>
           </div>
 
-          <div className="text-[11px] text-[#5A6578] border-t border-[#262D38] pt-2 flex items-center justify-between font-mono">
+          <div className="text-[11px] text-text-tertiary border-t border-border-default pt-2 flex items-center justify-between font-mono">
             <span>Intervals: 1d → 3d → 7d → 14d</span>
             <span>Box 4 = Mastered</span>
           </div>
@@ -158,34 +158,34 @@ export const AnalyticsObservatory: React.FC<AnalyticsObservatoryProps> = ({
         {/* Panel B: Pattern & Domain Progression Radar */}
         <div
           data-testid="observatory-panel-progression"
-          className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-4 flex flex-col justify-between"
+          className="bg-surface-panel border border-border-default rounded-xl p-5 space-y-4 flex flex-col justify-between"
         >
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Layers className="size-4 text-[#2DD4BF]" />
-                <h2 className="text-sm font-bold text-[#F1F5F9] font-sans">
+                <Layers className="size-4 text-info" />
+                <h2 className="text-sm font-bold text-text-primary font-sans">
                   Pattern Progression & Domain Readiness
                 </h2>
               </div>
               <span
-                className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-[#1B2028] text-[#5EEAD4] border border-[#2DD4BF]/30 flex items-center gap-1"
+                className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-surface-elevated text-info border border-info/30 flex items-center gap-1"
                 aria-label={`Overall Domain Readiness: ${progress.overallDomainReadiness}%`}
               >
-                <TrendingUp className="size-3 text-[#2DD4BF]" />
+                <TrendingUp className="size-3 text-info" />
                 {progress.overallDomainReadiness}% Ready
               </span>
             </div>
 
-            <p className="text-xs text-[#8E98A8] leading-relaxed">
+            <p className="text-xs text-text-secondary leading-relaxed">
               Curriculum pattern penetration and evidence-weighted competence across all 11 domains.
             </p>
 
             {/* Pattern Progress Bar */}
             <div className="space-y-1.5 pt-1">
-              <div className="flex items-center justify-between text-[11px] font-mono text-[#8E98A8]">
+              <div className="flex items-center justify-between text-[11px] font-mono text-text-secondary">
                 <span>17 Core Algorithmic Patterns</span>
-                <span className="text-[#F1F5F9] font-bold">
+                <span className="text-text-primary font-bold">
                   {progress.patternsAttemptedCount} / {progress.totalPatternsCount} ({patternPct}%)
                 </span>
               </div>
@@ -195,7 +195,7 @@ export const AnalyticsObservatory: React.FC<AnalyticsObservatoryProps> = ({
                 aria-valuenow={progress.patternsAttemptedCount}
                 aria-valuemin={0}
                 aria-valuemax={progress.totalPatternsCount}
-                className="h-2.5 w-full bg-[#0F1216] rounded-full overflow-hidden border border-[#262D38]"
+                className="h-2.5 w-full bg-surface-canvas rounded-full overflow-hidden border border-border-default"
               >
                 <div
                   style={{ width: `${patternPct}%` }}
@@ -206,9 +206,9 @@ export const AnalyticsObservatory: React.FC<AnalyticsObservatoryProps> = ({
 
             {/* Overall Domain Readiness Bar */}
             <div className="space-y-1.5 pt-1">
-              <div className="flex items-center justify-between text-[11px] font-mono text-[#8E98A8]">
+              <div className="flex items-center justify-between text-[11px] font-mono text-text-secondary">
                 <span>Weighted 11-Domain Curriculum Readiness</span>
-                <span className="text-[#2DD4BF] font-bold">
+                <span className="text-info font-bold">
                   {progress.overallDomainReadiness}%
                 </span>
               </div>
@@ -218,17 +218,17 @@ export const AnalyticsObservatory: React.FC<AnalyticsObservatoryProps> = ({
                 aria-valuenow={progress.overallDomainReadiness}
                 aria-valuemin={0}
                 aria-valuemax={100}
-                className="h-2.5 w-full bg-[#0F1216] rounded-full overflow-hidden border border-[#262D38]"
+                className="h-2.5 w-full bg-surface-canvas rounded-full overflow-hidden border border-border-default"
               >
                 <div
                   style={{ width: `${progress.overallDomainReadiness}%` }}
-                  className="bg-[#2DD4BF] h-full transition-all duration-300 rounded-full"
+                  className="bg-info h-full transition-all duration-300 rounded-full"
                 />
               </div>
             </div>
           </div>
 
-          <div className="text-[11px] text-[#5A6578] border-t border-[#262D38] pt-2 flex items-center justify-between font-mono">
+          <div className="text-[11px] text-text-tertiary border-t border-border-default pt-2 flex items-center justify-between font-mono">
             <span>Canonical skillsEngine aggregation</span>
             <span>Target Level = 4/5</span>
           </div>

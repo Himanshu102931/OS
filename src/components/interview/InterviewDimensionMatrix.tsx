@@ -35,11 +35,11 @@ export const InterviewDimensionMatrix: React.FC<InterviewDimensionMatrixProps> =
   return (
     <section aria-label="Readiness dimensions" className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-bold text-[#F1F5F9] flex items-center gap-2">
-          <Layers className="size-4 text-[#6366F1]" />
+        <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+          <Layers className="size-4 text-[var(--action-accent-interview)]" />
           Readiness Dimensions
         </h2>
-        <span className="text-[11px] text-[#8E98A8]">
+        <span className="text-[11px] text-text-secondary">
           {strongCount} strong · {developingCount} developing · {needsWorkCount} need work ·{' '}
           {unassessedCount} unassessed
         </span>

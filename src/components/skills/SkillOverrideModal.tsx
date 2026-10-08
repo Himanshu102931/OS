@@ -69,7 +69,7 @@ export const SkillOverrideModal: React.FC<SkillOverrideModalProps> = ({
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-border pb-4">
           <div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-[var(--warning,#D19A45)] uppercase tracking-wider font-mono">
+            <div className="flex items-center gap-2 text-xs font-semibold text-status-warning uppercase tracking-wider font-mono">
               <ShieldAlert className="size-3.5" aria-hidden="true" />
               <span>Self-Attested Skill Rating</span>
             </div>
@@ -88,8 +88,8 @@ export const SkillOverrideModal: React.FC<SkillOverrideModalProps> = ({
         </div>
 
         {/* Epistemic Distinction Notice */}
-        <div className="p-3 bg-[var(--warning,#D19A45)]/10 border border-[var(--warning,#D19A45)]/30 rounded-lg flex items-start gap-2.5 text-xs text-foreground-muted">
-          <AlertCircle className="size-4 text-[var(--warning,#D19A45)] shrink-0 mt-0.5" aria-hidden="true" />
+        <div className="p-3 bg-status-warning/10 border border-status-warning/30 rounded-lg flex items-start gap-2.5 text-xs text-foreground-muted">
+          <AlertCircle className="size-4 text-status-warning shrink-0 mt-0.5" aria-hidden="true" />
           <p className="leading-relaxed">
             <strong className="text-foreground">Self-Attestation Warning:</strong> Manual override modifies your local baseline rating without generating objective task or DSA evidence. Use for prior domain mastery calibration.
           </p>
@@ -103,10 +103,10 @@ export const SkillOverrideModal: React.FC<SkillOverrideModalProps> = ({
                 htmlFor="skill-strength-slider"
                 className="text-foreground-muted font-semibold flex items-center gap-1.5 text-[11px] uppercase tracking-wider"
               >
-                <Sliders className="size-3.5 text-[var(--action-accent-skills,#8B5CF6)]" aria-hidden="true" />
+                <Sliders className="size-3.5 text-[var(--action-accent-skills)]" aria-hidden="true" />
                 Evidence Strength (0 - 100)
               </label>
-              <span className="font-mono font-bold text-sm text-[var(--action-accent-skills,#8B5CF6)]">
+              <span className="font-mono font-bold text-sm text-[var(--action-accent-skills)]">
                 {evidenceStrength}%
               </span>
             </div>
@@ -117,7 +117,7 @@ export const SkillOverrideModal: React.FC<SkillOverrideModalProps> = ({
               max={100}
               value={evidenceStrength}
               onChange={(e) => setEvidenceStrength(Number(e.target.value))}
-              className="w-full accent-[var(--action-accent-skills,#8B5CF6)] cursor-pointer"
+              className="w-full accent-[var(--action-accent-skills)] cursor-pointer"
             />
           </div>
 
@@ -133,7 +133,7 @@ export const SkillOverrideModal: React.FC<SkillOverrideModalProps> = ({
               id="skill-freshness-select"
               value={freshness}
               onChange={(e) => setFreshness(e.target.value as SkillFreshnessState)}
-              className="w-full bg-surface text-foreground font-bold p-2.5 rounded-md border border-border focus:outline-none focus:border-[var(--action-accent-skills,#8B5CF6)] capitalize"
+              className="w-full bg-surface text-foreground font-bold p-2.5 rounded-md border border-border focus:outline-none focus:border-[var(--action-accent-skills)] capitalize"
             >
               <option value="fresh">Fresh (Practiced Recently)</option>
               <option value="aging">Aging (8 - 14 Days)</option>
@@ -156,7 +156,7 @@ export const SkillOverrideModal: React.FC<SkillOverrideModalProps> = ({
             <Button
               size="sm"
               type="submit"
-              className="text-xs bg-[var(--action-accent-skills,#8B5CF6)] hover:bg-[var(--action-accent-skills-hover,#A78BFA)] text-white font-mono font-bold rounded-[4px] shadow-xs"
+              className="text-xs bg-[var(--action-accent-skills)] hover:bg-[var(--action-accent-skills-hover)] text-white font-mono font-bold rounded-[4px] shadow-xs"
             >
               <CheckCircle2 className="size-3.5 mr-1" aria-hidden="true" /> Save Rating Override
             </Button>

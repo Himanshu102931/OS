@@ -71,7 +71,7 @@ function deriveHeroMission(scorecard: InterviewReadinessScorecard): HeroMission 
   if (scorecard.activeRemediationCount > 0 && dsaDim && dsaDim.band === 'needs_work') {
     return {
       badge: 'Urgent Remediation Priority',
-      badgeClass: 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30',
+      badgeClass: 'bg-status-warning/10 text-status-warning border-status-warning/30',
       icon: ShieldAlert,
       title: 'Resolve Algorithmic Remediation Deficit',
       dimensionName: 'Coding / DSA',
@@ -99,7 +99,7 @@ function deriveHeroMission(scorecard: InterviewReadinessScorecard): HeroMission 
     if (criticalDim) {
       return {
         badge: `Target Alignment: ${companyOverlay.companyName}`,
-        badgeClass: 'bg-[#38BDF8]/10 text-[#38BDF8] border-[#38BDF8]/30',
+        badgeClass: 'bg-info/10 text-info border-info/30',
         icon: Target,
         title: `Close ${criticalDim.name} Requirement Deficit`,
         dimensionName: criticalDim.name,
@@ -122,7 +122,7 @@ function deriveHeroMission(scorecard: InterviewReadinessScorecard): HeroMission 
   if (projectReadiness.defenseReadiness === 'needs_work') {
     return {
       badge: 'Architecture Defense Priority',
-      badgeClass: 'bg-[#06B6D4]/10 text-[#06B6D4] border-[#06B6D4]/30',
+      badgeClass: 'bg-info/10 text-info border-info/30',
       icon: Terminal,
       title: 'Execute Portfolio Project Architecture Defense',
       dimensionName: 'Projects / Project Lab',
@@ -181,7 +181,7 @@ export const InterviewHeroSpotlight: React.FC<InterviewHeroSpotlightProps> = ({
 
   return (
     <section
-      className="bg-[#11141A] border border-[#232834] rounded-xl p-5 sm:p-6 relative overflow-hidden shadow-lg interview-signal-track interview-view-container"
+      className="bg-surface-panel border border-border-default rounded-xl p-5 sm:p-6 relative overflow-hidden shadow-lg interview-signal-track interview-view-container"
       data-testid="interview-hero-spotlight"
       aria-label="Primary interview mission spotlight"
     >
@@ -198,12 +198,12 @@ export const InterviewHeroSpotlight: React.FC<InterviewHeroSpotlightProps> = ({
             >
               {mission.badge}
             </span>
-            <span className="text-xs text-[#7E8B9F] font-medium">
-              Dimension: <strong className="text-[#F1F5F9]">{mission.dimensionName}</strong>
+            <span className="text-xs text-text-secondary font-medium">
+              Dimension: <strong className="text-text-primary">{mission.dimensionName}</strong>
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5 text-[11px] text-[#7E8B9F] font-mono">
+          <div className="flex items-center gap-1.5 text-[11px] text-text-secondary font-mono">
             <CheckCircle2 className="size-3.5 text-action-accent" />
             <span>Deterministic Next Step</span>
           </div>
@@ -211,22 +211,22 @@ export const InterviewHeroSpotlight: React.FC<InterviewHeroSpotlightProps> = ({
 
         {/* Mission Headline & Description */}
         <div className="space-y-1.5">
-          <h2 className="text-lg sm:text-xl font-bold text-[#F1F5F9] tracking-tight flex items-center gap-2.5">
+          <h2 className="text-lg sm:text-xl font-bold text-text-primary tracking-tight flex items-center gap-2.5">
             <Icon className="size-5 text-action-accent shrink-0" />
             <span data-testid="hero-mission-title">{mission.title}</span>
           </h2>
-          <p className="text-xs sm:text-sm text-[#9AA6B8] leading-relaxed max-w-3xl">
+          <p className="text-xs sm:text-sm text-text-secondary leading-relaxed max-w-3xl">
             {mission.why}
           </p>
         </div>
 
         {/* Evidence Signal Strip & Action Row */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-3 border-t border-[#232834]">
-          <div className="text-xs text-[#7E8B9F] flex items-center gap-2">
-            <span className="font-semibold uppercase tracking-wider text-[10px] text-[#8E98A8]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-3 border-t border-border-default">
+          <div className="text-xs text-text-secondary flex items-center gap-2">
+            <span className="font-semibold uppercase tracking-wider text-[10px] text-text-secondary">
               Signal:
             </span>
-            <span className="text-[#F1F5F9] font-medium" data-testid="hero-mission-signal">
+            <span className="text-text-primary font-medium" data-testid="hero-mission-signal">
               {mission.signal}
             </span>
           </div>
@@ -240,7 +240,7 @@ export const InterviewHeroSpotlight: React.FC<InterviewHeroSpotlightProps> = ({
                   onAction(mission.secondaryAction!.route, mission.secondaryAction!.targetId)
                 }
                 data-testid="hero-secondary-action"
-                className="h-8 text-xs border-[#262D38] bg-[#181C24] hover:bg-[#202530] text-[#F1F5F9] rounded-md transition-colors"
+                className="h-8 text-xs border-border-default bg-surface-elevated hover:bg-surface-subtle text-text-primary rounded-md transition-colors"
               >
                 {mission.secondaryAction.label}
               </Button>

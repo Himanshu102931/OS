@@ -25,7 +25,7 @@ export const SkillsProvingStrip: React.FC<SkillsProvingStripProps> = ({
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
         {/* Metric 1: Overall Placement Readiness */}
         <div className="space-y-1.5 min-w-[240px]">
-          <span className="text-xs font-semibold text-[var(--action-accent-skills,#8B5CF6)] uppercase tracking-wider font-mono">
+          <span className="text-xs font-semibold text-[var(--action-accent-skills)] uppercase tracking-wider font-mono">
             Overall Placement Readiness
           </span>
           <div className="flex items-baseline gap-3">
@@ -47,10 +47,10 @@ export const SkillsProvingStrip: React.FC<SkillsProvingStripProps> = ({
           <div className="p-3 bg-surface-elevated border border-border rounded-lg space-y-1">
             <div className="flex items-center justify-between text-xs text-foreground-muted">
               <span className="font-mono text-[11px]">Ready Topics</span>
-              <ShieldCheck className="size-3.5 text-[var(--success,#4CAF78)]" aria-hidden="true" />
+              <ShieldCheck className="size-3.5 text-status-success" aria-hidden="true" />
             </div>
             <div className="text-base font-bold text-foreground font-mono">
-              <span className="text-[var(--success,#4CAF78)]">{readyCount}</span>
+              <span className="text-status-success">{readyCount}</span>
               <span className="text-xs text-foreground-muted font-normal"> / {totalTopicsCount}</span>
             </div>
             <span className="text-[10px] text-foreground-muted block">mastery threshold met</span>
@@ -60,10 +60,10 @@ export const SkillsProvingStrip: React.FC<SkillsProvingStripProps> = ({
           <div className="p-3 bg-surface-elevated border border-border rounded-lg space-y-1">
             <div className="flex items-center justify-between text-xs text-foreground-muted">
               <span className="font-mono text-[11px]">On Track</span>
-              <TrendingUp className="size-3.5 text-[var(--warning,#D19A45)]" aria-hidden="true" />
+              <TrendingUp className="size-3.5 text-status-warning" aria-hidden="true" />
             </div>
             <div className="text-base font-bold text-foreground font-mono">
-              <span className="text-[var(--warning,#D19A45)]">{onTrackCount}</span>
+              <span className="text-status-warning">{onTrackCount}</span>
               <span className="text-xs text-foreground-muted font-normal"> / {totalTopicsCount}</span>
             </div>
             <span className="text-[10px] text-foreground-muted block">active progression</span>
@@ -73,10 +73,10 @@ export const SkillsProvingStrip: React.FC<SkillsProvingStripProps> = ({
           <div className="p-3 bg-surface-elevated border border-border rounded-lg space-y-1 col-span-2 sm:col-span-1">
             <div className="flex items-center justify-between text-xs text-foreground-muted">
               <span className="font-mono text-[11px]">At-Risk & Stale</span>
-              <AlertTriangle className="size-3.5 text-[var(--danger,#D05A52)]" aria-hidden="true" />
+              <AlertTriangle className="size-3.5 text-status-danger" aria-hidden="true" />
             </div>
             <div className="text-base font-bold text-foreground font-mono">
-              <span className="text-[var(--danger,#D05A52)]">{atRiskCount}</span>
+              <span className="text-status-danger">{atRiskCount}</span>
               <span className="text-xs text-foreground-muted font-normal"> topics</span>
             </div>
             <span className="text-[10px] text-foreground-muted block">decay or deficit alert</span>
@@ -99,7 +99,7 @@ export const SkillsProvingStrip: React.FC<SkillsProvingStripProps> = ({
           className="w-full bg-background rounded-full h-2.5 overflow-hidden border border-border"
         >
           <div
-            className="h-full rounded-full transition-all duration-500 bg-[var(--action-accent-skills,#8B5CF6)]"
+            className="h-full rounded-full transition-all duration-500 bg-[var(--action-accent-skills)]"
             style={{ width: `${Math.min(100, Math.max(2, overallPlacementReadiness))}%` }}
           />
         </div>

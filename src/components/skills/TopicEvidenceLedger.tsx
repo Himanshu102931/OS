@@ -38,19 +38,19 @@ export const TopicEvidenceLedger: React.FC<TopicEvidenceLedgerProps> = ({
     switch (status) {
       case 'ready':
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-mono font-semibold text-[var(--success,#4CAF78)] bg-[var(--success,#4CAF78)]/15 border border-[var(--success,#4CAF78)]/30 px-2 py-0.5 rounded-[4px]">
+          <span className="inline-flex items-center gap-1 text-[11px] font-mono font-semibold text-status-success bg-status-success/15 border border-status-success/30 px-2 py-0.5 rounded-[4px]">
             <ShieldCheck className="size-3" aria-hidden="true" /> Ready
           </span>
         );
       case 'on_track':
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-mono font-semibold text-[var(--warning,#D19A45)] bg-[var(--warning,#D19A45)]/15 border border-[var(--warning,#D19A45)]/30 px-2 py-0.5 rounded-[4px]">
+          <span className="inline-flex items-center gap-1 text-[11px] font-mono font-semibold text-status-warning bg-status-warning/15 border border-status-warning/30 px-2 py-0.5 rounded-[4px]">
             <TrendingUp className="size-3" aria-hidden="true" /> On Track
           </span>
         );
       case 'at_risk':
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-mono font-semibold text-[var(--danger,#D05A52)] bg-[var(--danger,#D05A52)]/15 border border-[var(--danger,#D05A52)]/30 px-2 py-0.5 rounded-[4px]">
+          <span className="inline-flex items-center gap-1 text-[11px] font-mono font-semibold text-status-danger bg-status-danger/15 border border-status-danger/30 px-2 py-0.5 rounded-[4px]">
             <AlertTriangle className="size-3" aria-hidden="true" /> At Risk
           </span>
         );
@@ -68,13 +68,13 @@ export const TopicEvidenceLedger: React.FC<TopicEvidenceLedgerProps> = ({
     switch (classification) {
       case 'demonstrated':
         return (
-          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-[3px] bg-[var(--success,#4CAF78)]/15 text-[var(--success,#4CAF78)] border border-[var(--success,#4CAF78)]/30 font-medium">
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-[3px] bg-status-success/15 text-status-success border border-status-success/30 font-medium">
             Demonstrated
           </span>
         );
       case 'inferred':
         return (
-          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-[3px] bg-[var(--action-accent-skills-subtle,#8b5cf61f)] text-[var(--action-accent-skills,#8B5CF6)] border border-[var(--action-accent-skills-border,#8b5cf659)] font-medium">
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-[3px] bg-[var(--action-accent-skills-subtle)] text-[var(--action-accent-skills)] border border-[var(--action-accent-skills-border)] font-medium">
             Inferred
           </span>
         );
@@ -92,19 +92,19 @@ export const TopicEvidenceLedger: React.FC<TopicEvidenceLedgerProps> = ({
     switch (freshness) {
       case 'fresh':
         return (
-          <span className="text-[10px] font-mono text-[var(--success,#4CAF78)] capitalize">
+          <span className="text-[10px] font-mono text-status-success capitalize">
             Fresh (≤7d)
           </span>
         );
       case 'aging':
         return (
-          <span className="text-[10px] font-mono text-[var(--warning,#D19A45)] capitalize">
+          <span className="text-[10px] font-mono text-status-warning capitalize">
             Aging (8-14d)
           </span>
         );
       case 'stale':
         return (
-          <span className="text-[10px] font-mono text-[var(--danger,#D05A52)] capitalize">
+          <span className="text-[10px] font-mono text-status-danger capitalize">
             Stale (&gt;14d)
           </span>
         );
@@ -129,7 +129,7 @@ export const TopicEvidenceLedger: React.FC<TopicEvidenceLedgerProps> = ({
             placeholder="Search topic or domain..."
             value={searchQuery}
             onChange={(e) => onSearchQueryChange(e.target.value)}
-            className="w-full bg-surface-elevated border border-border rounded-md pl-9 pr-3 py-1.5 text-xs text-foreground placeholder-secondary focus:outline-none focus:border-[var(--action-accent-skills,#8B5CF6)]"
+            className="w-full bg-surface-elevated border border-border rounded-md pl-9 pr-3 py-1.5 text-xs text-foreground placeholder-secondary focus:outline-none focus:border-[var(--action-accent-skills)]"
           />
         </div>
 
@@ -138,7 +138,7 @@ export const TopicEvidenceLedger: React.FC<TopicEvidenceLedgerProps> = ({
             aria-label="Filter by domain"
             value={filterDomain}
             onChange={(e) => onFilterDomainChange(e.target.value)}
-            className="bg-surface-elevated border border-border rounded-md px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-[var(--action-accent-skills,#8B5CF6)]"
+            className="bg-surface-elevated border border-border rounded-md px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-[var(--action-accent-skills)]"
           >
             <option value="all">All Domains ({domains.length})</option>
             {domains.map((d) => (
@@ -150,7 +150,7 @@ export const TopicEvidenceLedger: React.FC<TopicEvidenceLedgerProps> = ({
             aria-label="Filter by readiness status"
             value={filterStatus}
             onChange={(e) => onFilterStatusChange(e.target.value)}
-            className="bg-surface-elevated border border-border rounded-md px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-[var(--action-accent-skills,#8B5CF6)]"
+            className="bg-surface-elevated border border-border rounded-md px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-[var(--action-accent-skills)]"
           >
             <option value="all">All Statuses</option>
             <option value="ready">Ready</option>
@@ -163,7 +163,7 @@ export const TopicEvidenceLedger: React.FC<TopicEvidenceLedgerProps> = ({
             aria-label="Filter by freshness"
             value={filterFreshness}
             onChange={(e) => onFilterFreshnessChange(e.target.value)}
-            className="bg-surface-elevated border border-border rounded-md px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-[var(--action-accent-skills,#8B5CF6)]"
+            className="bg-surface-elevated border border-border rounded-md px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-[var(--action-accent-skills)]"
           >
             <option value="all">All Freshness</option>
             <option value="fresh">Fresh</option>
@@ -208,7 +208,7 @@ export const TopicEvidenceLedger: React.FC<TopicEvidenceLedgerProps> = ({
                   </span>
                   <span>·</span>
                   <span>
-                    Level: <strong className="text-[var(--action-accent-skills,#8B5CF6)]">L{tr.currentLevel}</strong>
+                    Level: <strong className="text-[var(--action-accent-skills)]">L{tr.currentLevel}</strong>
                     <span className="text-secondary font-normal"> / L{tr.targetLevel}</span>
                   </span>
                   <span>·</span>
@@ -229,7 +229,7 @@ export const TopicEvidenceLedger: React.FC<TopicEvidenceLedgerProps> = ({
                 <Button
                   size="xs"
                   onClick={() => onExecuteAction(tr)}
-                  className="h-7 px-2.5 text-[11px] font-mono font-bold bg-[var(--action-accent-skills,#8B5CF6)] hover:bg-[var(--action-accent-skills-hover,#A78BFA)] text-white rounded-[4px] shadow-xs"
+                  className="h-7 px-2.5 text-[11px] font-mono font-bold bg-[var(--action-accent-skills)] hover:bg-[var(--action-accent-skills-hover)] text-white rounded-[4px] shadow-xs"
                 >
                   <ArrowRight className="size-3 mr-1" aria-hidden="true" />
                   Prove Skill

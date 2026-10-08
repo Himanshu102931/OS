@@ -52,11 +52,11 @@ export const DomainSummaryCards: React.FC<DomainSummaryCardsProps> = ({
         const getStatusIcon = () => {
           switch (dom.status) {
             case 'ready':
-              return <ShieldCheck className="size-3.5 text-[var(--success,#4CAF78)]" aria-hidden="true" />;
+              return <ShieldCheck className="size-3.5 text-status-success" aria-hidden="true" />;
             case 'on_track':
-              return <TrendingUp className="size-3.5 text-[var(--warning,#D19A45)]" aria-hidden="true" />;
+              return <TrendingUp className="size-3.5 text-status-warning" aria-hidden="true" />;
             case 'at_risk':
-              return <AlertTriangle className="size-3.5 text-[var(--danger,#D05A52)]" aria-hidden="true" />;
+              return <AlertTriangle className="size-3.5 text-status-danger" aria-hidden="true" />;
             case 'needs_baseline':
             default:
               return <HelpCircle className="size-3.5 text-foreground-muted" aria-hidden="true" />;
@@ -69,14 +69,14 @@ export const DomainSummaryCards: React.FC<DomainSummaryCardsProps> = ({
             onClick={() => onSelectDomain(isSelected ? 'all' : dom.domainId)}
             className={`p-3.5 text-left rounded-lg border transition-all duration-150 space-y-2.5 ${
               isSelected
-                ? 'bg-surface-elevated border-[var(--action-accent-skills,#8B5CF6)] ring-1 ring-[var(--action-accent-skills-ring,#C4B5FD)] shadow-md'
+                ? 'bg-surface-elevated border-[var(--action-accent-skills)] ring-1 ring-[var(--action-accent-skills-ring)] shadow-md'
                 : 'bg-surface border-border hover:border-border-active hover:bg-surface-elevated/60'
             }`}
           >
             {/* Card Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-[4px] bg-surface-elevated border border-border text-[var(--action-accent-skills,#8B5CF6)]">
+                <div className="p-1.5 rounded-[4px] bg-surface-elevated border border-border text-[var(--action-accent-skills)]">
                   <Icon className="size-4" aria-hidden="true" />
                 </div>
                 <div>
@@ -100,10 +100,10 @@ export const DomainSummaryCards: React.FC<DomainSummaryCardsProps> = ({
               <div
                 className={`h-full transition-all duration-300 ${
                   dom.overallReadiness >= 75
-                    ? 'bg-[var(--success,#4CAF78)]'
+                    ? 'bg-status-success'
                     : dom.overallReadiness >= 50
-                    ? 'bg-[var(--warning,#D19A45)]'
-                    : 'bg-[var(--danger,#D05A52)]'
+                    ? 'bg-status-warning'
+                    : 'bg-status-danger'
                 }`}
                 style={{ width: `${Math.max(4, dom.overallReadiness)}%` }}
               />
@@ -111,8 +111,8 @@ export const DomainSummaryCards: React.FC<DomainSummaryCardsProps> = ({
 
             {/* Topic Breakdown Badges */}
             <div className="flex items-center justify-between text-[10px] font-mono text-foreground-muted pt-1 border-t border-border/60">
-              <span className="text-[var(--success,#4CAF78)] font-medium">{dom.readyTopicsCount} Ready</span>
-              <span className="text-[var(--danger,#D05A52)] font-medium">{dom.atRiskTopicsCount} At Risk</span>
+              <span className="text-status-success font-medium">{dom.readyTopicsCount} Ready</span>
+              <span className="text-status-danger font-medium">{dom.atRiskTopicsCount} At Risk</span>
               <span className="text-foreground-muted">{dom.totalEvidenceItems} Evidences</span>
             </div>
           </button>

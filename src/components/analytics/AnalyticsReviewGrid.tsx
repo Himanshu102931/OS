@@ -29,23 +29,23 @@ export const AnalyticsReviewGrid: React.FC<AnalyticsReviewGridProps> = ({
   if (reviewPrompts.length === 0) {
     return (
       <section aria-label="Zone 4: Operational Review Recommendations" className="space-y-3">
-        <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-[#5A6578] px-0.5">
+        <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-text-tertiary px-0.5">
           <span>Zone 4: Operational Review</span>
           <span>Zero Active Bottlenecks</span>
         </div>
 
         <div
           data-testid="review-empty-state"
-          className="p-8 rounded-xl border border-[#262D38] bg-[#14171D] text-center space-y-3"
+          className="p-8 rounded-xl border border-border-default bg-surface-panel text-center space-y-3"
         >
-          <div className="size-10 rounded-full bg-[#10B981]/10 border border-[#10B981]/30 mx-auto flex items-center justify-center">
-            <CheckCircle2 className="size-5 text-[#10B981]" />
+          <div className="size-10 rounded-full bg-status-success/10 border border-status-success/30 mx-auto flex items-center justify-center">
+            <CheckCircle2 className="size-5 text-status-success" />
           </div>
           <div className="space-y-1">
-            <h2 className="text-sm font-bold text-[#F1F5F9]">
+            <h2 className="text-sm font-bold text-text-primary">
               No Operational Bottlenecks Detected
             </h2>
-            <p className="text-xs text-[#8E98A8] max-w-md mx-auto">
+            <p className="text-xs text-text-secondary max-w-md mx-auto">
               All spaced reviews are up-to-date, topic evidence is fresh, and no tasks are repeatedly postponed. Telemetry indicates optimal preparation health.
             </p>
           </div>
@@ -78,16 +78,16 @@ export const AnalyticsReviewGrid: React.FC<AnalyticsReviewGridProps> = ({
         );
       case 'medium':
         return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border capitalize bg-[#F59E0B]/10 text-[#FCD34D] border-[#F59E0B]/30 font-semibold">
-            <Clock className="size-3 text-[#F59E0B]" />
+          <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border capitalize bg-status-warning/10 text-status-warning border-status-warning/30 font-semibold">
+            <Clock className="size-3 text-status-warning" />
             Medium Priority
           </span>
         );
       case 'info':
       default:
         return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border capitalize bg-[#3B82F6]/10 text-[#93C5FD] border-[#3B82F6]/30 font-semibold">
-            <Info className="size-3 text-[#3B82F6]" />
+          <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border capitalize bg-info/10 text-info border-info/30 font-semibold">
+            <Info className="size-3 text-info" />
             Advisory
           </span>
         );
@@ -96,7 +96,7 @@ export const AnalyticsReviewGrid: React.FC<AnalyticsReviewGridProps> = ({
 
   return (
     <section aria-label="Zone 4: Operational Review Recommendations" className="space-y-4">
-      <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-[#5A6578] px-0.5">
+      <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-text-tertiary px-0.5">
         <span>Zone 4: Evidence-Backed Operational Review</span>
         <span>{reviewPrompts.length} Actionable Recommendations</span>
       </div>
@@ -104,7 +104,7 @@ export const AnalyticsReviewGrid: React.FC<AnalyticsReviewGridProps> = ({
       {/* Primary Review Spotlight */}
       <div
         data-testid="primary-review-spotlight"
-        className="p-5 rounded-xl border border-[#F43F5E]/40 bg-[#14171D] space-y-4 shadow-lg relative overflow-hidden"
+        className="p-5 rounded-xl border border-[#F43F5E]/40 bg-surface-panel space-y-4 shadow-lg relative overflow-hidden"
       >
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#F43F5E] via-[#FB7185] to-[#F43F5E]" />
 
@@ -121,10 +121,10 @@ export const AnalyticsReviewGrid: React.FC<AnalyticsReviewGridProps> = ({
         </div>
 
         <div className="space-y-1.5">
-          <h3 className="text-base font-bold text-[#F1F5F9] font-sans">
+          <h3 className="text-base font-bold text-text-primary font-sans">
             {primaryPrompt.title}
           </h3>
-          <p className="text-xs text-[#8E98A8] leading-relaxed">
+          <p className="text-xs text-text-secondary leading-relaxed">
             {primaryPrompt.description}
           </p>
         </div>
@@ -138,7 +138,7 @@ export const AnalyticsReviewGrid: React.FC<AnalyticsReviewGridProps> = ({
           />
         )}
 
-        <div className="pt-3 border-t border-[#262D38] flex justify-end">
+        <div className="pt-3 border-t border-border-default flex justify-end">
           <Button
             size="sm"
             onClick={() => onAction(primaryPrompt.route, primaryPrompt.targetId)}
@@ -153,7 +153,7 @@ export const AnalyticsReviewGrid: React.FC<AnalyticsReviewGridProps> = ({
       {/* Remaining Prompts Grid */}
       {remainingPrompts.length > 0 && (
         <div className="space-y-2.5">
-          <h4 className="text-xs font-mono font-semibold text-[#8E98A8] uppercase tracking-wider flex items-center gap-1.5">
+          <h4 className="text-xs font-mono font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
             <Sparkles className="size-3.5 text-[#F43F5E]" /> Additional Operational Cues ({remainingPrompts.length})
           </h4>
 
@@ -162,16 +162,16 @@ export const AnalyticsReviewGrid: React.FC<AnalyticsReviewGridProps> = ({
               <div
                 key={p.id}
                 data-testid={`review-prompt-card-${p.id}`}
-                className="p-4.5 rounded-xl border bg-[#14171D] border-[#262D38] space-y-3.5 flex flex-col justify-between hover:border-[#384252] transition-colors"
+                className="p-4.5 rounded-xl border bg-surface-panel border-border-default space-y-3.5 flex flex-col justify-between hover:border-border-active transition-colors"
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-bold text-[#F1F5F9] font-sans leading-snug">
+                    <span className="text-xs font-bold text-text-primary font-sans leading-snug">
                       {p.title}
                     </span>
                     {getSeverityBadge(p.severity)}
                   </div>
-                  <p className="text-xs text-[#8E98A8] leading-relaxed">
+                  <p className="text-xs text-text-secondary leading-relaxed">
                     {p.description}
                   </p>
                 </div>
@@ -185,12 +185,12 @@ export const AnalyticsReviewGrid: React.FC<AnalyticsReviewGridProps> = ({
                   />
                 )}
 
-                <div className="pt-2.5 border-t border-[#262D38] flex justify-end">
+                <div className="pt-2.5 border-t border-border-default flex justify-end">
                   <Button
                     size="xs"
                     onClick={() => onAction(p.route, p.targetId)}
                     data-testid={`${p.id}-action`}
-                    className="h-7 text-xs bg-[#1B2028] hover:bg-[#F43F5E]/20 text-[#FDA4AF] border border-[#F43F5E]/30 rounded-md font-semibold font-mono flex items-center gap-1 transition-colors"
+                    className="h-7 text-xs bg-surface-elevated hover:bg-[#F43F5E]/20 text-[#FDA4AF] border border-[#F43F5E]/30 rounded-md font-semibold font-mono flex items-center gap-1 transition-colors"
                   >
                     {p.actionLabel} <ArrowRight className="size-3 ml-1" />
                   </Button>

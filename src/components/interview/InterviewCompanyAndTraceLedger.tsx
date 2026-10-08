@@ -11,19 +11,19 @@ import { Building2, CalendarClock } from 'lucide-react';
 const BAND_META: Record<ReadinessBand, { label: string; chip: string }> = {
   strong: {
     label: 'Strong',
-    chip: 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/30',
+    chip: 'bg-status-success/10 text-status-success border-status-success/30',
   },
   developing: {
     label: 'Developing',
-    chip: 'bg-[#E5A93C]/10 text-[#FFC665] border-[#E5A93C]/30',
+    chip: 'bg-status-warning/10 text-status-warning border-status-warning/30',
   },
   needs_work: {
     label: 'Needs Work',
-    chip: 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30',
+    chip: 'bg-status-warning/10 text-status-warning border-status-warning/30',
   },
   unassessed: {
     label: 'Unassessed',
-    chip: 'bg-[#14171D] text-[#8E98A8] border-[#262D38]',
+    chip: 'bg-surface-panel text-text-secondary border-border-default',
   },
 };
 
@@ -61,16 +61,16 @@ export const InterviewCompanyAndTraceLedger: React.FC<InterviewCompanyAndTraceLe
     <section
       aria-label="Company readiness overlay"
       data-testid="company-overlay"
-      className="bg-[#14171D] border border-[#262D38] rounded-xl p-5 space-y-4"
+      className="bg-surface-panel border border-border-default rounded-xl p-5 space-y-4"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-bold text-[#F1F5F9] flex items-center gap-2">
-          <Building2 className="size-4 text-[#FF5722]" />
+        <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+          <Building2 className="size-4 text-status-danger" />
           Company Readiness Overlay
         </h2>
         {companyOverlay && (
           <span
-            className="text-[11px] px-2.5 py-1 rounded-lg bg-[#38BDF8]/10 border border-[#38BDF8]/30 text-[#38BDF8] font-medium"
+            className="text-[11px] px-2.5 py-1 rounded-lg bg-info/10 border border-info/30 text-info font-medium"
             data-testid="company-gap-badge"
           >
             Gap: {companyOverlay.overallGap}
@@ -79,32 +79,32 @@ export const InterviewCompanyAndTraceLedger: React.FC<InterviewCompanyAndTraceLe
       </div>
 
       {!companyOverlay ? (
-        <p className="text-xs text-[#8E98A8]" data-testid="company-overlay-empty">
+        <p className="text-xs text-text-secondary" data-testid="company-overlay-empty">
           No company selected. Showing general readiness only — no company-specific requirements are
           applied to the evidence above.
         </p>
       ) : (
         <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-3 text-xs text-[#8E98A8]">
+          <div className="flex flex-wrap items-center gap-3 text-xs text-text-secondary">
             <span>
-              <Building2 className="inline size-3.5 mr-1 -mt-0.5 text-[#FF5722]" />
-              <strong className="text-[#F1F5F9]">{companyOverlay.companyName}</strong>
+              <Building2 className="inline size-3.5 mr-1 -mt-0.5 text-status-danger" />
+              <strong className="text-text-primary">{companyOverlay.companyName}</strong>
             </span>
             {company?.targetRole && (
               <span>
-                Role: <strong className="text-[#F1F5F9]">{company.targetRole}</strong>
+                Role: <strong className="text-text-primary">{company.targetRole}</strong>
               </span>
             )}
             <span>
-              <CalendarClock className="inline size-3.5 mr-1 -mt-0.5 text-[#6366F1]" />
+              <CalendarClock className="inline size-3.5 mr-1 -mt-0.5 text-[var(--action-accent-interview)]" />
               Event:{' '}
-              <strong className="text-[#F1F5F9]">
+              <strong className="text-text-primary">
                 {companyOverlay.eventDate ?? 'Not scheduled'}
               </strong>
               {daysUntilEvent !== null && (
                 <span
                   className={`ml-1.5 font-mono ${
-                    daysUntilEvent <= 30 ? 'text-[#F59E0B]' : 'text-[#10B981]'
+                    daysUntilEvent <= 30 ? 'text-status-warning' : 'text-status-success'
                   }`}
                   data-testid="company-days-until"
                 >
@@ -114,7 +114,7 @@ export const InterviewCompanyAndTraceLedger: React.FC<InterviewCompanyAndTraceLe
             </span>
           </div>
 
-          <p className="text-[11px] text-[#5C6675] border-t border-[#262D38] pt-2">
+          <p className="text-[11px] text-text-secondary border-t border-border-default pt-2">
             The company overlay is displayed alongside the general scorecard. Dimension evidence,
             capability, confidence and freshness above are unchanged by this selection.
           </p>
@@ -129,18 +129,18 @@ export const InterviewCompanyAndTraceLedger: React.FC<InterviewCompanyAndTraceLe
                   data-testid={`company-dimension-${cd.dimensionId}`}
                   className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-lg border ${
                     cd.isRequired
-                      ? 'bg-[#38BDF8]/5 border-[#38BDF8]/25'
-                      : 'bg-[#1B2028] border-[#262D38]'
+                      ? 'bg-info/5 border-info/25'
+                      : 'bg-surface-elevated border-border-default'
                   }`}
                 >
                   <div className="min-w-0 space-y-0.5">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-bold text-[#F1F5F9]">{dim?.name}</span>
+                      <span className="text-xs font-bold text-text-primary">{dim?.name}</span>
                       <span
                         className={`text-[10px] px-1.5 py-0.5 rounded border capitalize font-medium ${
                           cd.isRequired
-                            ? 'bg-[#38BDF8]/10 border-[#38BDF8]/30 text-[#38BDF8]'
-                            : 'bg-[#14171D] border-[#262D38] text-[#8E98A8]'
+                            ? 'bg-info/10 border-info/30 text-info'
+                            : 'bg-surface-panel border-border-default text-text-secondary'
                         }`}
                       >
                         {cd.isRequired ? 'Required' : 'Not required'}
@@ -151,9 +151,9 @@ export const InterviewCompanyAndTraceLedger: React.FC<InterviewCompanyAndTraceLe
                         {dimMeta.label}
                       </span>
                     </div>
-                    <p className="text-[10px] text-[#8E98A8]">{cd.gapDescription}</p>
+                    <p className="text-[10px] text-text-secondary">{cd.gapDescription}</p>
                   </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded border self-start sm:self-auto shrink-0 bg-[#14171D] border-[#262D38] text-[#8E98A8] capitalize">
+                  <span className="text-[10px] px-2 py-0.5 rounded border self-start sm:self-auto shrink-0 bg-surface-panel border-border-default text-text-secondary capitalize">
                     {cd.priority}
                   </span>
                 </div>
@@ -161,8 +161,8 @@ export const InterviewCompanyAndTraceLedger: React.FC<InterviewCompanyAndTraceLe
             })}
           </div>
 
-          <div className="pt-2 border-t border-[#262D38] flex flex-wrap gap-2">
-            <span className="text-[11px] text-[#8E98A8] self-center">
+          <div className="pt-2 border-t border-border-default flex flex-wrap gap-2">
+            <span className="text-[11px] text-text-secondary self-center">
               {requiredDimensions.length} of {companyOverlay.dimensions.length} dimensions required
             </span>
             <Button
@@ -170,7 +170,7 @@ export const InterviewCompanyAndTraceLedger: React.FC<InterviewCompanyAndTraceLe
               variant="outline"
               onClick={() => onAction('companies')}
               data-testid="company-action"
-              className="h-7 text-xs border-[#262D38] bg-[#1B2028] text-[#F1F5F9] rounded-md ml-auto"
+              className="h-7 text-xs border-border-default bg-surface-elevated text-text-primary rounded-md ml-auto"
             >
               <Building2 className="size-3" />
               Manage company overlays
