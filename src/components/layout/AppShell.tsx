@@ -154,8 +154,19 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
         </aside>
 
         {/* Main Content Area - Independently scrollable on desktop */}
-        <main className="flex-1 p-5 sm:p-7 md:p-8 min-w-0 bg-[#0D0F12] md:h-full md:overflow-y-auto">
-          {children}
+        <main className="flex-1 min-w-0 bg-[#0D0F12] md:h-full md:overflow-y-auto">
+          {/*
+            The page gutter lives on this wrapper, not on the scroll surface.
+            A scroll container's padding is part of its own scrollport, so a
+            `position: sticky; top: 0` child would pin to the bottom of that
+            padding instead of its top edge — leaving a band through which page
+            content scrolls visibly above the sticky element. Padding on an
+            inner wrapper scrolls away with the content it belongs to, so the
+            scrollport's clip edge and the sticky reference coincide.
+          */}
+          <div className="p-5 sm:p-7 md:p-8">
+            {children}
+          </div>
         </main>
       </div>
     </div>

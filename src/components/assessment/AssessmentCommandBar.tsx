@@ -52,9 +52,17 @@ export const AssessmentCommandBar: React.FC<AssessmentCommandBarProps> = ({
   };
 
   return (
+    /*
+     * Sticky offset is `top-0` on purpose. The AppShell header is a sibling
+     * ABOVE the scroll surface (`main.md:overflow-y-auto`), not an overlay
+     * inside it, so there is nothing for the bar to clear. Any positive offset
+     * pins the bar below the scrollport's top edge, which (a) drops it over its
+     * own flow space — overlapping the question stage/palette — and (b) leaves
+     * a band above it that workspace content scrolls visibly through.
+     */
     <div
       data-testid="assessment-command-bar"
-      className="bg-surface-panel border border-border rounded-md p-4 sticky top-16 z-30 shadow-lg backdrop-blur-md space-y-3"
+      className="bg-surface-panel border border-border rounded-md p-4 sticky top-0 z-30 shadow-lg backdrop-blur-md space-y-3"
       aria-label="Assessment Control Bar"
     >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
