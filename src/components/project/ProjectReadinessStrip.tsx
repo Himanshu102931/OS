@@ -39,18 +39,18 @@ export const ProjectReadinessStrip: React.FC<ProjectReadinessStripProps> = ({
       case 'strong':
         return {
           label: 'STRONG',
-          color: 'text-[#4CAF78]',
-          bg: 'bg-[#4CAF78]/10',
-          border: 'border-[#4CAF78]/30',
+          color: 'text-status-success',
+          bg: 'bg-status-success/10',
+          border: 'border-status-success/30',
           subtext: '≥3 sessions + passing defense',
           Icon: ShieldCheck,
         };
       case 'developing':
         return {
           label: 'DEVELOPING',
-          color: 'text-[#D97706]',
-          bg: 'bg-[#D97706]/10',
-          border: 'border-[#D97706]/30',
+          color: 'text-status-warning',
+          bg: 'bg-status-warning/10',
+          border: 'border-status-warning/30',
           subtext: '≥1 defense session recorded',
           Icon: ShieldAlert,
         };
@@ -58,7 +58,7 @@ export const ProjectReadinessStrip: React.FC<ProjectReadinessStripProps> = ({
       default:
         return {
           label: 'NEEDS WORK',
-          color: 'text-[#8E98A8]',
+          color: 'text-foreground-muted',
           bg: 'bg-[#161E19]',
           border: 'border-[#28352D]',
           subtext: 'No passing defense recorded',
@@ -72,21 +72,21 @@ export const ProjectReadinessStrip: React.FC<ProjectReadinessStripProps> = ({
       case 'fresh':
         return {
           label: 'Fresh (≤7d)',
-          color: 'text-[#4CAF78]',
+          color: 'text-status-success',
           subtext: 'Active readiness decay window',
           Icon: Sparkles,
         };
       case 'aging':
         return {
           label: 'Aging (≤14d)',
-          color: 'text-[#D97706]',
+          color: 'text-status-warning',
           subtext: 'Review recommended soon',
           Icon: Clock,
         };
       case 'stale':
         return {
           label: 'Stale (>14d)',
-          color: 'text-[#EF4444]',
+          color: 'text-status-danger',
           subtext: 'Defense rehearsal overdue',
           Icon: Clock,
         };
@@ -94,7 +94,7 @@ export const ProjectReadinessStrip: React.FC<ProjectReadinessStripProps> = ({
       default:
         return {
           label: 'Untested',
-          color: 'text-[#8E98A8]',
+          color: 'text-foreground-muted',
           subtext: 'No recorded defense log',
           Icon: Clock,
         };
@@ -116,7 +116,7 @@ export const ProjectReadinessStrip: React.FC<ProjectReadinessStripProps> = ({
       {/* 1. Readiness Band */}
       <div className="p-3 sm:p-3.5 bg-[#111713] border border-[#28352D] rounded-[6px] flex flex-col justify-between hover:border-[#3B4C40] transition-colors">
         <div className="flex items-center justify-between gap-1.5 mb-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[#8E98A8]">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-foreground-muted">
             Defense Readiness
           </span>
           <BandIcon className={`size-3.5 ${bandStyle.color}`} aria-hidden="true" />
@@ -130,7 +130,7 @@ export const ProjectReadinessStrip: React.FC<ProjectReadinessStripProps> = ({
               {bandStyle.label}
             </span>
           </div>
-          <p className="text-[11px] text-[#5C6675] leading-tight mt-1">
+          <p className="text-[11px] text-secondary leading-tight mt-1">
             {bandStyle.subtext}
           </p>
         </div>
@@ -139,7 +139,7 @@ export const ProjectReadinessStrip: React.FC<ProjectReadinessStripProps> = ({
       {/* 2. Recorded Runs */}
       <div className="p-3 sm:p-3.5 bg-[#111713] border border-[#28352D] rounded-[6px] flex flex-col justify-between hover:border-[#3B4C40] transition-colors">
         <div className="flex items-center justify-between gap-1.5 mb-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[#8E98A8]">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-foreground-muted">
             Recorded Runs
           </span>
           <Activity className="size-3.5 text-[#0D9488]" aria-hidden="true" />
@@ -147,16 +147,16 @@ export const ProjectReadinessStrip: React.FC<ProjectReadinessStripProps> = ({
         <div className="space-y-0.5">
           <div className="flex items-baseline gap-1.5">
             <span
-              className="text-base sm:text-lg font-bold font-mono text-[#F1F5F9]"
+              className="text-base sm:text-lg font-bold font-mono text-foreground"
               data-testid="recorded-runs-count"
             >
               {projectAttempts.length}
             </span>
-            <span className="text-xs text-[#8E98A8]">
+            <span className="text-xs text-foreground-muted">
               run{projectAttempts.length === 1 ? '' : 's'}
             </span>
           </div>
-          <p className="text-[11px] text-[#5C6675] leading-tight">
+          <p className="text-[11px] text-secondary leading-tight">
             {projectAttempts.length > 0
               ? `${passedCount} passed · ${projectAttempts.length - passedCount} failed`
               : 'Zero defense sessions run'}
@@ -167,7 +167,7 @@ export const ProjectReadinessStrip: React.FC<ProjectReadinessStripProps> = ({
       {/* 3. Latest Score % */}
       <div className="p-3 sm:p-3.5 bg-[#111713] border border-[#28352D] rounded-[6px] flex flex-col justify-between hover:border-[#3B4C40] transition-colors">
         <div className="flex items-center justify-between gap-1.5 mb-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[#8E98A8]">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-foreground-muted">
             Latest Score
           </span>
           <Award className="size-3.5 text-accent" aria-hidden="true" />
@@ -177,7 +177,7 @@ export const ProjectReadinessStrip: React.FC<ProjectReadinessStripProps> = ({
             <div className="space-y-0.5">
               <div className="flex items-center gap-2">
                 <span
-                  className="text-base sm:text-lg font-bold font-mono text-[#F1F5F9]"
+                  className="text-base sm:text-lg font-bold font-mono text-foreground"
                   data-testid="latest-score-pct"
                 >
                   {latestAttempt.scorePct}%
@@ -185,8 +185,8 @@ export const ProjectReadinessStrip: React.FC<ProjectReadinessStripProps> = ({
                 <span
                   className={`inline-flex items-center gap-0.5 text-[10px] font-bold font-mono px-1.5 py-0.5 rounded border ${
                     latestAttempt.passed
-                      ? 'bg-[#4CAF78]/10 text-[#4CAF78] border-[#4CAF78]/30'
-                      : 'bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/30'
+                      ? 'bg-status-success/10 text-status-success border-status-success/30'
+                      : 'bg-status-danger/10 text-status-danger border-status-danger/30'
                   }`}
                   data-testid="latest-verdict-badge"
                 >
@@ -203,16 +203,16 @@ export const ProjectReadinessStrip: React.FC<ProjectReadinessStripProps> = ({
                   )}
                 </span>
               </div>
-              <p className="text-[11px] text-[#5C6675] leading-tight">
+              <p className="text-[11px] text-secondary leading-tight">
                 {latestAttempt.correctCount}/{latestAttempt.totalQuestions} correct prompts
               </p>
             </div>
           ) : (
             <div className="space-y-0.5">
-              <span className="text-base sm:text-lg font-bold font-mono text-[#5C6675]">
+              <span className="text-base sm:text-lg font-bold font-mono text-secondary">
                 --
               </span>
-              <p className="text-[11px] text-[#5C6675] leading-tight">
+              <p className="text-[11px] text-secondary leading-tight">
                 Untested (no attempts)
               </p>
             </div>
@@ -223,7 +223,7 @@ export const ProjectReadinessStrip: React.FC<ProjectReadinessStripProps> = ({
       {/* 4. Evidence Freshness */}
       <div className="p-3 sm:p-3.5 bg-[#111713] border border-[#28352D] rounded-[6px] flex flex-col justify-between hover:border-[#3B4C40] transition-colors">
         <div className="flex items-center justify-between gap-1.5 mb-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[#8E98A8]">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-foreground-muted">
             Evidence Freshness
           </span>
           <FreshnessIcon className={`size-3.5 ${freshnessStyle.color}`} aria-hidden="true" />
@@ -237,7 +237,7 @@ export const ProjectReadinessStrip: React.FC<ProjectReadinessStripProps> = ({
               {freshnessStyle.label}
             </span>
           </div>
-          <p className="text-[11px] text-[#5C6675] leading-tight">
+          <p className="text-[11px] text-secondary leading-tight">
             {freshnessStyle.subtext}
           </p>
         </div>

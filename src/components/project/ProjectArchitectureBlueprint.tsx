@@ -108,14 +108,14 @@ export const ProjectArchitectureBlueprint: React.FC<ProjectArchitectureBlueprint
             <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 bg-[#0D9488]/15 text-[#2DD4BF] rounded border border-[#0D9488]/30 font-bold">
               Architectural Pillar
             </span>
-            <span className="text-[10px] font-mono text-[#8E98A8]">
+            <span className="text-[10px] font-mono text-foreground-muted">
               {activePillar}
             </span>
           </div>
-          <h3 className="text-lg sm:text-xl font-bold text-[#F1F5F9] tracking-tight">
+          <h3 className="text-lg sm:text-xl font-bold text-foreground tracking-tight">
             {sectionContent.heading}
           </h3>
-          <p className="text-xs sm:text-sm text-[#8E98A8] leading-relaxed max-w-3xl">
+          <p className="text-xs sm:text-sm text-foreground-muted leading-relaxed max-w-3xl">
             {sectionContent.intro}
           </p>
         </div>
@@ -132,11 +132,11 @@ export const ProjectArchitectureBlueprint: React.FC<ProjectArchitectureBlueprint
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 relative z-10">
           <div className="flex items-center gap-2">
             <Cpu className="size-4 text-[#0D9488]" />
-            <span className="text-xs font-bold text-[#F1F5F9] font-mono uppercase tracking-wider">
+            <span className="text-xs font-bold text-foreground font-mono uppercase tracking-wider">
               One-Directional Data Flow Pipeline
             </span>
           </div>
-          <span className="text-[11px] font-mono text-[#5C6675]">
+          <span className="text-[11px] font-mono text-secondary">
             Click any stage to inspect execution contract
           </span>
         </div>
@@ -161,26 +161,26 @@ export const ProjectArchitectureBlueprint: React.FC<ProjectArchitectureBlueprint
                 <div className="flex items-center justify-between gap-1 mb-1">
                   <span
                     className={`text-[10px] font-mono font-bold ${
-                      isSelected ? 'text-[#2DD4BF]' : 'text-[#5C6675]'
+                      isSelected ? 'text-[#2DD4BF]' : 'text-secondary'
                     }`}
                   >
                     0{node.step}
                   </span>
                   <NodeIcon
                     className={`size-3.5 ${
-                      isSelected ? 'text-[#2DD4BF]' : 'text-[#8E98A8]'
+                      isSelected ? 'text-[#2DD4BF]' : 'text-foreground-muted'
                     }`}
                   />
                 </div>
                 <div>
                   <span
                     className={`text-xs font-semibold block leading-tight ${
-                      isSelected ? 'text-[#F1F5F9]' : 'text-[#8E98A8]'
+                      isSelected ? 'text-foreground' : 'text-foreground-muted'
                     }`}
                   >
                     {node.label}
                   </span>
-                  <span className="text-[10px] font-mono text-[#5C6675] block mt-0.5">
+                  <span className="text-[10px] font-mono text-secondary block mt-0.5">
                     {node.sublabel}
                   </span>
                 </div>
@@ -198,11 +198,11 @@ export const ProjectArchitectureBlueprint: React.FC<ProjectArchitectureBlueprint
             <span className="text-[11px] font-mono font-bold text-[#0D9488]">
               Stage 0{selectedNode.step}: {selectedNode.label} ({selectedNode.sublabel})
             </span>
-            <p className="text-xs text-[#8E98A8] leading-relaxed">
+            <p className="text-xs text-foreground-muted leading-relaxed">
               {selectedNode.description}
             </p>
           </div>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#161E19] text-[#4CAF78] border border-[#4CAF78]/30 font-semibold shrink-0">
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#161E19] text-status-success border border-status-success/30 font-semibold shrink-0">
             Offline Deterministic
           </span>
         </div>
@@ -213,7 +213,7 @@ export const ProjectArchitectureBlueprint: React.FC<ProjectArchitectureBlueprint
         <div className="space-y-2.5">
           <div className="flex items-center gap-2">
             <FileCheck2 className="size-3.5 text-[#0D9488]" />
-            <span className="text-xs font-bold text-[#F1F5F9] uppercase tracking-wider font-mono">
+            <span className="text-xs font-bold text-foreground uppercase tracking-wider font-mono">
               {activePillar === 'implementation'
                 ? 'Core Implementation Modules'
                 : 'Pillar Specifications & Contracts'}
@@ -230,13 +230,13 @@ export const ProjectArchitectureBlueprint: React.FC<ProjectArchitectureBlueprint
       {/* Engineering Key Points Checklist */}
       {sectionContent?.points && sectionContent.points.length > 0 && (
         <div className="space-y-2.5 p-4 bg-[#161E19] border border-[#28352D] rounded-[6px]">
-          <span className="text-xs font-bold text-[#F1F5F9] uppercase tracking-wider font-mono block">
+          <span className="text-xs font-bold text-foreground uppercase tracking-wider font-mono block">
             Engineering Principles & Defensible Guarantees
           </span>
-          <ul className="space-y-2 text-xs text-[#8E98A8]">
+          <ul className="space-y-2 text-xs text-foreground-muted">
             {sectionContent.points.map((point) => (
               <li key={point} className="flex items-start gap-2.5">
-                <CheckCircle2 className="size-3.5 text-[#4CAF78] shrink-0 mt-0.5" />
+                <CheckCircle2 className="size-3.5 text-status-success shrink-0 mt-0.5" />
                 <span className="leading-relaxed">{point}</span>
               </li>
             ))}
@@ -247,7 +247,7 @@ export const ProjectArchitectureBlueprint: React.FC<ProjectArchitectureBlueprint
       {/* Structured Blocks (Deep-dive topics) */}
       {sectionContent?.blocks && sectionContent.blocks.length > 0 && (
         <div className="space-y-3">
-          <span className="text-xs font-bold text-[#F1F5F9] uppercase tracking-wider font-mono block">
+          <span className="text-xs font-bold text-foreground uppercase tracking-wider font-mono block">
             Architecture Specifications & Rationale
           </span>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -256,10 +256,10 @@ export const ProjectArchitectureBlueprint: React.FC<ProjectArchitectureBlueprint
                 key={block.title}
                 className="p-3.5 sm:p-4 bg-[#161E19] border border-[#28352D] rounded-[6px] space-y-1"
               >
-                <strong className="text-xs font-bold text-[#F1F5F9] block font-mono">
+                <strong className="text-xs font-bold text-foreground block font-mono">
                   {block.title}
                 </strong>
-                <p className="text-xs text-[#8E98A8] leading-relaxed">
+                <p className="text-xs text-foreground-muted leading-relaxed">
                   {block.body}
                 </p>
               </div>

@@ -20,11 +20,11 @@ export const ProjectModuleCard: React.FC<ProjectModuleCardProps> = ({ card, acce
           {card.label}
         </span>
       </div>
-      <p className="text-xs text-[#F1F5F9] font-semibold leading-snug">
+      <p className="text-xs text-foreground font-semibold leading-snug">
         {card.value}
       </p>
       {card.detail && (
-        <p className="text-[11px] text-[#8E98A8] leading-relaxed">
+        <p className="text-[11px] text-foreground-muted leading-relaxed">
           {card.detail}
         </p>
       )}

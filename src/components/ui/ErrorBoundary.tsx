@@ -38,23 +38,23 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       }
       return (
         <div
-          className="min-h-screen flex items-center justify-center p-4 bg-[#0D0F12] text-[#F1F5F9] font-sans"
+          className="min-h-screen flex items-center justify-center p-4 bg-background text-foreground font-sans"
           role="alert"
         >
-          <div className="max-w-md w-full bg-[#14171D] border border-[#262D38] rounded-xl p-6 space-y-4 text-center">
+          <div className="max-w-md w-full bg-surface border border-border rounded-xl p-6 space-y-4 text-center">
             <div className="size-12 rounded-full bg-rose-950/40 border border-rose-800/80 text-rose-400 flex items-center justify-center mx-auto">
               <AlertTriangle className="size-6" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-lg font-bold text-[#F1F5F9]">Unexpected Error</h2>
-              <p className="text-xs text-[#8E98A8] leading-relaxed">
+              <h2 className="text-lg font-bold text-foreground">Unexpected Error</h2>
+              <p className="text-xs text-foreground-muted leading-relaxed">
                 The application encountered an unexpected error and cannot continue.
               </p>
               <p className="text-[11px] text-rose-400 font-mono">
                 {this.state.error?.message ?? 'Unknown error'}
               </p>
             </div>
-            <div className="p-3 bg-[#1B2028] border border-[#262D38] rounded text-xs text-[#8E98A8]">
+            <div className="p-3 bg-surface-elevated border border-border rounded text-xs text-foreground-muted">
               Your local data (progress, evidence, settings) is stored separately in the browser
               and was not affected by this error.
             </div>

@@ -121,7 +121,7 @@ export const ProjectPillarNavigator: React.FC<ProjectPillarNavigatorProps> = ({
               className={`flex items-center gap-2 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-[4px] text-xs font-medium transition-all whitespace-nowrap shrink-0 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#2DD4BF] focus-visible:outline-hidden ${
                 isActive
                   ? 'bg-[#161E19] text-[#2DD4BF] border border-[#0D9488]/40 font-semibold shadow-xs'
-                  : 'text-[#8E98A8] hover:text-[#F1F5F9] hover:bg-[#161E19]/60 border border-transparent'
+                  : 'text-foreground-muted hover:text-foreground hover:bg-[#161E19]/60 border border-transparent'
               }`}
             >
               <Icon
@@ -129,8 +129,8 @@ export const ProjectPillarNavigator: React.FC<ProjectPillarNavigatorProps> = ({
                   isActive
                     ? 'text-[#2DD4BF]'
                     : isCompleted
-                    ? 'text-[#4CAF78]'
-                    : 'text-[#5C6675]'
+                    ? 'text-status-success'
+                    : 'text-secondary'
                 }`}
                 aria-hidden="true"
               />
@@ -140,7 +140,7 @@ export const ProjectPillarNavigator: React.FC<ProjectPillarNavigatorProps> = ({
               {/* Status Indicator */}
               {isCompleted ? (
                 <span
-                  className="size-3.5 rounded-full bg-[#4CAF78]/20 text-[#4CAF78] border border-[#4CAF78]/30 flex items-center justify-center shrink-0 ml-0.5"
+                  className="size-3.5 rounded-full bg-status-success/20 text-status-success border border-status-success/30 flex items-center justify-center shrink-0 ml-0.5"
                   title="Completed from recorded defense data"
                   aria-label="Completed"
                 >

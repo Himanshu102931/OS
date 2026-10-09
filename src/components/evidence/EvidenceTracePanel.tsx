@@ -63,7 +63,7 @@ export const EvidenceTracePanel: React.FC<EvidenceTracePanelProps> = ({
 
   return (
     <div
-      className="border border-[#262D38] rounded-[4px] bg-[#14171D] overflow-hidden"
+      className="border border-border rounded-[4px] bg-surface overflow-hidden"
       data-testid={`${idPrefix}-trace`}
     >
       <button
@@ -72,13 +72,13 @@ export const EvidenceTracePanel: React.FC<EvidenceTracePanelProps> = ({
         aria-expanded={isOpen}
         aria-controls={bodyId}
         data-testid={`${idPrefix}-trace-toggle`}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-[#1B2028] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[#E5A93C]"
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-surface-elevated transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-accent"
       >
-        <span className="flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-wider text-[#FFC665]">
+        <span className="flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-wider text-accent">
           <HelpCircle className="size-3.5 shrink-0" aria-hidden="true" />
           {title}
         </span>
-        <span className="flex items-center gap-2 text-[10px] font-mono text-[#8E98A8] shrink-0">
+        <span className="flex items-center gap-2 text-[10px] font-mono text-foreground-muted shrink-0">
           <span data-testid={`${idPrefix}-trace-origin`}>{ORIGIN_LABEL[trace.origin]}</span>
           <span aria-hidden="true">·</span>
           <span data-testid={`${idPrefix}-trace-sourcecount`}>
@@ -92,38 +92,38 @@ export const EvidenceTracePanel: React.FC<EvidenceTracePanelProps> = ({
       </button>
 
       {isOpen && (
-        <div id={bodyId} className="px-3 pb-3 pt-3 border-t border-[#262D38] space-y-3 text-xs">
+        <div id={bodyId} className="px-3 pb-3 pt-3 border-t border-border space-y-3 text-xs">
           {/* WHY */}
           <div className="space-y-1">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#8E98A8]">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-foreground-muted">
               Why
             </span>
-            <p className="text-[#F1F5F9] leading-relaxed" data-testid={`${idPrefix}-trace-why`}>
+            <p className="text-foreground leading-relaxed" data-testid={`${idPrefix}-trace-why`}>
               {trace.why}
             </p>
           </div>
 
           {/* EVIDENCE */}
           <div className="space-y-1.5">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#8E98A8]">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-foreground-muted">
               Evidence
             </span>
             <div
               className="flex flex-wrap items-center gap-1.5"
               data-testid={`${idPrefix}-trace-evidence`}
             >
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-[4px] bg-[#1B2028] border border-[#262D38] text-[#8E98A8]">
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-[4px] bg-surface-elevated border border-border text-foreground-muted">
                 {ORIGIN_LABEL[trace.origin]}
               </span>
               {trace.classification && (
                 <span
-                  className="text-[10px] font-mono px-2 py-0.5 rounded-[4px] border border-[#3B4556] text-[#60A5FA]"
+                  className="text-[10px] font-mono px-2 py-0.5 rounded-[4px] border border-border-active text-info"
                   data-testid={`${idPrefix}-trace-classification`}
                 >
                   {CLASSIFICATION_LABEL[trace.classification] ?? trace.classification}
                 </span>
               )}
-              <span className="text-[10px] font-mono text-[#5C6675]">
+              <span className="text-[10px] font-mono text-secondary">
                 {availableCount} available · {missingCount} unavailable
               </span>
             </div>
@@ -131,7 +131,7 @@ export const EvidenceTracePanel: React.FC<EvidenceTracePanelProps> = ({
 
           {/* SOURCE */}
           <div className="space-y-1.5">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#8E98A8]">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-foreground-muted">
               Source
             </span>
             <ul className="space-y-1.5" data-testid={`${idPrefix}-trace-sources`}>
@@ -141,16 +141,16 @@ export const EvidenceTracePanel: React.FC<EvidenceTracePanelProps> = ({
                   <li
                     key={`${source.kind}::${source.sourceId}`}
                     data-testid={`${idPrefix}-trace-source-${index}`}
-                    className="p-2 bg-[#1B2028] border border-[#262D38] rounded-[4px] flex items-start justify-between gap-2"
+                    className="p-2 bg-surface-elevated border border-border rounded-[4px] flex items-start justify-between gap-2"
                   >
                     <div className="min-w-0 space-y-0.5">
-                      <span className="block text-[11px] font-semibold text-[#F1F5F9]">
+                      <span className="block text-[11px] font-semibold text-foreground">
                         {source.label}
                       </span>
                       {source.detail && (
-                        <span className="block text-[10px] text-[#8E98A8]">{source.detail}</span>
+                        <span className="block text-[10px] text-foreground-muted">{source.detail}</span>
                       )}
-                      <span className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono text-[#5C6675]">
+                      <span className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono text-secondary">
                         <span>{source.kind.replace(/_/g, ' ')}</span>
                         {source.timestamp ? <span>· {source.timestamp.slice(0, 10)}</span> : null}
                         {typeof source.strength === 'number' ? (
@@ -160,10 +160,10 @@ export const EvidenceTracePanel: React.FC<EvidenceTracePanelProps> = ({
                           data-testid={`${idPrefix}-trace-source-${index}-status`}
                           className={
                             source.availability === 'missing'
-                              ? 'px-1.5 py-0.5 rounded-[3px] border border-[#E55353]/40 text-[#E55353]'
+                              ? 'px-1.5 py-0.5 rounded-[3px] border border-status-danger/40 text-status-danger'
                               : source.kind === 'derived'
-                              ? 'px-1.5 py-0.5 rounded-[3px] border border-[#3B4556] text-[#8E98A8]'
-                              : 'px-1.5 py-0.5 rounded-[3px] border border-[#4EAE79]/40 text-[#4EAE79]'
+                              ? 'px-1.5 py-0.5 rounded-[3px] border border-border-active text-foreground-muted'
+                              : 'px-1.5 py-0.5 rounded-[3px] border border-status-success/40 text-status-success'
                           }
                         >
                           {source.availability === 'missing'
@@ -186,7 +186,7 @@ export const EvidenceTracePanel: React.FC<EvidenceTracePanelProps> = ({
                             ? destination.label
                             : `${destination.label} — page only, no deep link`
                         }
-                        className="h-6 shrink-0 px-2 text-[10px] border-[#262D38] bg-[#14171D] text-[#F1F5F9] hover:bg-[#222833] rounded-[4px]"
+                        className="h-6 shrink-0 px-2 text-[10px] border-border bg-surface text-foreground hover:bg-surface-muted rounded-[4px]"
                       >
                         {destination.deepLink ? (
                           <Link2 className="size-3 mr-1" aria-hidden="true" />
@@ -198,7 +198,7 @@ export const EvidenceTracePanel: React.FC<EvidenceTracePanelProps> = ({
                     ) : (
                       <span
                         data-testid={`${idPrefix}-trace-source-${index}-nogo`}
-                        className="flex items-center gap-1 shrink-0 text-[10px] font-mono text-[#5C6675] max-w-[9rem] text-right"
+                        className="flex items-center gap-1 shrink-0 text-[10px] font-mono text-secondary max-w-[9rem] text-right"
                       >
                         <FileQuestion className="size-3 shrink-0" aria-hidden="true" />
                         {source.kind === 'derived'
@@ -213,8 +213,8 @@ export const EvidenceTracePanel: React.FC<EvidenceTracePanelProps> = ({
           </div>
 
           {/* ACTION */}
-          <div className="pt-2 border-t border-[#262D38] space-y-1.5">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#8E98A8]">
+          <div className="pt-2 border-t border-border space-y-1.5">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-foreground-muted">
               Go to source
             </span>
             <div className="flex flex-wrap items-center gap-2">
@@ -222,13 +222,13 @@ export const EvidenceTracePanel: React.FC<EvidenceTracePanelProps> = ({
                 size="xs"
                 onClick={() => setRoute(trace.destination.route, trace.destination.targetId)}
                 data-testid={`${idPrefix}-trace-action`}
-                className="h-7 px-3 text-[11px] bg-[#E5A93C] hover:bg-[#FFC665] text-[#0D0F12] font-bold font-mono rounded-[4px]"
+                className="h-7 px-3 text-[11px] bg-primary hover:bg-primary-hover text-primary-foreground font-bold font-mono rounded-[4px]"
               >
                 {trace.destination.label} <ArrowRight className="size-3 ml-1" aria-hidden="true" />
               </Button>
               {trace.destination.note && (
                 <span
-                  className="text-[10px] text-[#8E98A8] max-w-[26rem]"
+                  className="text-[10px] text-foreground-muted max-w-[26rem]"
                   data-testid={`${idPrefix}-trace-note`}
                 >
                   {trace.destination.note}

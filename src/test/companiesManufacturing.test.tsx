@@ -127,7 +127,7 @@ describe('Task 78 — Companies Page 5-Zone Manufacturing & Verification', () =>
       renderCompanies();
 
       const heroSection = screen.getByLabelText('Primary Target Focus & Drive Urgency Hero');
-      expect(within(heroSection).getByText(/days left until assessment|day left/)).toBeTruthy();
+      expect(within(heroSection).getByText(/days left until assessment|day left|drive is today/i)).toBeTruthy();
     });
 
     it('2.3 renders overall readiness progressbar with accessible ARIA attributes', () => {

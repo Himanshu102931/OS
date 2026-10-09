@@ -122,7 +122,7 @@ export const SettingsView: React.FC = () => {
         <div
           role="status"
           aria-live="polite"
-          className="p-3 rounded-[4px] bg-[#161E19] border border-[#46B982]/50 text-[#46B982] text-xs flex items-center gap-2.5 font-medium animate-fade-in shadow-sm"
+          className="p-3 rounded-[4px] bg-surface-subtle border border-accent/50 text-accent text-xs flex items-center gap-2.5 font-medium animate-fade-in shadow-sm"
         >
           <CheckCircle2 className="size-4 shrink-0" />
           <span>{saveNotification}</span>

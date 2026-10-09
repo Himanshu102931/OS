@@ -76,17 +76,17 @@ export const ProjectDefenseHero: React.FC<ProjectDefenseHeroProps> = ({
               <Sparkles className="size-3" />
               <span>Viva Interrogation Simulator</span>
             </span>
-            <span className="text-[10px] font-mono text-[#8E98A8]">
+            <span className="text-[10px] font-mono text-foreground-muted">
               practice-project-defense-01
             </span>
           </div>
 
-          <h2 className="text-lg sm:text-xl font-bold text-[#F1F5F9] tracking-tight flex items-center gap-2">
+          <h2 className="text-lg sm:text-xl font-bold text-foreground tracking-tight flex items-center gap-2">
             <Cpu className="size-5 text-[#0D9488]" />
             <span>System & Project Architecture Defense</span>
           </h2>
 
-          <p className="text-xs sm:text-sm text-[#8E98A8] leading-relaxed">
+          <p className="text-xs sm:text-sm text-foreground-muted leading-relaxed">
             High-pressure technical viva drill evaluating your ability to articulate system data flow,
             justify technical trade-offs against alternatives, identify performance bottlenecks at 100x traffic,
             and explain authorization models.
@@ -94,13 +94,13 @@ export const ProjectDefenseHero: React.FC<ProjectDefenseHeroProps> = ({
 
           {/* Session Specs Pills */}
           <div className="flex items-center gap-2 pt-1 flex-wrap">
-            <span className="text-[11px] font-mono px-2 py-0.5 bg-[#161E19] text-[#F1F5F9] rounded border border-[#28352D]">
+            <span className="text-[11px] font-mono px-2 py-0.5 bg-[#161E19] text-foreground rounded border border-[#28352D]">
               <strong>{sessionPromptCount}</strong> Defense Prompts
             </span>
             <span className="text-[11px] font-mono px-2 py-0.5 bg-[#161E19] text-[#0D9488] rounded border border-[#0D9488]/30 font-semibold">
               <strong>{passThreshold}%</strong> Passing Threshold
             </span>
-            <span className="text-[11px] font-mono px-2 py-0.5 bg-[#161E19] text-[#8E98A8] rounded border border-[#28352D]">
+            <span className="text-[11px] font-mono px-2 py-0.5 bg-[#161E19] text-foreground-muted rounded border border-[#28352D]">
               ~20 Min Session
             </span>
           </div>
@@ -117,7 +117,7 @@ export const ProjectDefenseHero: React.FC<ProjectDefenseHeroProps> = ({
             <span>Launch Project Defense</span>
             <ArrowRight className="size-4" />
           </button>
-          <span className="text-[10px] text-[#5C6675] font-mono text-center sm:text-right">
+          <span className="text-[10px] text-secondary font-mono text-center sm:text-right">
             Appends verifiable evidence log
           </span>
         </div>
@@ -125,13 +125,13 @@ export const ProjectDefenseHero: React.FC<ProjectDefenseHeroProps> = ({
 
       {/* Categories Checked in Simulation */}
       <div className="pt-2 border-t border-[#28352D]/60 flex items-center gap-1.5 flex-wrap text-[11px]">
-        <span className="text-[#5C6675] font-mono text-[10px] uppercase tracking-wider mr-1">
+        <span className="text-secondary font-mono text-[10px] uppercase tracking-wider mr-1">
           Covers:
         </span>
         {categories.map((cat) => (
           <span
             key={cat}
-            className="px-2 py-0.5 bg-[#161E19] text-[#8E98A8] rounded border border-[#28352D] text-[10px] font-mono"
+            className="px-2 py-0.5 bg-[#161E19] text-foreground-muted rounded border border-[#28352D] text-[10px] font-mono"
           >
             {cat}
           </span>
@@ -144,17 +144,17 @@ export const ProjectDefenseHero: React.FC<ProjectDefenseHeroProps> = ({
           <div
             className={`p-3.5 sm:p-4 rounded border text-xs space-y-2 ${
               latestAttempt.passed
-                ? 'bg-[#4CAF78]/10 border-[#4CAF78]/30 text-[#F1F5F9]'
-                : 'bg-[#D97706]/10 border-[#D97706]/30 text-[#F1F5F9]'
+                ? 'bg-status-success/10 border-status-success/30 text-foreground'
+                : 'bg-status-warning/10 border-status-warning/30 text-foreground'
             }`}
             data-testid="latest-attempt-status-banner"
           >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-start sm:items-center gap-2">
                 {latestAttempt.passed ? (
-                  <ShieldCheck className="size-4 text-[#4CAF78] shrink-0 mt-0.5 sm:mt-0" />
+                  <ShieldCheck className="size-4 text-status-success shrink-0 mt-0.5 sm:mt-0" />
                 ) : (
-                  <ShieldAlert className="size-4 text-[#D97706] shrink-0 mt-0.5 sm:mt-0" />
+                  <ShieldAlert className="size-4 text-status-warning shrink-0 mt-0.5 sm:mt-0" />
                 )}
                 <div>
                   <span className="font-semibold text-sm">
@@ -162,10 +162,10 @@ export const ProjectDefenseHero: React.FC<ProjectDefenseHeroProps> = ({
                       ? `Defense Passed — Score ${latestAttempt.scorePct}% meets the ${passThreshold}% requirement.`
                       : `Defense Not Passed — Score ${latestAttempt.scorePct}% is below the ${passThreshold}% threshold.`}
                   </span>
-                  <span className="text-[11px] text-[#8E98A8] block mt-0.5 font-mono">
+                  <span className="text-[11px] text-foreground-muted block mt-0.5 font-mono">
                     Status:{' '}
                     <strong
-                      className={latestAttempt.passed ? 'text-[#4CAF78]' : 'text-[#EF4444]'}
+                      className={latestAttempt.passed ? 'text-status-success' : 'text-status-danger'}
                       data-testid="attempt-status-text"
                     >
                       {latestAttempt.passed ? 'PASS' : 'FAIL'}
@@ -181,8 +181,8 @@ export const ProjectDefenseHero: React.FC<ProjectDefenseHeroProps> = ({
                 <span
                   className={`text-sm font-bold px-2 py-0.5 rounded border ${
                     latestAttempt.passed
-                      ? 'bg-[#4CAF78]/20 text-[#4CAF78] border-[#4CAF78]/40'
-                      : 'bg-[#D97706]/20 text-[#D97706] border-[#D97706]/40'
+                      ? 'bg-status-success/20 text-status-success border-status-success/40'
+                      : 'bg-status-warning/20 text-status-warning border-status-warning/40'
                   }`}
                 >
                   {latestAttempt.scorePct}%
@@ -192,7 +192,7 @@ export const ProjectDefenseHero: React.FC<ProjectDefenseHeroProps> = ({
 
             {/* Next Step / Guidance */}
             <div className="pt-2 border-t border-current/15 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-              <p className="text-[#8E98A8] leading-relaxed">
+              <p className="text-foreground-muted leading-relaxed">
                 {latestAttempt.passed
                   ? 'Your viva defense record is active. To maintain readiness, rehearse periodically before upcoming company drives.'
                   : 'Review the canonical architecture answers and data flow patterns before retrying the defense simulation.'}
@@ -206,7 +206,7 @@ export const ProjectDefenseHero: React.FC<ProjectDefenseHeroProps> = ({
                     onNavigateToRemediation(activeRemediation.route, activeRemediation.targetId)
                   }
                   data-testid="defense-remediation-btn"
-                  className="px-3.5 py-1.5 rounded bg-[#D97706]/20 hover:bg-[#D97706]/30 text-[#D97706] border border-[#D97706]/40 font-semibold text-xs transition-all flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap cursor-pointer"
+                  className="px-3.5 py-1.5 rounded bg-status-warning/20 hover:bg-status-warning/30 text-status-warning border border-status-warning/40 font-semibold text-xs transition-all flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap cursor-pointer"
                 >
                   <BookOpen className="size-3.5" />
                   <span>Review Defense Notes in Preparation</span>
@@ -216,12 +216,12 @@ export const ProjectDefenseHero: React.FC<ProjectDefenseHeroProps> = ({
           </div>
         ) : (
           <div
-            className="p-3.5 sm:p-4 bg-[#161E19] border border-[#28352D] rounded text-xs text-[#8E98A8] flex items-start gap-2.5"
+            className="p-3.5 sm:p-4 bg-[#161E19] border border-[#28352D] rounded text-xs text-foreground-muted flex items-start gap-2.5"
             data-testid="no-attempt-status-banner"
           >
             <HelpCircle className="size-4 text-[#0D9488] shrink-0 mt-0.5" />
             <div className="space-y-0.5">
-              <span className="text-[#F1F5F9] font-medium block">
+              <span className="text-foreground font-medium block">
                 No defense attempts recorded yet.
               </span>
               <p className="text-[11px] leading-relaxed">

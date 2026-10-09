@@ -385,24 +385,24 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="morning-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0D0F12]/80 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in"
     >
-      <div className="bg-[#14171D] border border-[#262D38] rounded-[4px] max-w-3xl w-full p-6 sm:p-7 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+      <div className="bg-surface-panel border border-border-default rounded-[4px] max-w-3xl w-full p-6 sm:p-7 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-[#262D38] pb-4">
+        <div className="flex items-center justify-between border-b border-border-default pb-4">
           <div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-[#FFC665] uppercase tracking-wider font-mono">
+            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400 uppercase tracking-wider font-mono">
               <Target className="size-3.5" />
               <span>Morning Planning Protocol</span>
             </div>
-            <h2 id="morning-modal-title" className="text-xl font-bold text-[#F1F5F9] mt-0.5 font-mono">
+            <h2 id="morning-modal-title" className="text-xl font-bold text-text-primary mt-0.5 font-mono">
               Plan Today's Execution ({todayDate})
             </h2>
           </div>
           <button
             onClick={onClose}
             aria-label="Close Morning Planning modal"
-            className="p-1 rounded-[4px] text-[#8E98A8] hover:text-[#F1F5F9] hover:bg-[#1B2028] transition-colors focus:outline-none focus:ring-1 focus:ring-[#FFC665]"
+            className="p-1 rounded-[4px] text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors focus:outline-none focus:ring-1 focus:ring-accent-amber"
           >
             <X className="size-5" />
           </button>
@@ -411,9 +411,9 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
         {/* Inputs Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-mono">
           {/* Input 1: Available Time */}
-          <div className="space-y-1.5 p-3 rounded-[4px] bg-[#1B2028] border border-[#262D38]">
-            <label htmlFor="morning-available-time" className="text-[#8E98A8] font-semibold flex items-center gap-1 text-[11px] uppercase tracking-wider">
-              <Clock className="size-3.5 text-[#FFC665]" /> Available Time
+          <div className="space-y-1.5 p-3 rounded-[4px] bg-surface-elevated border border-border-default">
+            <label htmlFor="morning-available-time" className="text-text-secondary font-semibold flex items-center gap-1 text-[11px] uppercase tracking-wider">
+              <Clock className="size-3.5 text-accent-amber" /> Available Time
             </label>
             <select
               id="morning-available-time"
@@ -422,7 +422,7 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
                 setAvailableMinutes(Number(e.target.value));
                 setSelectedIdsOverride(null);
               }}
-              className="w-full bg-[#14171D] text-[#F1F5F9] font-bold p-2 rounded-[4px] border border-[#262D38] focus:outline-none focus:border-[#3B4556]"
+              className="w-full bg-surface-panel text-text-primary font-bold p-2 rounded-[4px] border border-border-default focus:outline-none focus:border-border-active"
             >
               <option value={60}>60 minutes (1 hr)</option>
               <option value={120}>120 minutes (2 hrs)</option>
@@ -433,15 +433,15 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
           </div>
 
           {/* Input 2: Energy Level */}
-          <div className="space-y-1.5 p-3 rounded-[4px] bg-[#1B2028] border border-[#262D38]">
-            <label htmlFor="morning-energy-level" className="text-[#8E98A8] font-semibold flex items-center gap-1 text-[11px] uppercase tracking-wider">
+          <div className="space-y-1.5 p-3 rounded-[4px] bg-surface-elevated border border-border-default">
+            <label htmlFor="morning-energy-level" className="text-text-secondary font-semibold flex items-center gap-1 text-[11px] uppercase tracking-wider">
               <Zap className="size-3.5 text-amber-400" /> Energy Level
             </label>
             <select
               id="morning-energy-level"
               value={energyLevel}
               onChange={(e) => setEnergyLevel(e.target.value as 'low' | 'medium' | 'high')}
-              className="w-full bg-[#14171D] text-[#F1F5F9] font-bold p-2 rounded-[4px] border border-[#262D38] focus:outline-none focus:border-[#3B4556] capitalize"
+              className="w-full bg-surface-panel text-text-primary font-bold p-2 rounded-[4px] border border-border-default focus:outline-none focus:border-border-active capitalize"
             >
               <option value="low">Low Energy</option>
               <option value="medium">Medium Energy</option>
@@ -450,9 +450,9 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
           </div>
 
           {/* Input 3: Placement Mode */}
-          <div className="space-y-1.5 p-3 rounded-[4px] bg-[#1B2028] border border-[#262D38]">
-            <label htmlFor="morning-placement-mode" className="text-[#8E98A8] font-semibold flex items-center gap-1 text-[11px] uppercase tracking-wider">
-              <Target className="size-3.5 text-[#FFC665]" /> Workload Mode
+          <div className="space-y-1.5 p-3 rounded-[4px] bg-surface-elevated border border-border-default">
+            <label htmlFor="morning-placement-mode" className="text-text-secondary font-semibold flex items-center gap-1 text-[11px] uppercase tracking-wider">
+              <Target className="size-3.5 text-accent-amber" /> Workload Mode
             </label>
             <select
               id="morning-placement-mode"
@@ -461,7 +461,7 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
                 setMode(e.target.value as PlacementMode);
                 setSelectedIdsOverride(null);
               }}
-              className="w-full bg-[#14171D] text-[#F1F5F9] font-bold p-2 rounded-[4px] border border-[#262D38] focus:outline-none focus:border-[#3B4556]"
+              className="w-full bg-surface-panel text-text-primary font-bold p-2 rounded-[4px] border border-border-default focus:outline-none focus:border-border-active"
             >
               <option value="normal">Normal Workload</option>
               <option value="reduced">Reduced Workload</option>
@@ -472,20 +472,20 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
         </div>
 
         {/* Calculated Time Budget Banner */}
-        <div className="p-3 rounded-[4px] bg-[#1B2028] border border-[#262D38] text-xs flex flex-wrap items-center justify-between gap-2 text-[#8E98A8] font-mono">
+        <div className="p-3 rounded-[4px] bg-surface-elevated border border-border-default text-xs flex flex-wrap items-center justify-between gap-2 text-text-secondary font-mono">
           <div className="flex items-center gap-2">
-            <Clock className="size-4 text-[#FFC665]" />
+            <Clock className="size-4 text-accent-amber" />
             <span>
-              Calculated Budget for <strong className="text-[#F1F5F9]">{mode}</strong> mode:
+              Calculated Budget for <strong className="text-text-primary">{mode}</strong> mode:
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-[11px] text-[#8E98A8]">
+            <span className="text-[11px] text-text-secondary">
               {selectedDsaCount} DSA · {selectedRoadmapCount} Roadmap
             </span>
             <span
               className={`font-mono font-bold text-sm ${
-                totalSelectedMinutes > timeBudget ? 'text-amber-400' : 'text-[#FFC665]'
+                totalSelectedMinutes > timeBudget ? 'text-status-warning' : 'text-accent-amber'
               }`}
             >
               {totalSelectedMinutes}m / {timeBudget}m allocated
@@ -496,23 +496,23 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
         {/* Section 1: Leitner DSA Reviews & Algorithmic Practice */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="text-xs font-semibold text-[#8E98A8] uppercase tracking-wider font-mono flex items-center gap-1.5">
-              <Code2 className="size-3.5 text-[#E5A93C]" />
+            <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider font-mono flex items-center gap-1.5">
+              <Code2 className="size-3.5 text-accent" />
               <span>Leitner DSA Reviews & Algorithmic Practice</span>
               {dueDsaCandidates.length > 0 && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#E5A93C]/15 text-[#FFC665] border border-[#E5A93C]/30 font-medium">
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/15 text-accent border border-accent/30 font-medium">
                   {dueDsaCandidates.length} Due
                 </span>
               )}
             </h4>
-            <span className="text-[11px] text-[#5C6675] font-mono">
+            <span className="text-[11px] text-secondary font-mono">
               Click item to toggle commitment
             </span>
           </div>
 
           <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
             {dueDsaCandidates.length === 0 && (
-              <div className="p-3 rounded-[4px] bg-[#1B2028]/60 border border-[#262D38] text-center text-xs text-[#8E98A8]">
+              <div className="p-3 rounded-[4px] bg-surface-elevated/60 border border-border text-center text-xs text-foreground-muted">
                 No DSA reviews due today. Focus on curriculum roadmap tasks.
               </div>
             )}
@@ -526,8 +526,8 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
                       data-testid={`morning-dsa-item-${dsa.id}`}
                       className={`p-3 rounded-[4px] border cursor-pointer transition-all space-y-1.5 text-xs ${
                         isSelected
-                          ? 'bg-[#1B2028] border-[#E5A93C]/50 hover:border-[#E5A93C]'
-                          : 'bg-[#14171D] border-[#262D38] hover:border-[#3B4556] opacity-75'
+                          ? 'bg-surface-elevated border-accent/50 hover:border-accent'
+                          : 'bg-surface border border-border hover:border-border-active opacity-75'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -535,50 +535,50 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
                           <button
                             type="button"
                             aria-label={isSelected ? `Deselect ${dsa.title}` : `Select ${dsa.title}`}
-                            className="mt-0.5 text-[#E5A93C] focus:outline-none"
+                            className="mt-0.5 text-accent focus:outline-none"
                           >
                             {isSelected ? (
                               <CheckSquare className="size-4" />
                             ) : (
-                              <Square className="size-4 text-[#5C6675]" />
+                              <Square className="size-4 text-secondary" />
                             )}
                           </button>
                           <div>
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-mono font-semibold text-[10px] px-1.5 py-0.5 rounded-[4px] bg-[#E5A93C]/15 text-[#FFC665] border border-[#E5A93C]/30">
+                              <span className="font-mono font-semibold text-[10px] px-1.5 py-0.5 rounded-[4px] bg-accent/15 text-accent border border-accent/30">
                                 Box {dsa.currentBox} Review
                               </span>
-                              <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-[4px] bg-[#14171D] text-[#8E98A8] border border-[#262D38]">
+                              <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-[4px] bg-surface text-foreground-muted border border-border">
                                 {dsa.patternName}
                               </span>
                               <span
                                 className={`font-mono text-[10px] px-1.5 py-0.5 rounded-[4px] border capitalize ${
                                   dsa.difficulty === 'easy'
-                                    ? 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/30'
+                                    ? 'bg-status-success/10 text-status-success border-status-success/30'
                                     : dsa.difficulty === 'medium'
-                                    ? 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30'
-                                    : 'bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/30'
+                                    ? 'bg-status-warning/10 text-status-warning border-status-warning/30'
+                                    : 'bg-status-danger/10 text-status-danger border-status-danger/30'
                                 }`}
                               >
                                 {dsa.difficulty}
                               </span>
-                              <span className="font-semibold text-[#F1F5F9]">{dsa.title}</span>
+                              <span className="font-semibold text-foreground">{dsa.title}</span>
                             </div>
                           </div>
                         </div>
 
                         <div className="text-right shrink-0">
-                          <span className="font-mono font-bold text-[#FFC665]">
+                          <span className="font-mono font-bold text-accent">
                             Score: {dsa.priorityScore}/100
                           </span>
-                          <span className="block text-[11px] text-[#8E98A8] font-mono">
+                          <span className="block text-[11px] text-foreground-muted font-mono">
                             {dsa.estimatedMinutes} mins
                           </span>
                         </div>
                       </div>
 
-                      <div className="text-[11px] text-[#8E98A8] flex items-center gap-1 italic pl-6.5">
-                        <AlertCircle className="size-3 text-[#E5A93C] shrink-0" />
+                      <div className="text-[11px] text-foreground-muted flex items-center gap-1 italic pl-6.5">
+                        <AlertCircle className="size-3 text-accent shrink-0" />
                         <span>{dsa.explanation}</span>
                       </div>
                     </div>
@@ -596,8 +596,8 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
                         data-testid={`morning-dsa-item-${dsa.id}`}
                         className={`p-3 rounded-[4px] border cursor-pointer transition-all space-y-1.5 text-xs ${
                           isSelected
-                            ? 'bg-[#1B2028] border-[#3B82F6]/50 hover:border-[#3B82F6]'
-                            : 'bg-[#14171D] border-[#262D38] hover:border-[#3B4556] opacity-75'
+                            ? 'bg-surface-elevated border-[#3B82F6]/50 hover:border-[#3B82F6]'
+                            : 'bg-surface border border-border hover:border-border-active opacity-75'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-3">
@@ -610,7 +610,7 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
                               {isSelected ? (
                                 <CheckSquare className="size-4" />
                               ) : (
-                                <Square className="size-4 text-[#5C6675]" />
+                                <Square className="size-4 text-secondary" />
                               )}
                             </button>
                             <div>
@@ -618,10 +618,10 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
                                 <span className="font-mono font-semibold text-[10px] px-1.5 py-0.5 rounded-[4px] bg-[#3B82F6]/15 text-[#93C5FD] border border-[#3B82F6]/30">
                                   New Problem
                                 </span>
-                                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-[4px] bg-[#14171D] text-[#8E98A8] border border-[#262D38]">
+                                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-[4px] bg-surface text-foreground-muted border border-border">
                                   {dsa.patternName}
                                 </span>
-                                <span className="font-semibold text-[#F1F5F9]">{dsa.title}</span>
+                                <span className="font-semibold text-foreground">{dsa.title}</span>
                               </div>
                             </div>
                           </div>
@@ -630,13 +630,13 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
                             <span className="font-mono font-bold text-[#93C5FD]">
                               Score: {dsa.priorityScore}/100
                             </span>
-                            <span className="block text-[11px] text-[#8E98A8] font-mono">
+                            <span className="block text-[11px] text-foreground-muted font-mono">
                               {dsa.estimatedMinutes} mins
                             </span>
                           </div>
                         </div>
 
-                        <div className="text-[11px] text-[#8E98A8] flex items-center gap-1 italic pl-6.5">
+                        <div className="text-[11px] text-foreground-muted flex items-center gap-1 italic pl-6.5">
                           <Sparkles className="size-3 text-[#3B82F6] shrink-0" />
                           <span>{dsa.explanation}</span>
                         </div>
@@ -649,18 +649,18 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
         {/* Section 2: Roadmap Curriculum Tasks */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="text-xs font-semibold text-[#8E98A8] uppercase tracking-wider font-mono flex items-center gap-1.5">
+            <h4 className="text-xs font-semibold text-foreground-muted uppercase tracking-wider font-mono flex items-center gap-1.5">
               <BookOpen className="size-3.5 text-[#3B82F6]" />
               <span>Curriculum Roadmap Tasks ({roadmapCandidates.length} Available)</span>
             </h4>
-            <span className="text-[11px] text-[#5C6675] font-mono">
+            <span className="text-[11px] text-secondary font-mono">
               Deterministic priority
             </span>
           </div>
 
           <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
             {roadmapCandidates.length === 0 ? (
-              <div className="p-3 rounded-[4px] bg-[#1B2028]/60 border border-[#262D38] text-center text-xs text-[#8E98A8]">
+              <div className="p-3 rounded-[4px] bg-surface-elevated/60 border border-border text-center text-xs text-foreground-muted">
                 No pending roadmap tasks available for planning.
               </div>
             ) : (
@@ -673,8 +673,8 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
                     data-testid={`morning-task-item-${c.id}`}
                     className={`p-3 rounded-[4px] border cursor-pointer transition-all space-y-1.5 text-xs ${
                       isSelected
-                        ? 'bg-[#1B2028] border-[#FFC665]/50 hover:border-[#FFC665]'
-                        : 'bg-[#14171D] border-[#262D38] hover:border-[#3B4556] opacity-75'
+                        ? 'bg-surface-elevated border-accent/50 hover:border-accent'
+                        : 'bg-surface border border-border hover:border-border-active opacity-75'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -682,36 +682,36 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
                         <button
                           type="button"
                           aria-label={isSelected ? `Deselect ${c.title}` : `Select ${c.title}`}
-                          className="mt-0.5 text-[#FFC665] focus:outline-none"
+                          className="mt-0.5 text-accent focus:outline-none"
                         >
                           {isSelected ? (
                             <CheckSquare className="size-4" />
                           ) : (
-                            <Square className="size-4 text-[#5C6675]" />
+                            <Square className="size-4 text-secondary" />
                           )}
                         </button>
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-mono font-semibold text-[10px] px-1.5 py-0.5 rounded-[4px] bg-[#14171D] text-[#8E98A8] border border-[#262D38]">
+                            <span className="font-mono font-semibold text-[10px] px-1.5 py-0.5 rounded-[4px] bg-surface text-foreground-muted border border-border">
                               {c.domainShortName}
                             </span>
-                            <span className="font-semibold text-[#F1F5F9]">{c.title}</span>
+                            <span className="font-semibold text-foreground">{c.title}</span>
                           </div>
                         </div>
                       </div>
 
                       <div className="text-right shrink-0">
-                        <span className="font-mono font-bold text-[#FFC665]">
+                        <span className="font-mono font-bold text-accent">
                           Score: {c.priorityScore}/100
                         </span>
-                        <span className="block text-[11px] text-[#8E98A8] font-mono">
+                        <span className="block text-[11px] text-foreground-muted font-mono">
                           {c.estimatedMinutes} mins
                         </span>
                       </div>
                     </div>
 
-                    <div className="text-[11px] text-[#8E98A8] flex items-center gap-1 italic pl-6.5">
-                      <AlertCircle className="size-3 text-[#5C6675] shrink-0" />
+                    <div className="text-[11px] text-foreground-muted flex items-center gap-1 italic pl-6.5">
+                      <AlertCircle className="size-3 text-secondary shrink-0" />
                       <span>{c.explanation}</span>
                     </div>
                   </div>
@@ -722,8 +722,8 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
         </div>
 
         {/* Modal Actions */}
-        <div className="flex items-center justify-between pt-4 border-t border-[#262D38]">
-          <div className="text-xs text-[#8E98A8] font-mono">
+        <div className="flex items-center justify-between pt-4 border-t border-border">
+          <div className="text-xs text-foreground-muted font-mono">
             {isDaySealed && (
               <span className="text-amber-400 font-semibold flex items-center gap-1">
                 <AlertCircle className="size-3.5" /> Day is sealed. Further commitments locked.
@@ -735,7 +735,7 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
               variant="ghost"
               size="sm"
               onClick={onClose}
-              className="text-xs text-[#8E98A8] hover:text-[#F1F5F9] rounded-[4px]"
+              className="text-xs text-foreground-muted hover:text-foreground rounded-[4px]"
             >
               Cancel
             </Button>
@@ -744,7 +744,7 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
               onClick={handleCommit}
               disabled={selectedItems.length === 0 || isDaySealed}
               data-testid="commit-morning-plan-button"
-              className="text-xs bg-[#E5A93C] hover:bg-[#FFC665] text-[#0D0F12] font-mono font-bold rounded-[4px]"
+              className="text-xs bg-primary hover:bg-primary-hover text-primary-foreground font-mono font-bold rounded-[4px]"
             >
               <CheckCircle2 className="size-3.5 mr-1" /> Commit Today's Plan ({selectedItems.length})
             </Button>

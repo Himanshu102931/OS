@@ -134,16 +134,16 @@ export const ProjectDefenseRubric: React.FC = () => {
             <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 bg-[#0D9488]/15 text-[#2DD4BF] rounded border border-[#0D9488]/30 font-bold">
               Zone 4 · Viva Rubric
             </span>
-            <span className="text-xs font-mono text-[#8E98A8]">
+            <span className="text-xs font-mono text-foreground-muted">
               5 Core Interview Defense Scenarios
             </span>
           </div>
-          <h2 className="text-base sm:text-lg font-bold text-[#F1F5F9] tracking-tight flex items-center gap-2">
+          <h2 className="text-base sm:text-lg font-bold text-foreground tracking-tight flex items-center gap-2">
             <ShieldAlert className="size-4 text-[#0D9488]" />
             <span>Senior Interviewer Pushback Cheat-Sheet</span>
           </h2>
         </div>
-        <p className="text-[11px] text-[#5C6675] font-mono">
+        <p className="text-[11px] text-secondary font-mono">
           Review before technical rounds
         </p>
       </div>
@@ -177,7 +177,7 @@ export const ProjectDefenseRubric: React.FC = () => {
                     className={`size-8 rounded-[4px] border flex items-center justify-center shrink-0 mt-0.5 ${
                       isExpanded
                         ? 'bg-[#0D9488]/15 border-[#0D9488]/40 text-[#2DD4BF]'
-                        : 'bg-[#161E19] border-[#28352D] text-[#8E98A8]'
+                        : 'bg-[#161E19] border-[#28352D] text-foreground-muted'
                     }`}
                   >
                     <ItemIcon className="size-4" />
@@ -187,21 +187,21 @@ export const ProjectDefenseRubric: React.FC = () => {
                       <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#161E19] text-[#2DD4BF] border border-[#28352D]">
                         0{index + 1} · {item.badge}
                       </span>
-                      <span className="text-[11px] font-mono text-[#5C6675]">
+                      <span className="text-[11px] font-mono text-secondary">
                         {item.category}
                       </span>
                     </div>
-                    <h3 className="text-xs sm:text-sm font-bold text-[#F1F5F9] leading-snug">
+                    <h3 className="text-xs sm:text-sm font-bold text-foreground leading-snug">
                       "{item.question}"
                     </h3>
                   </div>
                 </div>
 
-                <div className="shrink-0 text-[#8E98A8] mt-1">
+                <div className="shrink-0 text-foreground-muted mt-1">
                   {isExpanded ? (
                     <ChevronUp className="size-4 text-[#2DD4BF]" />
                   ) : (
-                    <ChevronDown className="size-4 text-[#5C6675]" />
+                    <ChevronDown className="size-4 text-secondary" />
                   )}
                 </div>
               </button>
@@ -214,11 +214,11 @@ export const ProjectDefenseRubric: React.FC = () => {
                 >
                   {/* Interviewer Intent */}
                   <div className="p-3 bg-[#161E19] border border-[#28352D] rounded text-xs space-y-1">
-                    <span className="text-[10px] font-mono font-bold text-[#D97706] flex items-center gap-1.5 uppercase tracking-wider">
+                    <span className="text-[10px] font-mono font-bold text-status-warning flex items-center gap-1.5 uppercase tracking-wider">
                       <Lightbulb className="size-3" />
                       Interviewer Intent & Pushback Angle
                     </span>
-                    <p className="text-[11px] text-[#8E98A8] leading-relaxed">
+                    <p className="text-[11px] text-foreground-muted leading-relaxed">
                       {item.interviewerIntent}
                     </p>
                   </div>
@@ -229,17 +229,17 @@ export const ProjectDefenseRubric: React.FC = () => {
                       <MessageSquareQuote className="size-3.5" />
                       Prepared Defense (Say This)
                     </span>
-                    <blockquote className="p-3.5 bg-[#111713] border border-[#0D9488]/30 rounded text-xs text-[#F1F5F9] leading-relaxed italic border-l-4 border-l-[#0D9488]">
+                    <blockquote className="p-3.5 bg-[#111713] border border-[#0D9488]/30 rounded text-xs text-foreground leading-relaxed italic border-l-4 border-l-[#0D9488]">
                       "{item.preparedDefense}"
                     </blockquote>
                   </div>
 
                   {/* Key Talking Points */}
                   <div className="space-y-1.5">
-                    <span className="text-[11px] font-mono font-bold text-[#8E98A8] uppercase tracking-wider block">
+                    <span className="text-[11px] font-mono font-bold text-foreground-muted uppercase tracking-wider block">
                       Key Verification Points
                     </span>
-                    <ul className="space-y-1.5 text-xs text-[#8E98A8]">
+                    <ul className="space-y-1.5 text-xs text-foreground-muted">
                       {item.talkingPoints.map((pt) => (
                         <li key={pt} className="flex items-start gap-2">
                           <span className="size-1.5 rounded-full bg-[#0D9488] shrink-0 mt-1.5" />
@@ -252,8 +252,8 @@ export const ProjectDefenseRubric: React.FC = () => {
                   {/* Key Metric or Formula Badge */}
                   {item.keyMetricOrFormula && (
                     <div className="p-2.5 bg-[#111713] border border-[#28352D] rounded flex items-center justify-between gap-2 text-[11px] font-mono">
-                      <span className="text-[#5C6675]">Checkable Claim:</span>
-                      <span className="text-[#F1F5F9] font-bold text-right">
+                      <span className="text-secondary">Checkable Claim:</span>
+                      <span className="text-foreground font-bold text-right">
                         {item.keyMetricOrFormula}
                       </span>
                     </div>

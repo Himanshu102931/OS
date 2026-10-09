@@ -62,49 +62,49 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
 
   return (
-    <div className="min-h-screen md:h-screen md:overflow-hidden flex flex-col font-sans bg-[#0D0F12] text-[#F1F5F9] selection:bg-[#E5A93C]/30 selection:text-white">
+    <div className="min-h-screen md:h-screen md:overflow-hidden flex flex-col font-sans bg-background text-foreground selection:bg-accent/30 selection:text-white">
       {/* Top Header Bar */}
-      <header className="shrink-0 bg-[#14171D]/95 backdrop-blur-md border-b border-[#262D38] px-4 sm:px-8 py-3 z-40">
+      <header className="shrink-0 bg-surface/95 backdrop-blur-md border-b border-border px-4 sm:px-8 py-3 z-40">
         <div className="max-w-[1500px] mx-auto flex items-center justify-between gap-4">
           {/* Brand & Page Context */}
           <div className="flex items-center gap-3">
-            <div className="size-8 rounded-[4px] bg-[#1B2028] border border-[#262D38] flex items-center justify-center text-[#E5A93C]">
+            <div className="size-8 rounded-[4px] bg-surface-elevated border border-border flex items-center justify-center text-accent">
               <Terminal className="size-4.5" />
             </div>
             <div className="flex items-center gap-2.5">
-              <span className="font-semibold text-base text-[#F1F5F9] tracking-tight">PlacementOS</span>
-              <span className="text-[#5C6675]">/</span>
-              <span className="text-sm font-medium text-[#8E98A8]">{getPageTitle(currentRoute)}</span>
+              <span className="font-semibold text-base text-foreground tracking-tight">PlacementOS</span>
+              <span className="text-secondary">/</span>
+              <span className="text-sm font-medium text-foreground-muted">{getPageTitle(currentRoute)}</span>
             </div>
           </div>
 
           {/* Global Header Controls */}
           <div className="flex items-center gap-3.5">
             {/* Mode Selector */}
-            <div className="flex items-center gap-1.5 bg-[#1B2028] border border-[#262D38] rounded-[4px] px-3 py-1.5 text-xs">
-              <span className="text-[#8E98A8] font-medium text-[11px]">Mode:</span>
+            <div className="flex items-center gap-1.5 bg-surface-elevated border border-border rounded-[4px] px-3 py-1.5 text-xs">
+              <span className="text-foreground-muted font-medium text-[11px]">Mode:</span>
               <select
                 value={currentMode}
                 onChange={(e) => setPlacementMode(e.target.value as PlacementMode)}
-                className="bg-transparent text-[#FFC665] font-medium focus:outline-none cursor-pointer text-xs"
+                className="bg-transparent text-accent font-medium focus:outline-none cursor-pointer text-xs"
               >
-                <option value="normal" className="bg-[#1B2028] text-[#F1F5F9]">Normal</option>
-                <option value="reduced" className="bg-[#1B2028] text-[#F1F5F9]">Reduced</option>
-                <option value="exam" className="bg-[#1B2028] text-[#F1F5F9]">Exam</option>
-                <option value="placement_sprint" className="bg-[#1B2028] text-[#F1F5F9]">Placement Sprint</option>
+                <option value="normal" className="bg-surface-elevated text-foreground">Normal</option>
+                <option value="reduced" className="bg-surface-elevated text-foreground">Reduced</option>
+                <option value="exam" className="bg-surface-elevated text-foreground">Exam</option>
+                <option value="placement_sprint" className="bg-surface-elevated text-foreground">Placement Sprint</option>
               </select>
             </div>
 
             {/* Active Phase Badge */}
-            <div className="hidden lg:flex items-center gap-1.5 bg-[#1B2028] border border-[#262D38] rounded-[4px] px-3 py-1.5 text-xs text-[#8E98A8]">
-              <Layers className="size-3.5 text-[#E5A93C]" />
-              <span className="text-[#F1F5F9] font-medium text-xs">{activePhase.name}</span>
+            <div className="hidden lg:flex items-center gap-1.5 bg-surface-elevated border border-border rounded-[4px] px-3 py-1.5 text-xs text-foreground-muted">
+              <Layers className="size-3.5 text-accent" />
+              <span className="text-foreground font-medium text-xs">{activePhase.name}</span>
             </div>
 
             {/* Today Date */}
-            <div className="flex items-center gap-1.5 bg-[#1B2028] border border-[#262D38] rounded-[4px] px-3 py-1.5 text-xs text-[#8E98A8]">
-              <Calendar className="size-3.5 text-[#8E98A8]" />
-              <span className="font-mono text-[#F1F5F9] text-xs">{todayDate}</span>
+            <div className="flex items-center gap-1.5 bg-surface-elevated border border-border rounded-[4px] px-3 py-1.5 text-xs text-foreground-muted">
+              <Calendar className="size-3.5 text-foreground-muted" />
+              <span className="font-mono text-foreground text-xs">{todayDate}</span>
             </div>
           </div>
         </div>
@@ -113,7 +113,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       {/* Main App Container */}
       <div className="flex-1 max-w-[1500px] w-full mx-auto flex flex-col md:flex-row min-h-0 md:overflow-hidden">
         {/* Sidebar Navigation - Fixed & docked on desktop */}
-        <aside className="w-full md:w-60 lg:w-64 border-b md:border-b-0 md:border-r border-[#262D38] bg-[#14171D] p-3.5 shrink-0 flex flex-col justify-between md:h-full md:overflow-y-auto">
+        <aside className="w-full md:w-60 lg:w-64 border-b md:border-b-0 md:border-r border-border bg-surface p-3.5 shrink-0 flex flex-col justify-between md:h-full md:overflow-y-auto">
           <nav className="flex md:flex-col gap-1.5 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0" aria-label="Main Navigation">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -126,7 +126,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
                   className={`group relative flex items-center gap-3 px-3.5 py-2.5 rounded-[4px] text-xs font-medium text-left whitespace-nowrap transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#46B982] ${
                     isActive
                       ? 'bg-[#18221B] text-[#F3F7F3] border-l-2 border-l-[#46B982] border-y border-r border-[#26352C] font-semibold shadow-sm'
-                      : 'text-[#8E98A8] hover:text-[#F3F7F3] hover:bg-[#162019] hover:translate-x-0.5 border border-transparent'
+                      : 'text-foreground-muted hover:text-[#F3F7F3] hover:bg-[#162019] hover:translate-x-0.5 border border-transparent'
                   }`}
                 >
                   <Icon
@@ -141,20 +141,20 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
           </nav>
 
           {/* Quiet System Footer */}
-          <div className="mt-6 pt-4 border-t border-[#262D38] hidden md:block px-2 text-[11px] text-[#5C6675] space-y-1 font-mono shrink-0">
+          <div className="mt-6 pt-4 border-t border-border hidden md:block px-2 text-[11px] text-secondary space-y-1 font-mono shrink-0">
             <div className="flex justify-between">
               <span>PlacementOS</span>
-              <span className="text-[#8E98A8]">v1.0.0</span>
+              <span className="text-foreground-muted">v1.0.0</span>
             </div>
             <div className="flex justify-between">
               <span>Storage</span>
-              <span className="text-[#10B981]">Local (Offline)</span>
+              <span className="text-status-success">Local (Offline)</span>
             </div>
           </div>
         </aside>
 
         {/* Main Content Area - Independently scrollable on desktop */}
-        <main className="flex-1 min-w-0 bg-[#0D0F12] md:h-full md:overflow-y-auto">
+        <main className="flex-1 min-w-0 bg-background md:h-full md:overflow-y-auto">
           {/*
             The page gutter lives on this wrapper, not on the scroll surface.
             A scroll container's padding is part of its own scrollport, so a

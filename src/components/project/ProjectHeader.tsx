@@ -25,15 +25,15 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = ({
               <Terminal className="size-3" />
               <span>Engineering System</span>
             </span>
-            <span className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 bg-[#161E19] text-[#8E98A8] rounded border border-[#28352D]">
-              <Shield className="size-3 text-[#4CAF78]" />
+            <span className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 bg-[#161E19] text-foreground-muted rounded border border-[#28352D]">
+              <Shield className="size-3 text-status-success" />
               <span>Portfolio Viva</span>
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#F1F5F9] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
             PROJECT LAB
           </h1>
-          <p className="text-xs sm:text-sm text-[#8E98A8] max-w-3xl leading-relaxed">
+          <p className="text-xs sm:text-sm text-foreground-muted max-w-3xl leading-relaxed">
             BUILD → UNDERSTAND → EXPLAIN → DEFEND. PlacementOS is your primary portfolio engineering system.
             Systematically rehearse architecture decisions, trade-offs, and scalability defenses under interview conditions.
           </p>

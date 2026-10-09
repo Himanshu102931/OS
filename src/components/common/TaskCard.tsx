@@ -54,11 +54,11 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   };
 
   return (
-    <div className={`app-surface app-surface-hover p-4 transition-all ${state === 'completed' ? 'opacity-70 bg-[#14171D]/60' : ''}`}>
+    <div className={`app-surface app-surface-hover p-4 transition-all ${state === 'completed' ? 'opacity-70 bg-surface-panel/60' : ''}`}>
       {isHighFriction && state !== 'completed' && (
-        <div className="mb-3 flex items-center justify-between p-2 rounded-[4px] bg-[#F59E0B]/10 border border-[#F59E0B]/30 text-xs text-[#F59E0B]">
+        <div className="mb-3 flex items-center justify-between p-2 rounded-[4px] bg-status-warning/10 border border-status-warning/30 text-xs text-status-warning">
           <div className="flex items-center gap-1.5 font-medium text-[11px]">
-            <AlertTriangle className="size-3.5 shrink-0 text-[#F59E0B]" />
+            <AlertTriangle className="size-3.5 shrink-0 text-status-warning" />
             <span>High Friction ({frictionParts.join(', ')})</span>
           </div>
           {onDecomposeTask && (
@@ -66,7 +66,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               size="xs"
               variant="outline"
               onClick={() => setIsDecompModalOpen(true)}
-              className="text-[10px] h-6 border-[#F59E0B]/40 bg-[#1B2028] text-[#F59E0B] hover:bg-[#F59E0B]/20"
+              className="text-[10px] h-6 border-status-warning/40 bg-surface-elevated text-status-warning hover:bg-status-warning/20"
             >
               <GitFork className="size-3 mr-1" /> Decompose
             </Button>
@@ -78,12 +78,12 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         <div className="space-y-1.5 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             {domain && (
-              <span className="text-[11px] font-semibold text-[#FFC665] tracking-wide">
+              <span className="text-[11px] font-semibold text-accent-amber tracking-wide">
                 {domain.shortName}
               </span>
             )}
-            <span className="text-[#5C6675]">·</span>
-            <span className="text-[11px] text-[#8E98A8] capitalize font-mono">
+            <span className="text-text-secondary">·</span>
+            <span className="text-[11px] text-text-secondary capitalize font-mono">
               {task.taskType}
             </span>
             {stateBadges[state]}
@@ -94,11 +94,11 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             )}
           </div>
 
-          <h3 className={`font-semibold text-sm leading-snug ${state === 'completed' ? 'line-through text-[#5C6675]' : 'text-[#F1F5F9]'}`}>
+          <h3 className={`font-semibold text-sm leading-snug ${state === 'completed' ? 'line-through text-text-secondary' : 'text-text-primary'}`}>
             {task.title}
           </h3>
 
-          <p className="text-xs text-[#8E98A8] line-clamp-2">
+          <p className="text-xs text-text-secondary line-clamp-2">
             {task.description}
           </p>
         </div>
@@ -108,7 +108,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             <Button
               size="sm"
               onClick={() => onUpdateState(task.id, 'in_progress')}
-              className="h-7 text-xs font-semibold bg-[#E5A93C] hover:bg-[#F59E0B] text-[#432C00] rounded-[4px] px-3 shadow-sm"
+              className="h-7 text-xs font-semibold bg-primary hover:bg-primary-hover text-primary-foreground rounded-[4px] px-3 shadow-sm"
             >
               <Play className="size-3 mr-1" /> Start
             </Button>
@@ -118,7 +118,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             <Button
               size="sm"
               onClick={() => onUpdateState(task.id, 'completed')}
-              className="h-7 text-xs font-semibold bg-[#10B981] hover:bg-[#059669] text-[#002113] rounded-[4px] px-3 shadow-sm"
+              className="h-7 text-xs font-semibold bg-status-success hover:bg-status-success/90 text-primary-foreground rounded-[4px] px-3 shadow-sm"
             >
               <Check className="size-3 mr-1" /> Complete
             </Button>
@@ -129,7 +129,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               size="sm"
               variant="ghost"
               onClick={() => onUpdateState(task.id, 'not_started')}
-              className="h-7 text-xs text-[#8E98A8] hover:text-[#F1F5F9] hover:bg-[#1B2028]"
+              className="h-7 text-xs text-text-secondary hover:text-text-primary hover:bg-surface-elevated"
             >
               <RotateCcw className="size-3 mr-1" /> Reopen
             </Button>
@@ -147,7 +147,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               onClick={() => onPostpone(task.id)}
               title="Postpone to tomorrow"
               aria-label={`Postpone ${task.title} to tomorrow`}
-              className="h-7 text-[11px] font-medium text-[#8E98A8] hover:text-[#FFC665] hover:bg-[#1B2028] rounded-[4px] px-2"
+              className="h-7 text-[11px] font-medium text-text-secondary hover:text-accent-amber hover:bg-surface-elevated rounded-[4px] px-2"
             >
               <Clock className="size-3 mr-1" /> Postpone
             </Button>
@@ -159,7 +159,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               onClick={() => onSkip(task.id)}
               title="Skip without completing — records a recovery signal"
               aria-label={`Skip ${task.title} without completing`}
-              className="h-7 text-[11px] font-medium text-[#8E98A8] hover:text-[#FFC665] hover:bg-[#1B2028] rounded-[4px] px-2"
+              className="h-7 text-[11px] font-medium text-text-secondary hover:text-accent-amber hover:bg-surface-elevated rounded-[4px] px-2"
             >
               <SkipForward className="size-3 mr-1" /> Skip
             </Button>
@@ -167,21 +167,21 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         </div>
       )}
 
-      <div className="mt-3 pt-2.5 border-t border-[#262D38] flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-[11px] text-[#8E98A8] font-mono">
+      <div className="mt-3 pt-2.5 border-t border-border-default flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-[11px] text-text-secondary font-mono">
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1 text-[#8E98A8]">
-            <Clock className="size-3 text-[#E5A93C]" />
+          <span className="flex items-center gap-1 text-text-secondary">
+            <Clock className="size-3 text-accent-amber" />
             {task.estimatedMinutes} mins
           </span>
-          <span>Importance: <span className="text-[#F1F5F9]">{task.importance}/10</span></span>
-          {task.dueDate && <span>Due: <span className="text-[#FFC665]">{task.dueDate}</span></span>}
+          <span>Importance: <span className="text-text-primary">{task.importance}/10</span></span>
+          {task.dueDate && <span>Due: <span className="text-accent-amber">{task.dueDate}</span></span>}
         </div>
 
         {onOpenLearning && (
           <button
             type="button"
             onClick={() => onOpenLearning(task)}
-            className="flex items-center gap-1 text-[#E5A93C] hover:text-[#FFC665] font-semibold transition-colors shrink-0"
+            className="flex items-center gap-1 text-accent-amber hover:text-accent-amber-light font-semibold transition-colors shrink-0"
           >
             <BookOpen className="size-3" />
             {getLearningDestinationLabel(getTaskLearningRoute(task), 'card')}
