@@ -151,8 +151,8 @@ describe('Analytics Crimson Pulse action-accent token family (Task 126)', () => 
     expect(colorTokenCount).toBe(42);
   });
 
-  it('index.css SHA pin matches the legitimate Task 126 state', () => {
+  it('index.css SHA pin matches the legitimate Task 134 state', () => {
     const sha = crypto.createHash('sha256').update(indexCss).digest('hex');
-    expect(sha).toBe('87baac88ba6446e9ec10d84c0387a3c2fe6a5db1fc1dad736ecc7ed5c80e9c5b');
+    expect(sha).toBe('9769b87acc749a39341115744c2ff90e5989cd30372bab22410e8499439beee0');
   });
 });

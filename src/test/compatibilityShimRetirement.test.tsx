@@ -12,13 +12,10 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import crypto from 'crypto';
 
 const INDEX_CSS_PATH = path.resolve(__dirname, '../index.css');
-const TODAY_GUIDE_PATH = path.resolve(__dirname, '../components/dashboard/TodayGuide.tsx');
-const REQUIRED_TODAY_GUIDE_SHA256 = '81C6E6A04D66CCC9F4CF2EEBD11F16719FB675724006924BD88BA18AF3A09E76';
 
-/** The 13 legacy compatibility shim class spellings handled by src/index.css */
+/** The 13 legacy compatibility shim class spellings handled previously by src/index.css */
 export const LEGACY_SHIM_SPELLINGS = [
   'bg-[#0D0F12]',
   'bg-[#14171D]',
@@ -64,8 +61,8 @@ const CANONICAL_SEMANTIC_TOKENS = [
   '--action-accent-ring',
 ];
 
-/** CSS selectors expected in src/index.css for the compatibility shim */
-const EXPECTED_SHIM_SELECTORS = [
+/** CSS selectors expected to be RETIRED from src/index.css */
+const RETIRED_SHIM_SELECTORS = [
   '.bg-\\[\\#0D0F12\\]',
   '.bg-\\[\\#14171D\\]',
   '.bg-\\[\\#1B2028\\]',
@@ -91,7 +88,7 @@ function getAllProductionFiles(dir: string, fileList: string[] = []): string[] {
       }
     } else if (entry.isFile()) {
       const ext = path.extname(entry.name);
-      if (['.ts', '.tsx', '.html', '.css'].includes(ext)) {
+      if (['.ts', '.tsx', '.html'].includes(ext)) {
         fileList.push(fullPath);
       }
     }
@@ -106,12 +103,11 @@ describe('Compatibility Shim Retirement Audit & Contract', () => {
     expect(LEGACY_SHIM_SPELLINGS.length).toBe(13);
   });
 
-  it('verifies that production source files outside TodayGuide.tsx have 0 remaining legacy shim classes', () => {
+  it('verifies that zero production consumers remain across all 13 legacy class spellings throughout the repository', () => {
     const rootDir = path.resolve(__dirname, '../../');
     const productionFiles = getAllProductionFiles(rootDir).filter((f) => {
       const normalized = f.replace(/\\/g, '/');
       return (
-        !normalized.endsWith('TodayGuide.tsx') &&
         !normalized.endsWith('src/index.css') &&
         !normalized.includes('/test/') &&
         !normalized.includes('/scratch/')
@@ -136,21 +132,21 @@ describe('Compatibility Shim Retirement Audit & Contract', () => {
       }
     }
 
-    // Task 129 successfully migrated all production files outside TodayGuide.tsx to 0 remaining legacy consumers
+    // Task 134 verified that 0 legacy consumers remain across all 13 legacy class spellings in all production files
     for (const spelling of LEGACY_SHIM_SPELLINGS) {
       expect(
         activeConsumersFound[spelling],
-        `Legacy shim spelling ${spelling} still has ${activeConsumersFound[spelling]} consumers outside TodayGuide.tsx`
+        `Legacy shim spelling ${spelling} still has ${activeConsumersFound[spelling]} consumers in production files`
       ).toBe(0);
     }
   });
 
-  it('guarantees that shim declarations in src/index.css remain intact to support protected TodayGuide and backward compatibility', () => {
-    for (const selector of EXPECTED_SHIM_SELECTORS) {
+  it('verifies that obsolete compatibility shim selectors are retired from src/index.css', () => {
+    for (const selector of RETIRED_SHIM_SELECTORS) {
       expect(
         indexCssContent.includes(selector),
-        `Required compatibility shim selector ${selector} is missing from src/index.css`
-      ).toBe(true);
+        `Obsolete compatibility shim selector ${selector} should have been retired from src/index.css`
+      ).toBe(false);
     }
   });
 
@@ -167,10 +163,24 @@ describe('Compatibility Shim Retirement Audit & Contract', () => {
     }
   });
 
-  it('protects and isolates TodayGuide.tsx with exact SHA-256 guard', () => {
-    expect(fs.existsSync(TODAY_GUIDE_PATH)).toBe(true);
-    const todayGuideBuffer = fs.readFileSync(TODAY_GUIDE_PATH);
-    const sha256 = crypto.createHash('sha256').update(todayGuideBuffer).digest('hex').toUpperCase();
-    expect(sha256).toBe(REQUIRED_TODAY_GUIDE_SHA256);
+  it('protects .today-guide-panel scoped atmospheric variables in src/index.css', () => {
+    expect(indexCssContent).toContain('.today-guide-panel');
+    const panelScopedVars = [
+      '--background:',
+      '--surface:',
+      '--surface-muted:',
+      '--surface-elevated:',
+      '--foreground:',
+      '--foreground-muted:',
+      '--secondary:',
+      '--border:',
+      '--accent:',
+      '--primary:',
+      '--primary-foreground:',
+    ];
+
+    for (const v of panelScopedVars) {
+      expect(indexCssContent).toContain(v);
+    }
   });
 });

@@ -230,10 +230,8 @@ describe('Dashboard/Today token migration (P2-01 Phase 2)', () => {
     }
   });
 
-  it('index.css is untouched by this migration (no redirect-layer or scope edits)', () => {
-    // The legacy-hex redirect layer and every page accent scope stay frozen.
-    expect(indexCss).toContain('.text-\\[\\#E5A93C\\] { color: var(--accent); }');
-    expect(indexCss).toContain('.border-\\[\\#262D38\\] { border-color: var(--border); }');
+  it('index.css has page accent scopes intact (redirect-layer safely retired in Task 134)', () => {
+    // Every page accent scope stays intact.
     expect(indexCss).toContain('--action-accent: #2E8B62');
     expect(indexCss).toContain('--action-accent: #0284C7');
   });

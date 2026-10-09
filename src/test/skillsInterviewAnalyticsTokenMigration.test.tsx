@@ -260,7 +260,7 @@ describe('Skills / Interview / Analytics token migration (P2-01 Phase 3)', () =>
       sha,
       'src/index.css changed. This migration must not add or edit global tokens. ' +
         'If a later task legitimately adds one, update this pin together with the audit record.'
-    ).toBe('87baac88ba6446e9ec10d84c0387a3c2fe6a5db1fc1dad736ecc7ed5c80e9c5b');
+    ).toBe('9769b87acc749a39341115744c2ff90e5989cd30372bab22410e8499439beee0');
 
     // [Task 126] Analytics Crimson Pulse action-accent family legitimately added per ANALYTICS_SPEC_V1 §13.
     expect(indexCss).toContain('--action-accent-analytics: #F43F5E;');

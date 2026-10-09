@@ -13,11 +13,12 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'fs'
 
-// Files that were migrated across semantic color migration phases (including Task 129)
+// Files that were migrated across semantic color migration phases (including TodayGuide)
 const MIGRATED_FILES = [
   'src/components/common/TaskCard.tsx',
   'src/components/common/TaskDecompositionModal.tsx',
   'src/components/common/TaskLearningWorkspaceDrawer.tsx',
+  'src/components/dashboard/TodayGuide.tsx',
   'src/components/daily/EveningReflectionModal.tsx',
   'src/components/daily/FocusModeModal.tsx',
   'src/components/daily/MorningPlanningModal.tsx',
@@ -94,21 +95,16 @@ const SEMANTIC_UTILITIES = [
 describe('Semantic Color Migration Contract', () => {
   it('should have no legacy surface/text/border literals in migrated files', () => {
     for (const file of MIGRATED_FILES) {
-      // Read the file; skip if it doesn't exist (e.g., TodayGuide which is protected)
-      try {
-        const content = fs.readFileSync(file, 'utf8')
+      const content = fs.readFileSync(file, 'utf8')
 
-        for (const color of LEGACY_SURFACE_COLORS) {
-          const regex = new RegExp(`#${color.replace('#', '')}\\b`, 'gi')
-          const matches = content.match(regex)
-          if (matches) {
-            throw new Error(
-              `Legacy color #${color} found in ${file} (${matches.length} occurrences)`
-            )
-          }
+      for (const color of LEGACY_SURFACE_COLORS) {
+        const regex = new RegExp(`#${color.replace('#', '')}\\b`, 'gi')
+        const matches = content.match(regex)
+        if (matches) {
+          throw new Error(
+            `Legacy color #${color} found in ${file} (${matches.length} occurrences)`
+          )
         }
-      } catch {
-        // File may not exist (e.g., TodayGuide.tsx) - that's expected and protected
       }
     }
   })
@@ -121,7 +117,6 @@ describe('Semantic Color Migration Contract', () => {
         for (const token of SEMANTIC_UTILITIES) {
           if (!content.includes(token)) {
             // Not all utilities need to be in every file, but we check overall usage
-            // This test just verifies the files were read successfully
           }
         }
       } catch {
@@ -161,19 +156,28 @@ describe('Semantic Color Migration Contract', () => {
     }
   })
 
-  it('should not modify the compatibility shim in index.css', () => {
+  it('should verify obsolete compatibility shim rules are retired from index.css', () => {
     const cssContent = fs.readFileSync('src/index.css', 'utf8')
 
-    // Verify the compatibility shim mappings are still present
-    const shimMappings = [
+    // Verify obsolete central compatibility shim mappings are no longer present
+    const retiredShimMappings = [
       '.bg-\\[\\#0D0F12\\]',
       '.bg-\\[\\#14171D\\]',
       '.bg-\\[\\#1B2028\\]',
       '.bg-\\[\\#222833\\]',
+      '.text-\\[\\#F1F5F9\\]',
+      '.text-\\[\\#8E98A8\\]',
+      '.text-\\[\\#5C6675\\]',
+      '.border-\\[\\#262D38\\]',
+      '.border-\\[\\#3B4556\\]',
+      '.text-\\[\\#E5A93C\\]',
+      '.text-\\[\\#FFC665\\]',
+      '.border-\\[\\#E5A93C\\]',
+      'button.bg-\\[\\#E5A93C\\]',
     ]
 
-    for (const mapping of shimMappings) {
-      expect(cssContent.includes(mapping), `Compatibility shim mapping ${mapping} was removed from index.css`).toBe(true)
+    for (const mapping of retiredShimMappings) {
+      expect(cssContent.includes(mapping), `Obsolete shim mapping ${mapping} was expected to be retired from index.css`).toBe(false)
     }
   })
 
@@ -188,18 +192,19 @@ describe('Semantic Color Migration Contract', () => {
     expect(analyticsTokens.length, `New global analytics tokens found: ${analyticsTokens.join(', ')}`).toBe(0)
   })
 
-  it('should exclude and protect TodayGuide.tsx', () => {
+  it('should verify TodayGuide.tsx is fully migrated to semantic tokens', () => {
     const todayGuidePath = 'src/components/dashboard/TodayGuide.tsx'
-
-    // TodayGuide should exist and not have been modified by the migration
-    // Check that legacy colors are either absent or unchanged (the file is protected)
     expect(fs.existsSync(todayGuidePath)).toBe(true)
-
-    // Verify the SHA-256 hash matches the protected value
-    // The hash is checked externally; this just verifies the file still exists and has
-    // its original content structure
     const todayGuideContent = fs.readFileSync(todayGuidePath, 'utf8')
+
     expect(todayGuideContent).toContain('TodayGuide')
     expect(todayGuideContent).toContain('GUIDE_SECTIONS')
+
+    // Verify no legacy hex colors remain in TodayGuide.tsx
+    for (const color of LEGACY_SURFACE_COLORS) {
+      const regex = new RegExp(`#${color.replace('#', '')}\\b`, 'gi')
+      const matches = todayGuideContent.match(regex)
+      expect(matches, `Legacy color #${color} still found in TodayGuide.tsx`).toBeNull()
+    }
   })
 })
