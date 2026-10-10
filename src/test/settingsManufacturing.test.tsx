@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { PlacementProvider } from '../context/PlacementContext';
 import { SettingsView } from '../components/settings/SettingsView';
 import { StorageAdapter, DEFAULT_USER_SETTINGS } from '../storage/storageAdapter';
@@ -309,5 +309,43 @@ describe('Settings Page UI Manufacturing (Zones 1-6 Verification)', () => {
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).toBeNull();
     });
+  });
+
+  it('Notification lifecycle: displays, auto-dismisses after 3000ms, and cleans up timer on unmount', () => {
+    vi.useFakeTimers();
+    const { unmount } = renderSettings();
+
+    // Trigger update notification
+    const goalInput = screen.getByLabelText(/target career goal \/ objective/i) as HTMLInputElement;
+    act(() => {
+      fireEvent.change(goalInput, { target: { value: 'Staff Engineer' } });
+      fireEvent.blur(goalInput);
+    });
+
+    // Notification is visible
+    expect(screen.getByText(/Target career goal updated/i)).toBeDefined();
+
+    // Fast-forward 3000ms
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    // Notification dismissed
+    expect(screen.queryByText(/Target career goal updated/i)).toBeNull();
+
+    // Trigger another notification and unmount while active
+    act(() => {
+      fireEvent.change(goalInput, { target: { value: 'Tech Lead' } });
+      fireEvent.blur(goalInput);
+    });
+    expect(screen.getByText(/Target career goal updated/i)).toBeDefined();
+
+    // Unmount safely with pending timer
+    act(() => {
+      unmount();
+      vi.advanceTimersByTime(3000);
+    });
+
+    vi.useRealTimers();
   });
 });

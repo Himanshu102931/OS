@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { usePlacement } from '../../context/PlacementContext';
 import { SettingsHeader } from './SettingsHeader';
 import { StudyParametersSection } from './StudyParametersSection';
@@ -34,10 +34,26 @@ export const SettingsView: React.FC = () => {
   );
   const [quarantineModalAction, setQuarantineModalAction] = useState<'restore' | 'clear' | null>(null);
   const [saveNotification, setSaveNotification] = useState<string | null>(null);
+  const saveNotifyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (saveNotifyTimerRef.current) {
+        clearTimeout(saveNotifyTimerRef.current);
+        saveNotifyTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const triggerSaveNotify = (msg: string) => {
+    if (saveNotifyTimerRef.current) {
+      clearTimeout(saveNotifyTimerRef.current);
+    }
     setSaveNotification(msg);
-    setTimeout(() => setSaveNotification(null), 3000);
+    saveNotifyTimerRef.current = setTimeout(() => {
+      setSaveNotification(null);
+      saveNotifyTimerRef.current = null;
+    }, 3000);
   };
 
   const handleUpdate = (partial: Partial<UserSettings>, notifyMessage?: string) => {
