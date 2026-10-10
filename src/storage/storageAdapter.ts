@@ -653,21 +653,27 @@ function validateAssessmentState(state: unknown): state is AssessmentState {
  * - Snapshots are never pruned
  */
 export function pruneAssessmentResponses(state: AssessmentState): AssessmentState {
+  if (!state || typeof state !== 'object') return state;
+  if (!Array.isArray(state.attempts) || !Array.isArray(state.responses)) {
+    return state;
+  }
+
   const now = new Date();
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
   // Group responses by attemptId
   const responsesByAttempt = new Map<string, AssessmentResponse[]>();
   for (const response of state.responses) {
+    if (!response || typeof response !== 'object') continue;
     const list = responsesByAttempt.get(response.attemptId) || [];
     list.push(response);
     responsesByAttempt.set(response.attemptId, list);
   }
 
   // Sort attempts by start time (newest first)
-  const attemptsSorted = [...state.attempts].sort((a, b) =>
-    new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
-  );
+  const attemptsSorted = [...state.attempts]
+    .filter((a) => a && typeof a === 'object' && typeof a.startedAt === 'string')
+    .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
 
   const keepFullAttemptIds = new Set(attemptsSorted.slice(0, 12).map((a) => a.id));
   const prunedResponses: AssessmentResponse[] = [];
@@ -678,8 +684,8 @@ export function pruneAssessmentResponses(state: AssessmentState): AssessmentStat
       prunedResponses.push(...responses);
     } else {
       // Check if attempt is older than 90 days
-      const attempt = state.attempts.find((a) => a.id === attemptId);
-      const attemptDate = attempt ? new Date(attempt.startedAt) : new Date(0);
+      const attempt = state.attempts.find((a) => a && a.id === attemptId);
+      const attemptDate = attempt && typeof attempt.startedAt === 'string' ? new Date(attempt.startedAt) : new Date(0);
       if (attemptDate < ninetyDaysAgo) {
         // Drop raw responses beyond 90 days - they're already represented in domainResults/snapshots
         continue;
@@ -690,19 +696,21 @@ export function pruneAssessmentResponses(state: AssessmentState): AssessmentStat
   }
 
   let prunedObservations = state.calibrationObservations;
-  if (state.calibrationObservations) {
+  if (Array.isArray(state.calibrationObservations)) {
     prunedObservations = state.calibrationObservations.filter((obs) => {
+      if (!obs || typeof obs !== 'object') return false;
       if (keepFullAttemptIds.has(obs.attemptId)) return true;
-      const obsDate = new Date(obs.timestamp);
+      const obsDate = typeof obs.timestamp === 'string' ? new Date(obs.timestamp) : new Date(0);
       return obsDate >= ninetyDaysAgo;
     });
   }
 
   let prunedExecutionRecords = state.executionRecords;
-  if (state.executionRecords) {
+  if (Array.isArray(state.executionRecords)) {
     prunedExecutionRecords = state.executionRecords.filter((rec) => {
+      if (!rec || typeof rec !== 'object') return false;
       if (keepFullAttemptIds.has(rec.attemptId)) return true;
-      const recDate = new Date(rec.timestamp);
+      const recDate = typeof rec.timestamp === 'string' ? new Date(rec.timestamp) : new Date(0);
       return recDate >= ninetyDaysAgo;
     });
   }
@@ -716,11 +724,15 @@ export function pruneAssessmentResponses(state: AssessmentState): AssessmentStat
 }
 
 export function applyAssessmentPruning(state: AppStorageState): AppStorageState {
-  if (!state.assessmentState) return state;
-  return {
-    ...state,
-    assessmentState: pruneAssessmentResponses(state.assessmentState),
-  };
+  if (!state || typeof state !== 'object' || !state.assessmentState) return state;
+  try {
+    return {
+      ...state,
+      assessmentState: pruneAssessmentResponses(state.assessmentState),
+    };
+  } catch {
+    return state;
+  }
 }
 
 /**
@@ -857,8 +869,9 @@ export const StorageAdapter = {
     try {
       if (typeof localStorage === 'undefined') return true;
 
+      const prunedState = applyAssessmentPruning(state);
       const payload: AppStorageState = {
-        ...state,
+        ...prunedState,
         schemaVersion: CURRENT_SCHEMA_VERSION,
         appVersion: CURRENT_APP_VERSION,
         lastSavedAt: new Date().toISOString(),
@@ -902,7 +915,7 @@ export const StorageAdapter = {
    * Exports state object to formatted JSON string.
    */
   exportJSON(state: AppStorageState): string {
-    return JSON.stringify(state, null, 2);
+    return JSON.stringify(applyAssessmentPruning(state), null, 2);
   },
 
   /**
@@ -942,6 +955,51 @@ export const StorageAdapter = {
   },
 
   /**
+   * Retrieves quarantined payload metadata and raw JSON if a quarantine snapshot exists.
+   */
+  getQuarantinedState(): QuarantinedStorageSnapshot | null {
+    try {
+      if (typeof localStorage === 'undefined') return null;
+      const raw = localStorage.getItem(QUARANTINE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && typeof parsed.payload === 'string') {
+        return {
+          quarantinedAt: typeof parsed.quarantinedAt === 'string' ? parsed.quarantinedAt : new Date().toISOString(),
+          reason: typeof parsed.reason === 'string' ? parsed.reason : 'Unspecified integrity failure',
+          payload: parsed.payload,
+        };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Clears the quarantined payload from localStorage.
+   */
+  clearQuarantinedState(): boolean {
+    try {
+      if (typeof localStorage === 'undefined') return true;
+      localStorage.removeItem(QUARANTINE_KEY);
+      return true;
+    } catch (err) {
+      console.error('[PlacementOS] Failed to clear quarantined state:', err);
+      return false;
+    }
+  },
+
+  /**
+   * Exports the raw quarantined state with metadata as formatted JSON string.
+   */
+  exportQuarantinedJSON(): string | null {
+    const quarantined = this.getQuarantinedState();
+    if (!quarantined) return null;
+    return JSON.stringify(quarantined, null, 2);
+  },
+
+  /**
    * Validates storage state (exported for testing).
    */
   validateStorageState,
@@ -966,3 +1024,9 @@ export const StorageAdapter = {
    */
   applyAssessmentPruning,
 };
+
+export interface QuarantinedStorageSnapshot {
+  quarantinedAt: string;
+  reason: string;
+  payload: string;
+}

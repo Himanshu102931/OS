@@ -1,6 +1,8 @@
 import React, { useRef } from 'react';
 import { Download, Upload, Database, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '../ui/button';
+import type { QuarantinedStorageSnapshot } from '../../storage/storageAdapter';
+import { QuarantineRecoveryCard } from './QuarantineRecoveryCard';
 
 interface BackupStorageSectionProps {
   todayDate: string;
@@ -9,6 +11,10 @@ interface BackupStorageSectionProps {
   onImportFile: (file: File) => void;
   importStatus: { message: string; isError: boolean } | null;
   onDismissImportStatus: () => void;
+  quarantinedSnapshot?: QuarantinedStorageSnapshot | null;
+  onExportQuarantined?: () => void;
+  onRequestRestoreQuarantined?: () => void;
+  onRequestClearQuarantined?: () => void;
 }
 
 export const BackupStorageSection: React.FC<BackupStorageSectionProps> = ({
@@ -18,6 +24,10 @@ export const BackupStorageSection: React.FC<BackupStorageSectionProps> = ({
   onImportFile,
   importStatus,
   onDismissImportStatus,
+  quarantinedSnapshot,
+  onExportQuarantined,
+  onRequestRestoreQuarantined,
+  onRequestClearQuarantined,
 }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -114,6 +124,16 @@ export const BackupStorageSection: React.FC<BackupStorageSectionProps> = ({
             Dismiss
           </button>
         </div>
+      )}
+
+      {/* Quarantined Storage Recovery Card (Shown only when quarantine snapshot exists) */}
+      {quarantinedSnapshot && (
+        <QuarantineRecoveryCard
+          quarantinedSnapshot={quarantinedSnapshot}
+          onExport={onExportQuarantined || (() => {})}
+          onRequestRestore={onRequestRestoreQuarantined || (() => {})}
+          onRequestClear={onRequestClearQuarantined || (() => {})}
+        />
       )}
 
       {/* Storage Diagnostic Card */}

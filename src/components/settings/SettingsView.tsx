@@ -7,6 +7,8 @@ import { BackupStorageSection } from './BackupStorageSection';
 import { SubsystemMaintenanceSection } from './SubsystemMaintenanceSection';
 import { DangerZoneSection } from './DangerZoneSection';
 import { ConfirmFullResetModal } from './ConfirmFullResetModal';
+import { ConfirmQuarantineActionModal } from './ConfirmQuarantineActionModal';
+import { StorageAdapter, type QuarantinedStorageSnapshot } from '../../storage/storageAdapter';
 import { CheckCircle2 } from 'lucide-react';
 import type { UserSettings } from '../../types';
 
@@ -27,6 +29,10 @@ export const SettingsView: React.FC = () => {
 
   const [importStatus, setImportStatus] = useState<{ message: string; isError: boolean } | null>(null);
   const [showFullResetModal, setShowFullResetModal] = useState(false);
+  const [quarantinedSnapshot, setQuarantinedSnapshot] = useState<QuarantinedStorageSnapshot | null>(() =>
+    StorageAdapter.getQuarantinedState()
+  );
+  const [quarantineModalAction, setQuarantineModalAction] = useState<'restore' | 'clear' | null>(null);
   const [saveNotification, setSaveNotification] = useState<string | null>(null);
 
   const triggerSaveNotify = (msg: string) => {
@@ -86,6 +92,49 @@ export const SettingsView: React.FC = () => {
     }
   };
 
+  const handleExportQuarantined = () => {
+    const snapshot = StorageAdapter.getQuarantinedState();
+    if (!snapshot) return;
+    const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `placementos-quarantined-backup-${todayDate}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    triggerSaveNotify(`Quarantined snapshot exported as placementos-quarantined-backup-${todayDate}.json`);
+  };
+
+  const handleConfirmQuarantineRestore = () => {
+    const snapshot = StorageAdapter.getQuarantinedState();
+    if (!snapshot) {
+      setImportStatus({
+        message: 'Restore failed: No quarantined snapshot found.',
+        isError: true,
+      });
+      return;
+    }
+    const result = importBackupJSON(snapshot.payload);
+    if (result.success) {
+      setImportStatus({
+        message: 'Quarantined backup successfully validated and restored as active application state.',
+        isError: false,
+      });
+      setQuarantinedSnapshot(StorageAdapter.getQuarantinedState());
+    } else {
+      setImportStatus({
+        message: `Quarantine restore failed schema validation: ${result.error || 'Invalid backup structure'}. Active state was not modified.`,
+        isError: true,
+      });
+    }
+  };
+
+  const handleConfirmQuarantineClear = () => {
+    StorageAdapter.clearQuarantinedState();
+    setQuarantinedSnapshot(null);
+    triggerSaveNotify('Quarantined storage snapshot record cleared.');
+  };
+
   const handleResetConfigOnly = () => {
     resetUserSettingsOnly();
     triggerSaveNotify('Configuration settings restored to baseline defaults.');
@@ -103,6 +152,7 @@ export const SettingsView: React.FC = () => {
 
   const handleFullResetConfirmed = () => {
     resetApplicationData();
+    setQuarantinedSnapshot(StorageAdapter.getQuarantinedState());
     setImportStatus({
       message: 'Full application data reset to default seed baseline.',
       isError: false,
@@ -150,6 +200,10 @@ export const SettingsView: React.FC = () => {
         onImportFile={handleImportFile}
         importStatus={importStatus}
         onDismissImportStatus={() => setImportStatus(null)}
+        quarantinedSnapshot={quarantinedSnapshot}
+        onExportQuarantined={handleExportQuarantined}
+        onRequestRestoreQuarantined={() => setQuarantineModalAction('restore')}
+        onRequestClearQuarantined={() => setQuarantineModalAction('clear')}
       />
 
       {/* Zone 5: Scoped Subsystem Maintenance */}
@@ -169,6 +223,21 @@ export const SettingsView: React.FC = () => {
         onConfirmReset={() => {
           handleFullResetConfirmed();
           setShowFullResetModal(false);
+        }}
+      />
+
+      {/* Quarantine Action Confirmation Modal */}
+      <ConfirmQuarantineActionModal
+        isOpen={quarantineModalAction !== null}
+        action={quarantineModalAction || 'restore'}
+        onClose={() => setQuarantineModalAction(null)}
+        onConfirm={() => {
+          if (quarantineModalAction === 'restore') {
+            handleConfirmQuarantineRestore();
+          } else if (quarantineModalAction === 'clear') {
+            handleConfirmQuarantineClear();
+          }
+          setQuarantineModalAction(null);
         }}
       />
     </div>

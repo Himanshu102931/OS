@@ -182,6 +182,7 @@ interface PlacementContextType {
   resetAssessmentProfileOnly: () => void;
   resetAssessmentHistoryOnly: () => void;
   syncDailyAssignmentCompletion: (assignmentId: string, completed?: boolean) => void;
+  persistenceError: boolean;
 }
 
 function getTodayISO(): string {
@@ -267,8 +268,12 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   });
 
+  const [persistenceError, setPersistenceError] = useState<boolean>(false);
+
   useEffect(() => {
-    StorageAdapter.saveState(appState);
+    const success = StorageAdapter.saveState(appState);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPersistenceError(!success);
   }, [appState]);
 
   // Periodically check local calendar date rollover (e.g. crossing midnight)
@@ -1222,6 +1227,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         resetAssessmentProfileOnly,
         resetAssessmentHistoryOnly,
         syncDailyAssignmentCompletion,
+        persistenceError,
       }}
     >
       {children}

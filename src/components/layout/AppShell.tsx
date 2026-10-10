@@ -17,6 +17,7 @@ import {
   Dumbbell,
   ClipboardCheck,
   UserCheck,
+  AlertTriangle,
 } from 'lucide-react';
 
 
@@ -25,7 +26,7 @@ interface AppShellProps {
 }
 
 export const AppShell: React.FC<AppShellProps> = ({ children }) => {
-  const { currentRoute, setRoute, todayDate, activePhase, currentMode, setPlacementMode } = usePlacement();
+  const { currentRoute, setRoute, todayDate, activePhase, currentMode, setPlacementMode, persistenceError } = usePlacement();
 
   const navItems: { id: RoutePath; label: string; icon: React.FC<{ className?: string }> }[] = [
     { id: 'dashboard', label: 'Today', icon: LayoutDashboard },
@@ -109,6 +110,25 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
           </div>
         </div>
       </header>
+
+      {/* Persistence Failure Alert Banner */}
+      {persistenceError && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          data-testid="persistence-error-banner"
+          className="bg-danger/15 border-b border-danger/40 text-danger px-4 sm:px-8 py-2.5 text-xs flex items-center justify-between gap-3 shrink-0 z-30 animate-fade-in font-sans"
+        >
+          <div className="max-w-[1500px] mx-auto w-full flex items-center gap-2.5">
+            <AlertTriangle className="size-4 shrink-0 text-danger" />
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <span className="font-semibold text-foreground">Storage Save Failed:</span>
+              <span>Unable to persist changes to local browser storage (quota exceeded or storage restricted).</span>
+              <span className="text-foreground-muted text-[11px]">Recent changes may not survive a page refresh or browser restart.</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main App Container */}
       <div className="flex-1 max-w-[1500px] w-full mx-auto flex flex-col md:flex-row min-h-0 md:overflow-hidden">
