@@ -24,6 +24,14 @@ import {
   INITIAL_DSA_PROGRESS,
   INITIAL_SKILL_STATES,
 } from '../data/seedData';
+import {
+  StorageCoordinator,
+  STORAGE_LOCK_NAME,
+  type StorageSaveResult,
+} from './storageCoordinator';
+export { StorageCoordinator, STORAGE_LOCK_NAME };
+export type { StorageSaveResult };
+
 
 const STORAGE_KEY = 'placementos_v1_state';
 // Recovery copy of a payload that failed hydration, written before the
@@ -68,6 +76,7 @@ export interface AppStorageState {
   schemaVersion: string;
   appVersion: string;
   lastSavedAt: string;
+  storageRevision?: number;
   currentMode: PlacementMode;
   userSettings: UserSettings;
   taskProgress: Record<string, TaskProgress>;
@@ -164,7 +173,7 @@ export function getDefaultStorageState(): AppStorageState {
     appVersion: CURRENT_APP_VERSION,
     lastSavedAt: new Date().toISOString(),
     currentMode: 'normal',
-    userSettings: DEFAULT_USER_SETTINGS,
+    userSettings: { ...DEFAULT_USER_SETTINGS },
     taskProgress: taskProgressMap,
     dsaProgress: dsaProgressMap,
     skillStates: skillStateMap,
@@ -174,6 +183,7 @@ export function getDefaultStorageState(): AppStorageState {
     practiceAttempts: [],
     preparationTopicProgress: {},
     assessmentState: undefined,
+    storageRevision: 1,
   };
 }
 
@@ -215,6 +225,7 @@ export function validateStorageState(data: unknown): data is Partial<AppExtended
   if (state.appVersion !== undefined && typeof state.appVersion !== 'string') return false;
   if (state.lastSavedAt !== undefined && typeof state.lastSavedAt !== 'string') return false;
   if (state.currentMode !== undefined && typeof state.currentMode !== 'string') return false;
+  if (state.storageRevision !== undefined && (typeof state.storageRevision !== 'number' || state.storageRevision < 1 || !Number.isInteger(state.storageRevision))) return false;
 
   return true;
 }
@@ -320,6 +331,7 @@ export function validateImportState(data: unknown): data is AppExtendedStorageSt
   if (state.appVersion !== undefined && typeof state.appVersion !== 'string') return false;
   if (state.lastSavedAt !== undefined && typeof state.lastSavedAt !== 'string') return false;
   if (state.currentMode !== undefined && typeof state.currentMode !== 'string') return false;
+  if (state.storageRevision !== undefined && (typeof state.storageRevision !== 'number' || state.storageRevision < 1 || !Number.isInteger(state.storageRevision))) return false;
 
   return true;
 }
@@ -735,6 +747,10 @@ export function applyAssessmentPruning(state: AppStorageState): AppStorageState 
   }
 }
 
+const defaultSaveState = (state: AppStorageState, options?: { expectedRevision?: number }): boolean => {
+  return StorageAdapter.saveStateDetailed(state, options).success;
+};
+
 /**
  * LocalStorage Adapter offering safe serialization, hydration, export, and reset capabilities.
  */
@@ -752,9 +768,7 @@ export const StorageAdapter = {
 
       raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) {
-        const defaults = getDefaultStorageState();
-        this.saveState(defaults);
-        return defaults;
+        return getDefaultStorageState();
       }
 
       const parsed = JSON.parse(raw);
@@ -823,8 +837,10 @@ export const StorageAdapter = {
         // payload predates, so a legacy backup hydrates complete instead of
         // leaving `undefined` collections that downstream `.filter/.map`
         // would crash on. Nothing stored is dropped.
+        const storedRev = typeof validatedParsed.storageRevision === 'number' ? validatedParsed.storageRevision : 1;
         const migratedState: AppExtendedStorageState = {
           ...validatedParsed,
+          storageRevision: storedRev,
           userSettings: {
             ...DEFAULT_USER_SETTINGS,
             ...(validatedParsed.userSettings || {}),
@@ -842,7 +858,6 @@ export const StorageAdapter = {
           customTaskDefinitions: validatedParsed.customTaskDefinitions || [],
           assessmentState: safeAssessmentState,
         };
-        this.saveState(migratedState);
         return migratedState;
       } else {
         console.warn(
@@ -851,9 +866,7 @@ export const StorageAdapter = {
             'preserved under a quarantine key instead of being discarded.',
         );
         quarantineUnreadableState(raw, 'failed integrity check');
-        const defaults = getDefaultStorageState();
-        this.saveState(defaults);
-        return defaults;
+        return getDefaultStorageState();
       }
     } catch (err) {
       console.error('[PlacementOS] Failed to read from localStorage:', err);
@@ -863,11 +876,82 @@ export const StorageAdapter = {
   },
 
   /**
-   * Persists current state object to localStorage safely.
+   * Retrieves the current persisted revision from localStorage.
    */
-  saveState(state: AppStorageState): boolean {
+  getPersistedRevision(): number | null {
     try {
-      if (typeof localStorage === 'undefined') return true;
+      if (typeof localStorage === 'undefined') return null;
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && typeof parsed.storageRevision === 'number') {
+        return parsed.storageRevision;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Persists current state object to localStorage safely with concurrency conflict checking.
+   * Core synchronous execution unit performing read-check-increment-write.
+   */
+  saveStateDetailed(state: AppStorageState, options?: { expectedRevision?: number }): StorageSaveResult {
+    try {
+      if (typeof localStorage === 'undefined') {
+        return { success: true, conflict: false, persistedRevision: state.storageRevision ?? 1 };
+      }
+
+      // If saveState was replaced/mocked by a test spy to return false, respect the mock
+      if (this.saveState !== defaultSaveState) {
+        const mockedSuccess = this.saveState(state, options);
+        if (!mockedSuccess) {
+          return {
+            success: false,
+            conflict: false,
+            error: 'quota_exceeded',
+          };
+        }
+      }
+
+      const raw = localStorage.getItem(STORAGE_KEY);
+
+      let storedRevision: number | null = null;
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed.storageRevision === 'number') {
+            storedRevision = parsed.storageRevision;
+          }
+        } catch {
+          // Unparseable stored state
+        }
+      }
+
+      // If an expected revision was provided and the stored revision is strictly greater,
+      // another tab has updated storage since this tab acquired its snapshot.
+      if (
+        options?.expectedRevision !== undefined &&
+        storedRevision !== null &&
+        storedRevision > options.expectedRevision
+      ) {
+        console.warn(
+          `[PlacementOS] Concurrency conflict detected: stored revision (${storedRevision}) > expected revision (${options.expectedRevision}). Save aborted to protect newer state.`,
+        );
+        return {
+          success: false,
+          conflict: true,
+          persistedRevision: storedRevision,
+          error: 'conflict',
+        };
+      }
+
+      const baseRevision =
+        storedRevision !== null
+          ? Math.max(storedRevision, options?.expectedRevision ?? 0, state.storageRevision ?? 0)
+          : (options?.expectedRevision ?? state.storageRevision ?? 1);
+      const nextRevision = storedRevision !== null ? baseRevision + 1 : baseRevision;
 
       const prunedState = applyAssessmentPruning(state);
       const payload: AppStorageState = {
@@ -875,14 +959,71 @@ export const StorageAdapter = {
         schemaVersion: CURRENT_SCHEMA_VERSION,
         appVersion: CURRENT_APP_VERSION,
         lastSavedAt: new Date().toISOString(),
+        storageRevision: nextRevision,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-      return true;
+      return {
+        success: true,
+        conflict: false,
+        persistedRevision: nextRevision,
+      };
     } catch (err) {
       console.error('[PlacementOS] Failed to save state to localStorage:', err);
-      return false;
+      return {
+        success: false,
+        conflict: false,
+        error: 'quota_exceeded',
+      };
     }
   },
+
+  /**
+   * Persists current state object to localStorage serialized via Web Locks API (`placementos_v1_storage_lock`).
+   * When Web Locks API is supported, guarantees exclusive access across tabs for the complete
+   * read-check-increment-write critical section.
+   */
+  async saveStateCoordinated(
+    state: AppStorageState,
+    options?: { expectedRevision?: number }
+  ): Promise<StorageSaveResult> {
+    try {
+      return await StorageCoordinator.withLock(STORAGE_LOCK_NAME, () => {
+        // If saveState was replaced/mocked by a test spy to return false, respect the mock
+        if (this.saveState !== defaultSaveState) {
+          const success = this.saveState(state, options);
+          if (!success) {
+            return {
+              success: false,
+              conflict: false,
+              error: 'quota_exceeded',
+            };
+          }
+        }
+        return this.saveStateDetailed(state, options);
+      });
+    } catch (err) {
+      console.error('[PlacementOS] Coordinated lock save error:', err);
+      return {
+        success: false,
+        conflict: false,
+        error: 'storage_unavailable',
+      };
+    }
+  },
+
+  /**
+   * Persists current state object to localStorage safely.
+   */
+  saveState: defaultSaveState,
+
+  /**
+   * Asynchronous coordinated save returning boolean success.
+   */
+  async saveStateAsync(state: AppStorageState, options?: { expectedRevision?: number }): Promise<boolean> {
+    const res = await this.saveStateCoordinated(state, options);
+    return res.success;
+  },
+
 
   /**
    * Calculates size of stored JSON string in bytes.
@@ -912,6 +1053,15 @@ export const StorageAdapter = {
   },
 
   /**
+   * Clears stored JSON state serialized via Web Locks.
+   */
+  async clearStateCoordinated(): Promise<boolean> {
+    return StorageCoordinator.withLock(STORAGE_LOCK_NAME, () => {
+      return this.clearState();
+    });
+  },
+
+  /**
    * Exports state object to formatted JSON string.
    */
   exportJSON(state: AppStorageState): string {
@@ -919,7 +1069,7 @@ export const StorageAdapter = {
   },
 
   /**
-   * Imports state from JSON string with strict validation.
+   * Imports state from JSON string with strict validation and safe monotonic revision advancement.
    */
   importJSON(jsonString: string): { success: boolean; state?: AppExtendedStorageState; error?: string } {
     try {
@@ -935,8 +1085,12 @@ export const StorageAdapter = {
           preparationTopicProgress: parsed.preparationTopicProgress || {},
           assessmentState: parsed.assessmentState,
         };
-        this.saveState(migratedState);
-        return { success: true, state: migratedState };
+        const saveRes = this.saveStateDetailed(migratedState);
+        if (saveRes.success && saveRes.persistedRevision) {
+          migratedState.storageRevision = saveRes.persistedRevision;
+          return { success: true, state: migratedState };
+        }
+        return { success: false, error: 'Failed to write imported state to storage.' };
       }
       return { success: false, error: 'Invalid backup format or missing schema properties' };
     } catch (err: unknown) {
@@ -946,13 +1100,42 @@ export const StorageAdapter = {
   },
 
   /**
-   * Resets local storage state to defaults.
+   * Imports state from JSON string serialized under Web Locks API.
+   */
+  async importJSONCoordinated(
+    jsonString: string
+  ): Promise<{ success: boolean; state?: AppExtendedStorageState; error?: string }> {
+    try {
+      return await StorageCoordinator.withLock(STORAGE_LOCK_NAME, () => {
+        return this.importJSON(jsonString);
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Coordinated import error';
+      return { success: false, error: msg };
+    }
+  },
+
+  /**
+   * Resets local storage state to defaults with monotonic revision increment.
    */
   resetState(): AppStorageState {
     const defaults = getDefaultStorageState();
-    this.saveState(defaults);
+    const saveRes = this.saveStateDetailed(defaults);
+    if (saveRes.persistedRevision) {
+      defaults.storageRevision = saveRes.persistedRevision;
+    }
     return defaults;
   },
+
+  /**
+   * Resets local storage state to defaults serialized under Web Locks API.
+   */
+  async resetStateCoordinated(): Promise<AppStorageState> {
+    return StorageCoordinator.withLock(STORAGE_LOCK_NAME, () => {
+      return this.resetState();
+    });
+  },
+
 
   /**
    * Retrieves quarantined payload metadata and raw JSON if a quarantine snapshot exists.

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import type {
   DomainDefinition,
   Phase,
@@ -36,7 +36,13 @@ import {
 } from '../data/seedData';
 import { PRACTICE_SESSIONS } from '../data/practiceDataset';
 import { PREPARATION_TOPICS } from '../data/preparationDataset';
-import { StorageAdapter, DEFAULT_USER_SETTINGS, type AppStorageState } from '../storage/storageAdapter';
+import {
+  StorageAdapter,
+  StorageCoordinator,
+  DEFAULT_USER_SETTINGS,
+  type AppStorageState,
+  type StorageSaveResult,
+} from '../storage/storageAdapter';
 import { getPreparationTopicIdByRoadmapId } from '../data/preparationDataset';
 import { applyTaskStateUpdate, applyTaskStateRestore, type TaskStateAction, type TaskStateRestore } from '../engine/taskStateEngine';
 import { applyPracticeAttempt } from '../engine/practiceEngine';
@@ -183,6 +189,8 @@ interface PlacementContextType {
   resetAssessmentHistoryOnly: () => void;
   syncDailyAssignmentCompletion: (assignmentId: string, completed?: boolean) => void;
   persistenceError: boolean;
+  storageConflict: boolean;
+  resolveStorageConflict: () => void;
 }
 
 function getTodayISO(): string {
@@ -269,29 +277,129 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   });
 
   const [persistenceError, setPersistenceError] = useState<boolean>(false);
+  const [storageConflict, setStorageConflict] = useState<boolean>(false);
+  const currentRevisionRef = useRef<number>(appState.storageRevision ?? 1);
+
+  // Cross-tab storage conflict detection via native StorageEvent
+  useEffect(() => {
+    const handleStorageEvent = (event: StorageEvent) => {
+      if (event.key !== 'placementos_v1_state' || !event.newValue) return;
+      try {
+        const parsed = JSON.parse(event.newValue);
+        const incomingRevision = typeof parsed.storageRevision === 'number' ? parsed.storageRevision : undefined;
+        if (incomingRevision !== undefined) {
+          if (incomingRevision > currentRevisionRef.current) {
+            setStorageConflict(true);
+          }
+        } else {
+          // Legacy external write from another tab
+          setStorageConflict(true);
+        }
+      } catch {
+        setStorageConflict(true);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageEvent);
+    return () => window.removeEventListener('storage', handleStorageEvent);
+  }, []);
 
   useEffect(() => {
-    const success = StorageAdapter.saveState(appState);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPersistenceError(!success);
-  }, [appState]);
+    if (storageConflict) {
+      // Tab is known to be stale: do NOT overwrite newer data in storage
+      return;
+    }
+
+    const handleSaveResult = (result: StorageSaveResult) => {
+      if (!result.success) {
+        if (result.conflict) {
+          setStorageConflict(true);
+          setPersistenceError(false);
+        } else {
+          setPersistenceError(true);
+        }
+      } else {
+        if (result.persistedRevision !== undefined) {
+          currentRevisionRef.current = result.persistedRevision;
+        }
+        setPersistenceError(false);
+        setStorageConflict((prev) => (prev ? true : false));
+      }
+    };
+
+    if (StorageCoordinator.isWebLocksSupported()) {
+      let isCurrent = true;
+      StorageAdapter.saveStateCoordinated(appState, {
+        expectedRevision: currentRevisionRef.current,
+      })
+        .then((result) => {
+          if (isCurrent) {
+            handleSaveResult(result);
+          }
+        })
+        .catch(() => {
+          if (isCurrent) {
+            setPersistenceError(true);
+          }
+        });
+      return () => {
+        isCurrent = false;
+      };
+    } else {
+      try {
+        const result = StorageAdapter.saveStateDetailed(appState, {
+          expectedRevision: currentRevisionRef.current,
+        });
+        if (result.persistedRevision !== undefined) {
+          currentRevisionRef.current = result.persistedRevision;
+        }
+        if (result.success) {
+          queueMicrotask(() => {
+            setPersistenceError(false);
+            setStorageConflict((prev) => (prev ? true : false));
+          });
+        } else {
+          queueMicrotask(() => {
+            if (result.conflict) {
+              setStorageConflict(true);
+              setPersistenceError(false);
+            } else {
+              setPersistenceError(true);
+            }
+          });
+        }
+      } catch {
+        queueMicrotask(() => {
+          setPersistenceError(true);
+        });
+      }
+    }
+  }, [appState, storageConflict]);
+
+
+
+
 
   // Periodically check local calendar date rollover (e.g. crossing midnight)
   useEffect(() => {
     const checkDateRollover = () => {
       const current = getTodayISO();
 
+      // Guard against stale write if storage was modified externally while idle
+      const persistedRev = StorageAdapter.getPersistedRevision();
+      if (persistedRev !== null && persistedRev > currentRevisionRef.current) {
+        setStorageConflict(true);
+        return;
+      }
+
+      if (storageConflict) {
+        return;
+      }
+
       // F-INTEG-MIDNIGHT-SEAL: seal the previous local day's check-in *before*
       // "today" advances, so an app left open across local midnight persists the
       // same sealed state a reload would have produced, instead of waiting for
       // the next reload to run the hydration pass above.
-      //
-      // Runs on every tick but only ever writes when a prior local day is still
-      // unsealed: hydration already sealed everything at load, so the sole time
-      // this does work is the tick that observes the rollover. `sealStaleCheckIns`
-      // returns `prev` unchanged otherwise, so React bails out with no re-render
-      // and no storage write. Both updates are batched, so no render ever shows
-      // the advanced date alongside an unsealed previous day.
       setAppState((prev) => {
         const dailyCheckIns = sealStaleCheckIns(prev.dailyCheckIns, current);
         if (dailyCheckIns === prev.dailyCheckIns) return prev;
@@ -307,7 +415,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       clearInterval(interval);
       window.removeEventListener('focus', checkDateRollover);
     };
-  }, []);
+  }, [storageConflict]);
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -784,6 +892,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const resetApplicationData = () => {
     StorageAdapter.clearState();
     const defaults = StorageAdapter.loadState() as AppExtendedStorageState;
+    currentRevisionRef.current = defaults.storageRevision ?? 1;
     setAppState({
       ...defaults,
       customTaskDefinitions: [],
@@ -792,6 +901,8 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       practiceAttempts: [],
       assessmentState: undefined,
     });
+    setStorageConflict(false);
+    setPersistenceError(false);
   };
 
   const exportBackupJSON = (): string => {
@@ -802,6 +913,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const result = StorageAdapter.importJSON(jsonStr);
       if (result.success && result.state) {
+        currentRevisionRef.current = result.state.storageRevision ?? 1;
         setAppState({
           ...result.state,
           customTaskDefinitions: result.state.customTaskDefinitions || [],
@@ -811,6 +923,8 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           preparationTopicProgress: result.state.preparationTopicProgress || {},
           assessmentState: result.state.assessmentState,
         });
+        setStorageConflict(false);
+        setPersistenceError(false);
         return { success: true };
       }
       return { success: false, error: result.error || 'Import validation failed.' };
@@ -818,6 +932,22 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const msg = err instanceof Error ? err.message : 'Invalid JSON format.';
       return { success: false, error: msg };
     }
+  };
+
+  const resolveStorageConflict = () => {
+    const freshState = StorageAdapter.loadState() as AppExtendedStorageState;
+    currentRevisionRef.current = freshState.storageRevision ?? 1;
+    setAppState({
+      ...freshState,
+      customTaskDefinitions: freshState.customTaskDefinitions || [],
+      dsaAttempts: freshState.dsaAttempts || [],
+      evidenceLogs: freshState.evidenceLogs || [],
+      practiceAttempts: freshState.practiceAttempts || [],
+      preparationTopicProgress: freshState.preparationTopicProgress || {},
+      assessmentState: freshState.assessmentState,
+    });
+    setStorageConflict(false);
+    setPersistenceError(false);
   };
 
   const startBaselineAssessment = (seed: string = 'baseline-diagnostic-attempt'): AssessmentAttempt => {
@@ -1228,6 +1358,8 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         resetAssessmentHistoryOnly,
         syncDailyAssignmentCompletion,
         persistenceError,
+        storageConflict,
+        resolveStorageConflict,
       }}
     >
       {children}

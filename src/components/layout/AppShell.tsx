@@ -26,7 +26,17 @@ interface AppShellProps {
 }
 
 export const AppShell: React.FC<AppShellProps> = ({ children }) => {
-  const { currentRoute, setRoute, todayDate, activePhase, currentMode, setPlacementMode, persistenceError } = usePlacement();
+  const {
+    currentRoute,
+    setRoute,
+    todayDate,
+    activePhase,
+    currentMode,
+    setPlacementMode,
+    persistenceError,
+    storageConflict,
+    resolveStorageConflict,
+  } = usePlacement();
 
   const navItems: { id: RoutePath; label: string; icon: React.FC<{ className?: string }> }[] = [
     { id: 'dashboard', label: 'Today', icon: LayoutDashboard },
@@ -126,6 +136,38 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
               <span>Unable to persist changes to local browser storage (quota exceeded or storage restricted).</span>
               <span className="text-foreground-muted text-[11px]">Recent changes may not survive a page refresh or browser restart.</span>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cross-Tab Concurrency Conflict Warning Banner */}
+      {storageConflict && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          data-testid="storage-conflict-banner"
+          className="bg-warning/15 border-b border-warning/40 text-warning px-4 sm:px-8 py-2.5 text-xs flex items-center justify-between gap-3 shrink-0 z-30 animate-fade-in font-sans"
+        >
+          <div className="max-w-[1500px] mx-auto w-full flex items-center justify-between gap-2.5 flex-wrap">
+            <div className="flex items-center gap-2.5">
+              <AlertTriangle className="size-4 shrink-0 text-warning" />
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <span className="font-semibold text-foreground">Concurrent Update Detected:</span>
+                <span>Another browser tab updated your saved progress. To prevent overwriting newer data, background saves in this tab are paused.</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm('Reload latest progress from storage? Any unsaved edits in this tab will be replaced with the latest saved state.')) {
+                  resolveStorageConflict();
+                }
+              }}
+              data-testid="resolve-conflict-btn"
+              className="px-2.5 py-1 bg-warning/20 hover:bg-warning/30 text-warning border border-warning/50 rounded font-medium text-xs transition-colors shrink-0 cursor-pointer"
+            >
+              Reload Latest State
+            </button>
           </div>
         </div>
       )}
