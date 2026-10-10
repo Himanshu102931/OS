@@ -180,6 +180,68 @@ const deepLinkTrace = (catalog: EvidenceCatalog): EvidenceTrace =>
     catalog,
   });
 
+const dsaDeepLinkTrace = (catalog: EvidenceCatalog): EvidenceTrace =>
+  buildEvidenceTrace({
+    id: 'demo:dsa-deep',
+    signal: 'overdue_review',
+    label: 'Overdue DSA Problem',
+    why: 'Leitner review overdue.',
+    sources: [
+      {
+        kind: 'dsa_progress',
+        sourceId: 'dsa-001',
+        label: 'Two Sum',
+        timestamp: '2026-10-01T10:00:00.000Z',
+        availability: 'available',
+      },
+    ],
+    route: 'dsa',
+    targetId: 'dsa-001',
+    catalog,
+  });
+
+const practiceDeepLinkTrace = (catalog: EvidenceCatalog): EvidenceTrace => {
+  const sessionId = catalog.practiceSessions[0]?.id || 'sess-sql-join';
+  return buildEvidenceTrace({
+    id: 'demo:practice-deep',
+    signal: 'practice_weakness',
+    label: 'Practice Session',
+    why: 'Target practice drill.',
+    sources: [
+      {
+        kind: 'practice_session',
+        sourceId: sessionId,
+        label: 'Practice Session',
+        timestamp: '2026-10-01T10:00:00.000Z',
+        availability: 'available',
+      },
+    ],
+    route: 'practice',
+    targetId: sessionId,
+    catalog,
+  });
+};
+
+const skillsDeepLinkTrace = (catalog: EvidenceCatalog): EvidenceTrace =>
+  buildEvidenceTrace({
+    id: 'demo:skills-deep',
+    signal: 'weak_skill',
+    label: 'SQL Joins Skill',
+    why: 'Weak skill topic.',
+    sources: [
+      {
+        kind: 'skill_state',
+        sourceId: 'topic-sql-joins',
+        label: 'SQL Joins',
+        timestamp: '2026-10-01T10:00:00.000Z',
+        availability: 'available',
+      },
+    ],
+    route: 'skills',
+    targetId: 'topic-sql-joins',
+    catalog,
+  });
+
 const genericTrace = (catalog: EvidenceCatalog): EvidenceTrace =>
   buildEvidenceTrace({
     id: 'demo:generic',
@@ -195,8 +257,8 @@ const genericTrace = (catalog: EvidenceCatalog): EvidenceTrace =>
         availability: 'available',
       },
     ],
-    route: 'practice',
-    targetId: 'sess-anything',
+    route: 'analytics',
+    targetId: 'metric-anything',
     catalog,
   });
 
@@ -290,22 +352,58 @@ describe('EvidenceTracePanel', () => {
     expect(window.location.hash).toBe('#/roadmap/ui-task-sql-joins');
   });
 
+  it('deep-links a real DSA problem target and reports the resolved route in the hash', () => {
+    mount(<PanelHarness build={dsaDeepLinkTrace} idPrefix="demo" />);
+
+    fireEvent.click(screen.getByTestId('demo-trace-toggle'));
+    expect(screen.getByTestId('demo-trace-action').textContent).toContain('Open "Two Sum"');
+    fireEvent.click(screen.getByTestId('demo-trace-action'));
+
+    expect(screen.getByTestId('current-route').textContent).toBe('dsa');
+    expect(screen.getByTestId('current-target').textContent).toBe('dsa-001');
+    expect(window.location.hash).toBe('#/dsa/dsa-001');
+  });
+
+  it('deep-links a real Practice session target and reports the resolved route in the hash', () => {
+    mount(<PanelHarness build={practiceDeepLinkTrace} idPrefix="demo" />);
+
+    fireEvent.click(screen.getByTestId('demo-trace-toggle'));
+    expect(screen.getByTestId('demo-trace-action').textContent).toContain('Open');
+    fireEvent.click(screen.getByTestId('demo-trace-action'));
+
+    expect(screen.getByTestId('current-route').textContent).toBe('practice');
+    expect(screen.getByTestId('current-target').textContent).not.toBe('none');
+    expect(window.location.hash).toMatch(/^#\/practice\/.+/);
+  });
+
+  it('deep-links a real Skills topic target and reports the resolved route in the hash', () => {
+    mount(<PanelHarness build={skillsDeepLinkTrace} idPrefix="demo" />);
+
+    fireEvent.click(screen.getByTestId('demo-trace-toggle'));
+    expect(screen.getByTestId('demo-trace-action').textContent).toContain('Open "SQL Joins & Aggregations"');
+    fireEvent.click(screen.getByTestId('demo-trace-action'));
+
+    expect(screen.getByTestId('current-route').textContent).toBe('skills');
+    expect(screen.getByTestId('current-target').textContent).toBe('topic-sql-joins');
+    expect(window.location.hash).toBe('#/skills/topic-sql-joins');
+  });
+
   it('uses an honest label for a route that cannot consume a target id', () => {
     mount(<PanelHarness build={genericTrace} idPrefix="demo" />);
 
     fireEvent.click(screen.getByTestId('demo-trace-toggle'));
 
     const action = screen.getByTestId('demo-trace-action');
-    expect(action.textContent).toContain('Open Practice');
-    expect(action.textContent).not.toContain('sess-anything');
+    expect(action.textContent).toContain('Open Analytics');
+    expect(action.textContent).not.toContain('metric-anything');
     expect(screen.getByTestId('demo-trace-note').textContent).toContain(
       'does not open a specific record'
     );
 
     fireEvent.click(action);
-    expect(screen.getByTestId('current-route').textContent).toBe('practice');
+    expect(screen.getByTestId('current-route').textContent).toBe('analytics');
     expect(screen.getByTestId('current-target').textContent).toBe('none');
-    expect(window.location.hash).toBe('#/practice');
+    expect(window.location.hash).toBe('#/analytics');
   });
 
   it('shows a missing source as unavailable with no button, and a derived entry as aggregated', () => {

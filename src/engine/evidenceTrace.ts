@@ -19,6 +19,7 @@ import type { ReadinessDimension } from './interviewReadinessEngine';
 import type { TaskLockExplanation } from './prerequisiteNavigation';
 import { resolveRoadmapTarget } from './prerequisiteNavigation';
 import { getPreparationTopic } from '../data/preparationDataset';
+import { DOMAINS } from '../data/seedData';
 
 /**
  * EVIDENCE TRACEABILITY — Signal → Why → Evidence → Source → Go to Source.
@@ -35,7 +36,7 @@ import { getPreparationTopic } from '../data/preparationDataset';
  *   EVIDENCE  the contributing canonical records, classified direct vs aggregated
  *   SOURCE    each record resolved against real local state — never a phantom id
  *   ACTION    a route that is only called a deep link when the destination view
- *             actually reads `routeState.targetId` (today: roadmap, preparation)
+ *             actually reads `routeState.targetId` (roadmap, preparation, dsa, practice, skills)
  *
  * Guarantees:
  *   - reads no clock (`Date.now()`/`new Date()` are never called)
@@ -481,7 +482,13 @@ export function makeDerivedSource(
  * Routes whose view actually reads `routeState.targetId`.
  * Everything else opens a generic page and must be labelled as such.
  */
-const DEEP_LINK_ROUTES: ReadonlySet<TraceRoute> = new Set<TraceRoute>(['roadmap', 'preparation']);
+const DEEP_LINK_ROUTES: ReadonlySet<TraceRoute> = new Set<TraceRoute>([
+  'roadmap',
+  'preparation',
+  'dsa',
+  'practice',
+  'skills',
+]);
 
 const ROUTE_ACTION_LABEL: Record<TraceRoute, string> = {
   dashboard: 'Open Dashboard',
@@ -514,7 +521,8 @@ export function routeSupportsDeepLink(route: TraceRoute): boolean {
 export function resolveTraceDestination(
   route: TraceRoute,
   targetId: string | undefined,
-  catalog: Pick<EvidenceCatalog, 'topics' | 'taskDefinitions'>
+  catalog: Pick<EvidenceCatalog, 'topics' | 'taskDefinitions'> &
+    Partial<Pick<EvidenceCatalog, 'dsaProblems' | 'practiceSessions'>>
 ): TraceDestination {
   const genericLabel = ROUTE_ACTION_LABEL[route];
 
@@ -552,18 +560,75 @@ export function resolveTraceDestination(
     };
   }
 
-  // preparation
-  if (!targetId) return { route, deepLink: false, label: genericLabel };
-  const prepTopic = getPreparationTopic(targetId);
-  if (!prepTopic) {
+  if (route === 'preparation') {
+    if (!targetId) return { route, deepLink: false, label: genericLabel };
+    const prepTopic = getPreparationTopic(targetId);
+    if (!prepTopic) {
+      return {
+        route,
+        deepLink: false,
+        label: genericLabel,
+        note: `Preparation topic "${targetId}" was not found.`,
+      };
+    }
+    return { route, targetId, deepLink: true, label: `Open "${prepTopic.title}"` };
+  }
+
+  if (route === 'dsa') {
+    if (!targetId) return { route, deepLink: false, label: genericLabel };
+    const problem = catalog.dsaProblems?.find((p) => p.id === targetId);
+    if (!problem) {
+      return {
+        route,
+        deepLink: false,
+        label: genericLabel,
+        note: `DSA problem "${targetId}" was not found.`,
+      };
+    }
+    return { route, targetId, deepLink: true, label: `Open "${problem.title}"` };
+  }
+
+  if (route === 'practice') {
+    if (!targetId) return { route, deepLink: false, label: genericLabel };
+    const session = catalog.practiceSessions?.find((s) => s.id === targetId);
+    if (!session) {
+      return {
+        route,
+        deepLink: false,
+        label: genericLabel,
+        note: `Practice session "${targetId}" was not found.`,
+      };
+    }
+    return { route, targetId, deepLink: true, label: `Open "${session.title}"` };
+  }
+
+  if (route === 'skills') {
+    if (!targetId) return { route, deepLink: false, label: genericLabel };
+    const topic = catalog.topics.find((t) => t.id === targetId);
+    if (topic) {
+      return { route, targetId, deepLink: true, label: `Open "${topic.name}"` };
+    }
+    const domain =
+      DOMAINS.find((d) => d.id === targetId) ??
+      catalog.topics.find((t) => t.domainId === targetId);
+    if (domain) {
+      const domainName =
+        'shortName' in domain && domain.shortName
+          ? domain.shortName
+          : 'name' in domain
+          ? domain.name
+          : targetId;
+      return { route, targetId, deepLink: true, label: `Open "${domainName}"` };
+    }
     return {
       route,
       deepLink: false,
       label: genericLabel,
-      note: `Preparation topic "${targetId}" was not found.`,
+      note: `Skill target "${targetId}" was not found.`,
     };
   }
-  return { route, targetId, deepLink: true, label: `Open "${prepTopic.title}"` };
+
+  return { route, deepLink: false, label: genericLabel };
 }
 
 /**
@@ -583,9 +648,17 @@ export function resolveSourceDestination(
     case 'task_progress':
       return resolveTraceDestination('roadmap', source.sourceId, catalog);
     case 'dsa_progress':
-    case 'dsa_attempt':
       return resolveTraceDestination('dsa', source.sourceId, catalog);
-    case 'practice_attempt':
+    case 'dsa_attempt': {
+      const attempt = catalog.dsaAttempts?.find((a) => a.id === source.sourceId);
+      const targetId = attempt?.problemId ?? source.sourceId;
+      return resolveTraceDestination('dsa', targetId, catalog);
+    }
+    case 'practice_attempt': {
+      const attempt = catalog.practiceAttempts?.find((a) => a.id === source.sourceId);
+      const targetId = attempt?.sessionId ?? source.sourceId;
+      return resolveTraceDestination('practice', targetId, catalog);
+    }
     case 'practice_session':
       return resolveTraceDestination('practice', source.sourceId, catalog);
     case 'assessment_attempt':
@@ -603,10 +676,17 @@ export function resolveSourceDestination(
         case 'daily_assignment':
           // The log's own topic is the only id here known to be a roadmap id.
           return resolveTraceDestination('roadmap', log.topicId, catalog);
-        case 'dsa_attempt':
-          return resolveTraceDestination('dsa', undefined, catalog);
-        case 'practice_session':
-          return resolveTraceDestination('practice', undefined, catalog);
+        case 'dsa_attempt': {
+          const attempt = catalog.dsaAttempts?.find((a) => a.id === log.sourceId);
+          const targetId = attempt?.problemId ?? log.sourceId;
+          return resolveTraceDestination('dsa', targetId, catalog);
+        }
+        case 'practice_session': {
+          const session = catalog.practiceSessions?.find((s) => s.id === log.sourceId);
+          const attempt = !session ? catalog.practiceAttempts?.find((a) => a.id === log.sourceId) : undefined;
+          const targetId = session?.id ?? attempt?.sessionId ?? log.sourceId;
+          return resolveTraceDestination('practice', targetId, catalog);
+        }
         case 'test':
           return resolveTraceDestination('assessment', undefined, catalog);
         case 'mock_interview':

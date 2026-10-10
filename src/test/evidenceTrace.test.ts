@@ -428,36 +428,98 @@ describe('TraceRoute stays in lockstep with RoutePath', () => {
     expect(routeToTrace).toBe(true);
   });
 
-  it('only roadmap and preparation are treated as deep-linkable', () => {
+  it('roadmap, preparation, dsa, practice, and skills are treated as deep-linkable', () => {
     const routes: TraceRoute[] = [
-      'dashboard', 'roadmap', 'dsa', 'skills', 'practice', 'preparation',
-      'project', 'companies', 'analytics', 'settings', 'assessment', 'interview',
+      'dashboard',
+      'roadmap',
+      'dsa',
+      'skills',
+      'practice',
+      'preparation',
+      'project',
+      'companies',
+      'analytics',
+      'settings',
+      'assessment',
+      'interview',
     ];
-    expect(routes.filter(routeSupportsDeepLink)).toEqual(['roadmap', 'preparation']);
-    expect(routeSupportsDeepLink('dsa')).toBe(false);
-    expect(routeSupportsDeepLink('practice')).toBe(false);
+    expect(routes.filter(routeSupportsDeepLink)).toEqual([
+      'roadmap',
+      'dsa',
+      'skills',
+      'practice',
+      'preparation',
+    ]);
+    expect(routeSupportsDeepLink('dsa')).toBe(true);
+    expect(routeSupportsDeepLink('practice')).toBe(true);
+    expect(routeSupportsDeepLink('skills')).toBe(true);
+    expect(routeSupportsDeepLink('roadmap')).toBe(true);
+    expect(routeSupportsDeepLink('preparation')).toBe(true);
     expect(routeSupportsDeepLink('assessment')).toBe(false);
+    expect(routeSupportsDeepLink('analytics')).toBe(false);
+    expect(routeSupportsDeepLink('dashboard')).toBe(false);
   });
 });
 
 describe('resolveTraceDestination — honest labels, no phantom routes', () => {
   const catalog = makeCatalog();
 
-  it('drops a targetId the destination cannot consume and says so', () => {
-    const dsa = resolveTraceDestination('dsa', 'dsa-001', catalog);
-    expect(dsa.deepLink).toBe(false);
-    expect(dsa.targetId).toBeUndefined();
-    expect(dsa.label).toBe('Open DSA');
-    expect(dsa.note).toContain('does not open a specific record');
-
-    const practice = resolveTraceDestination('practice', 'sess-sql-join', catalog);
-    expect(practice.deepLink).toBe(false);
-    expect(practice.targetId).toBeUndefined();
-    expect(practice.label).toBe('Open Practice');
-
+  it('drops a targetId for unsupported routes and says so', () => {
     const assessment = resolveTraceDestination('assessment', 'att-9', catalog);
-    expect(assessment.label).toBe('View Assessment');
+    expect(assessment.deepLink).toBe(false);
     expect(assessment.targetId).toBeUndefined();
+    expect(assessment.label).toBe('View Assessment');
+    expect(assessment.note).toContain('does not open a specific record');
+
+    const analytics = resolveTraceDestination('analytics', 'metric-1', catalog);
+    expect(analytics.deepLink).toBe(false);
+    expect(analytics.targetId).toBeUndefined();
+    expect(analytics.label).toBe('Open Analytics');
+
+    const dashboard = resolveTraceDestination('dashboard', 'dash-1', catalog);
+    expect(dashboard.deepLink).toBe(false);
+    expect(dashboard.targetId).toBeUndefined();
+    expect(dashboard.label).toBe('Open Dashboard');
+  });
+
+  it('resolves a real DSA problem target and refuses a phantom one', () => {
+    const real = resolveTraceDestination('dsa', 'dsa-001', catalog);
+    expect(real).toMatchObject({ deepLink: true, targetId: 'dsa-001', route: 'dsa' });
+    expect(real.label).toBe('Open "Two Sum"');
+
+    const ghost = resolveTraceDestination('dsa', 'dsa-ghost', catalog);
+    expect(ghost.deepLink).toBe(false);
+    expect(ghost.targetId).toBeUndefined();
+    expect(ghost.label).toBe('Open DSA');
+    expect(ghost.note).toContain('dsa-ghost');
+  });
+
+  it('resolves a real practice session target and refuses a phantom one', () => {
+    const real = resolveTraceDestination('practice', 'sess-sql-join', catalog);
+    expect(real).toMatchObject({ deepLink: true, targetId: 'sess-sql-join', route: 'practice' });
+    expect(real.label).toBe('Open "SQL JOIN Practice Session"');
+
+    const ghost = resolveTraceDestination('practice', 'sess-ghost', catalog);
+    expect(ghost.deepLink).toBe(false);
+    expect(ghost.targetId).toBeUndefined();
+    expect(ghost.label).toBe('Open Practice');
+    expect(ghost.note).toContain('sess-ghost');
+  });
+
+  it('resolves a real skills target by topic or domain and refuses a phantom one', () => {
+    const byTopic = resolveTraceDestination('skills', 'topic-sql', catalog);
+    expect(byTopic).toMatchObject({ deepLink: true, targetId: 'topic-sql', route: 'skills' });
+    expect(byTopic.label).toBe('Open "SQL"');
+
+    const byDomain = resolveTraceDestination('skills', 'sql', catalog);
+    expect(byDomain).toMatchObject({ deepLink: true, targetId: 'sql', route: 'skills' });
+    expect(byDomain.label).toBe('Open "SQL"');
+
+    const ghost = resolveTraceDestination('skills', 'skill-ghost', catalog);
+    expect(ghost.deepLink).toBe(false);
+    expect(ghost.targetId).toBeUndefined();
+    expect(ghost.label).toBe('Open Skills Matrix');
+    expect(ghost.note).toContain('skill-ghost');
   });
 
   it('keeps a real roadmap target and names it', () => {
@@ -490,10 +552,126 @@ describe('resolveTraceDestination — honest labels, no phantom routes', () => {
   });
 
   it('handles an absent target id without inventing one', () => {
-    const none = resolveTraceDestination('roadmap', undefined, catalog);
-    expect(none.deepLink).toBe(false);
-    expect(none.targetId).toBeUndefined();
-    expect(none.note).toBeUndefined();
+    const noneRoadmap = resolveTraceDestination('roadmap', undefined, catalog);
+    expect(noneRoadmap.deepLink).toBe(false);
+    expect(noneRoadmap.targetId).toBeUndefined();
+    expect(noneRoadmap.note).toBeUndefined();
+
+    const noneDsa = resolveTraceDestination('dsa', undefined, catalog);
+    expect(noneDsa.deepLink).toBe(false);
+    expect(noneDsa.targetId).toBeUndefined();
+
+    const nonePractice = resolveTraceDestination('practice', undefined, catalog);
+    expect(nonePractice.deepLink).toBe(false);
+    expect(nonePractice.targetId).toBeUndefined();
+
+    const noneSkills = resolveTraceDestination('skills', undefined, catalog);
+    expect(noneSkills.deepLink).toBe(false);
+    expect(noneSkills.targetId).toBeUndefined();
+  });
+});
+
+describe('resolveSourceDestination — deep link resolution across all sources', () => {
+  const catalog = makeCatalog();
+
+  it('resolves dsa progress source to deep link on problem', () => {
+    const dest = resolveSourceDestination(
+      { kind: 'dsa_progress', sourceId: 'dsa-001', label: 'Two Sum', availability: 'available' },
+      catalog
+    );
+    expect(dest).toMatchObject({ route: 'dsa', targetId: 'dsa-001', deepLink: true });
+    expect(dest?.label).toBe('Open "Two Sum"');
+  });
+
+  it('resolves dsa attempt source to deep link on problem', () => {
+    const dest = resolveSourceDestination(
+      { kind: 'dsa_attempt', sourceId: 'dsa-att-1', label: 'Two Sum Attempt', availability: 'available' },
+      {
+        ...catalog,
+        dsaAttempts: [
+          {
+            id: 'dsa-att-1',
+            problemId: 'dsa-001',
+            date: '2026-10-01',
+            result: 'pass',
+            assistanceLevel: 'none',
+            timeTakenMinutes: 15,
+            createdAt: '2026-10-01T10:00:00.000Z',
+          },
+        ],
+      }
+    );
+    expect(dest).toMatchObject({ route: 'dsa', targetId: 'dsa-001', deepLink: true });
+    expect(dest?.label).toBe('Open "Two Sum"');
+  });
+
+  it('resolves practice attempt source to deep link on session', () => {
+    const dest = resolveSourceDestination(
+      { kind: 'practice_attempt', sourceId: 'pa-1', label: 'SQL Practice Attempt', availability: 'available' },
+      catalog
+    );
+    expect(dest).toMatchObject({ route: 'practice', targetId: 'sess-sql-join', deepLink: true });
+    expect(dest?.label).toBe('Open "SQL JOIN Practice Session"');
+  });
+
+  it('resolves practice session source to deep link on session', () => {
+    const dest = resolveSourceDestination(
+      { kind: 'practice_session', sourceId: 'sess-sql-join', label: 'SQL Practice Session', availability: 'available' },
+      catalog
+    );
+    expect(dest).toMatchObject({ route: 'practice', targetId: 'sess-sql-join', deepLink: true });
+    expect(dest?.label).toBe('Open "SQL JOIN Practice Session"');
+  });
+
+  it('resolves skill state source to deep link on skills matrix', () => {
+    const dest = resolveSourceDestination(
+      { kind: 'skill_state', sourceId: 'topic-sql', label: 'SQL Skill', availability: 'available' },
+      catalog
+    );
+    expect(dest).toMatchObject({ route: 'skills', targetId: 'topic-sql', deepLink: true });
+    expect(dest?.label).toBe('Open "SQL"');
+  });
+
+  it('resolves evidence log of type dsa_attempt to problem deep link', () => {
+    const log: EvidenceLog = {
+      id: 'log-dsa-test',
+      topicId: 'topic-dsa-arrays',
+      domainId: 'dsa',
+      score: 80,
+      confidence: 4,
+      timestamp: '2026-10-01T10:00:00.000Z',
+      sourceType: 'dsa_attempt',
+      sourceId: 'dsa-att-test',
+    };
+    const dest = resolveSourceDestination(
+      { kind: 'evidence_log', sourceId: 'log-dsa-test', label: 'DSA Evidence', availability: 'available' },
+      {
+        ...catalog,
+        evidenceLogs: [...catalog.evidenceLogs, log],
+        dsaAttempts: [
+          {
+            id: 'dsa-att-test',
+            problemId: 'dsa-001',
+            date: '2026-10-01',
+            result: 'pass',
+            assistanceLevel: 'none',
+            timeTakenMinutes: 15,
+            createdAt: '2026-10-01T10:00:00.000Z',
+          },
+        ],
+      }
+    );
+    expect(dest).toMatchObject({ route: 'dsa', targetId: 'dsa-001', deepLink: true });
+    expect(dest?.label).toBe('Open "Two Sum"');
+  });
+
+  it('resolves evidence log of type practice_session to session deep link', () => {
+    const dest = resolveSourceDestination(
+      { kind: 'evidence_log', sourceId: 'log-sql-1', label: 'Practice Evidence', availability: 'available' },
+      catalog
+    );
+    expect(dest).toMatchObject({ route: 'practice', targetId: 'sess-sql-join', deepLink: true });
+    expect(dest?.label).toBe('Open "SQL JOIN Practice Session"');
   });
 });
 
@@ -717,7 +895,7 @@ describe('review candidates resolve to their declared sources', () => {
     expect(primary).toMatchObject({ sourceId: 'dsa-001', availability: 'available' });
     expect(primary?.detail).toContain('review due 2026-10-01');
     expect(trace.sources.some((s) => s.kind === 'dsa_attempt' && s.sourceId === 'att-1')).toBe(true);
-    expect(trace.destination).toMatchObject({ route: 'dsa', deepLink: false, label: 'Open DSA' });
+    expect(trace.destination).toMatchObject({ route: 'dsa', targetId: 'dsa-001', deepLink: true, label: 'Open "Two Sum"' });
     expect(trace.why).toBe('Leitner box 2 review is 2 days overdue');
   });
 
@@ -853,8 +1031,8 @@ describe('analytics review prompts trace back to contributing records', () => {
     );
     expect(trace.signal).toBe('stale_evidence');
     expect(trace.sources.map((s) => s.kind)).toEqual(['evidence_log', 'skill_state']);
-    expect(trace.destination).toMatchObject({ route: 'skills', deepLink: false, label: 'Open Skills Matrix' });
-    expect(trace.destination.targetId).toBeUndefined();
+    expect(trace.destination).toMatchObject({ route: 'skills', targetId: 'topic-sql', deepLink: true, label: 'Open "SQL"' });
+    expect(trace.destination.targetId).toBe('topic-sql');
   });
 
   it('a prompt with no backing records still produces an honest derived trace', () => {
@@ -976,7 +1154,12 @@ describe('other signals resolve to their canonical source', () => {
     ]);
     expect(trace.sources[0].strength).toBe(55);
     expect(trace.sources[1].strength).toBe(38);
-    expect(trace.destination).toMatchObject({ route: 'practice', deepLink: false, label: 'Open Practice' });
+    expect(trace.destination).toMatchObject({
+      route: 'practice',
+      targetId: 'sess-sql-join',
+      deepLink: true,
+      label: 'Open "SQL JOIN Practice Session"',
+    });
   });
 
   it('interview dimension with no evidence still renders', () => {
@@ -1088,13 +1271,26 @@ describe('resolveSourceDestination', () => {
 
     const practice = resolveEvidenceSource('practice_attempt', 'pa-1', catalog);
     const practiceDest = resolveSourceDestination(practice, catalog);
-    expect(practiceDest).toMatchObject({ route: 'practice', deepLink: false, label: 'Open Practice' });
+    expect(practiceDest).toMatchObject({
+      route: 'practice',
+      deepLink: true,
+      targetId: 'sess-sql-join',
+      label: 'Open "SQL JOIN Practice Session"',
+    });
   });
 
   it('labels generic destinations honestly instead of pretending to deep link', () => {
-    const dsa = resolveSourceDestination(resolveEvidenceSource('dsa_progress', 'dsa-001', catalog), catalog);
-    expect(dsa).toMatchObject({ route: 'dsa', deepLink: false, label: 'Open DSA' });
-    expect(dsa?.targetId).toBeUndefined();
+    const mockLog: EvidenceLog = {
+      ...LOG_ONE,
+      id: 'log-mock',
+      sourceType: 'mock_interview',
+    };
+    const mockDest = resolveSourceDestination(
+      resolveEvidenceSource('evidence_log', 'log-mock', makeCatalog({ evidenceLogs: [mockLog] })),
+      makeCatalog({ evidenceLogs: [mockLog] })
+    );
+    expect(mockDest).toMatchObject({ route: 'interview', deepLink: false, label: 'Open Interview Readiness' });
+    expect(mockDest?.targetId).toBeUndefined();
 
     const assessment = resolveSourceDestination(
       resolveEvidenceSource('assessment_attempt', 'att-9', makeCatalog({ assessmentState: undefined })),
@@ -1121,15 +1317,20 @@ describe('resolveSourceDestination', () => {
       resolveEvidenceSource('evidence_log', 'log-sql-1', catalog),
       catalog
     );
-    expect(practiceLog).toMatchObject({ route: 'practice', deepLink: false, label: 'Open Practice' });
+    expect(practiceLog).toMatchObject({
+      route: 'practice',
+      targetId: 'sess-sql-join',
+      deepLink: true,
+      label: 'Open "SQL JOIN Practice Session"',
+    });
 
     const unknownLog: EvidenceLog = {
       ...LOG_ONE,
-      id: 'log-mock',
+      id: 'log-mock-2',
       sourceType: 'mock_interview',
     };
     const interviewLog = resolveSourceDestination(
-      resolveEvidenceSource('evidence_log', 'log-mock', makeCatalog({ evidenceLogs: [unknownLog] })),
+      resolveEvidenceSource('evidence_log', 'log-mock-2', makeCatalog({ evidenceLogs: [unknownLog] })),
       makeCatalog({ evidenceLogs: [unknownLog] })
     );
     expect(interviewLog).toMatchObject({ route: 'interview', label: 'Open Interview Readiness' });
