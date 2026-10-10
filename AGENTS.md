@@ -7,7 +7,7 @@ npm install          # Install dependencies
 npm run dev          # Start dev server at http://localhost:5173
 npm run build        # Type-check + production build (outputs to dist/)
 npm run lint         # ESLint check
-npm test             # Run Vitest suite (476 tests)
+npm test             # Run Vitest suite (1,701 tests across 94 test files)
 ```
 
 ## Architecture Overview
@@ -29,10 +29,18 @@ npm test             # Run Vitest suite (476 tests)
 |--------|------|---------|
 | `adaptiveEngine` | `src/engine/adaptiveEngine.ts` | Priority scoring, daily plan selection, Leitner transitions, evidence scoring |
 | `skillsEngine` | `src/engine/skillsEngine.ts` | Topic/domain readiness calculation, evidence aggregation, freshness decay |
-| `dsaEngine` | `src/engine/dsaEngine.ts` | DSA problem filtering, progression tracking |
+| `dsaEngine` | `src/engine/dsaEngine.ts` | DSA problem filtering, Leitner spaced repetition, progression tracking |
+| `assessmentEngine` | `src/engine/assessmentEngine.ts` | Diagnostic scoring, standard error, domain results, weakness signals |
+| `preparationEngine` | `src/engine/preparationEngine.ts` | 7-stage progression rail, preparedness evaluation, prerequisite gates |
+| `sessionComposer` | `src/engine/sessionComposer.ts` | Adaptive session time packing, mode constraints, candidate deduplication |
+| `reviewScheduler` | `src/engine/reviewScheduler.ts` | Multi-tier review candidate generation and priority ranking |
+| `remediationRouter` | `src/engine/remediationRouter.ts` | Closed-loop weakness remediation routing and candidate adapters |
+| `taskStateEngine` | `src/engine/taskStateEngine.ts` | Task state transitions, prerequisite evaluation, EMA skill bridging |
+| `evidenceTrace` | `src/engine/evidenceTrace.ts` | Evidence traceability graph, causal signals, deep-link resolution |
+| `interviewReadinessEngine` | `src/engine/interviewReadinessEngine.ts` | Multi-vector readiness scorecard, dimension capability evaluation |
 | `companyEngine` | `src/engine/companyEngine.ts` | Company overlay management, requirement matching |
 | `analyticsEngine` | `src/engine/analyticsEngine.ts` | Telemetry, streak calculation, time allocation analysis |
-| `practiceEngine` | `src/engine/practiceEngine.ts` | Practice session orchestration |
+| `practiceEngine` | `src/engine/practiceEngine.ts` | Practice session orchestration, accuracy scoring |
 
 All engines are testable in isolation — they accept plain objects, return plain objects.
 
@@ -80,7 +88,7 @@ npm test -- src/test/adaptiveEngine.test.ts  # Single file
 ```
 
 - **Framework**: Vitest (jsdom DOM tests + pure logic tests)
-- **Coverage**: 476 tests covering adaptive scoring, Leitner transitions, evidence calculation, storage integrity, skills readiness.
+- **Coverage**: 1,701 tests across 94 test files covering adaptive scoring, Leitner transitions, evidence calculation, storage integrity, skills readiness, assessment execution, and cross-subsystem deep links.
 - **Fixtures**: Inline mock objects in test files — no shared fixture directory.
 
 ## Common Tasks

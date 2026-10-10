@@ -75,7 +75,7 @@ Unlike generic educational tools or consumer platforms, PlacementOS operates as 
 - **Build Tool**: Vite 8
 - **Styling**: TailwindCSS 4 (Forest-green studio design system: deep obsidian `#0B100D`, primary forest `#2E8B62` / `#46B982`, warning bronze `#D19A45`, action coral `#F43F5E`, action indigo `#6366F1`)
 - **Icons**: Lucide React
-- **Testing**: Vitest (1529+ automated tests across 78 test suites)
+- **Testing**: Vitest (1,701 automated tests across 94 test files)
 - **Routing**: Client-side hash routing (`#/${route}`)
 - **Persistence**: `StorageAdapter` with JSON backup export/import
 
