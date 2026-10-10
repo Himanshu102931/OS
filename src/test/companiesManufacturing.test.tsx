@@ -12,12 +12,21 @@ import type { CompanyOverlay } from '../types';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+const getRelativeDateISO = (offsetDays: number): string => {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const TARGET_GOOGLE: CompanyOverlay = {
   id: 'comp-google',
   companyName: 'Google',
   targetRole: 'Software Engineer (L3)',
   applicationStatus: 'oa_scheduled',
-  eventDate: '2026-10-15', // 8d out -> approaching
+  eventDate: getRelativeDateISO(8), // 8d out -> approaching
   requiredDomains: ['dsa', 'dbms'],
   requiredTopics: ['topic-dsa-arrays'],
   requiredLanguages: ['cpp', 'python'],
@@ -28,7 +37,7 @@ const TARGET_AMAZON: CompanyOverlay = {
   companyName: 'Amazon',
   targetRole: 'SDE-1',
   applicationStatus: 'applied',
-  eventDate: '2026-10-09', // 2d out -> critical (higher urgency than Google)
+  eventDate: getRelativeDateISO(2), // 2d out -> critical (higher urgency than Google)
   requiredDomains: ['dsa', 'os'],
   requiredTopics: ['topic-dsa-trees'],
   requiredLanguages: ['java'],
