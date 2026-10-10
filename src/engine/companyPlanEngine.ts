@@ -13,16 +13,18 @@ import type {
   PreparationTopicProgress,
   PracticeSessionDefinition,
   Phase,
+  ReviewCandidate,
 } from '../types';
-import { calculateCompanySnapshot, getDaysUntilEvent } from './companyEngine';
+import { calculateCompanySnapshot, calculateCompanyDeadlineUrgency } from './companyEngine';
 import type { CompanyRequirementMapping } from './companyEngine';
-import { DOMAIN_TO_PREP_TOPIC, resolvePhaseNumber, getTaskPhaseNumber } from './weaknessRouter';
+import { DOMAIN_TO_PREP_TOPIC, resolvePhaseNumber, getTaskPhaseNumber } from './remediationRouter';
 import { PREPARATION_TOPICS, getPreparationTopic, getPreparationTopicIdByRoadmapId } from '../data/preparationDataset';
 import { PRACTICE_SESSIONS } from '../data/practiceDataset';
 import { evaluatePrerequisiteStatus } from './preparationEngine';
 import { evaluateTaskPrerequisites } from './taskStateEngine';
 import { isProblemUnlocked } from './dsaEngine';
-import type { ReviewCandidate } from './reviewScheduler';
+
+export { calculateCompanyDeadlineUrgency };
 
 export interface CompanyFocusCandidateOptions {
   targetCompany: CompanyOverlay;
@@ -43,43 +45,6 @@ export interface CompanyFocusCandidateOptions {
   committedTargetIds?: Set<string>;
 }
 
-/**
- * Calculates deadline urgency score boost (0 - 25) based on days until company event.
- * Uses deterministic date strings (todayStr, eventDate) without Date.now().
- */
-export function calculateCompanyDeadlineUrgency(
-  eventDateISO?: string,
-  todayISO?: string
-): { daysUntil: number | null; scoreBoost: number; urgencyLabel?: string } {
-  if (!eventDateISO || !todayISO) {
-    return { daysUntil: null, scoreBoost: 0 };
-  }
-
-  const daysUntil = getDaysUntilEvent(eventDateISO, todayISO);
-  // Bounded-ness guard: a malformed date string yields NaN, which would poison
-  // priorityScore and the deterministic sort. Treat it as "no usable date"
-  // rather than inventing urgency for it.
-  if (daysUntil === null || !Number.isFinite(daysUntil)) {
-    return { daysUntil: null, scoreBoost: 0 };
-  }
-
-  if (daysUntil <= 0) {
-    return { daysUntil, scoreBoost: 25, urgencyLabel: 'Event is today or overdue' };
-  }
-  if (daysUntil <= 3) {
-    return { daysUntil, scoreBoost: 22, urgencyLabel: `${daysUntil}d until event (critical)` };
-  }
-  if (daysUntil <= 7) {
-    return { daysUntil, scoreBoost: 18, urgencyLabel: `${daysUntil}d until event (urgent)` };
-  }
-  if (daysUntil <= 14) {
-    return { daysUntil, scoreBoost: 14, urgencyLabel: `${daysUntil}d until event (approaching)` };
-  }
-  if (daysUntil <= 30) {
-    return { daysUntil, scoreBoost: 8, urgencyLabel: `${daysUntil}d until event` };
-  }
-  return { daysUntil, scoreBoost: 3, urgencyLabel: `${daysUntil}d until event` };
-}
 
 /** Base fields shared by every resolved company target. */
 interface CompanyTargetBase {

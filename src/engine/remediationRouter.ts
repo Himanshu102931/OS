@@ -16,6 +16,7 @@ import type {
   Phase,
   RemediationRoute,
   RemediationSourceType,
+  ReviewCandidate,
 } from '../types';
 import { PREPARATION_TOPICS, getPreparationTopic, getPreparationTopicIdByRoadmapId } from '../data/preparationDataset';
 import { PRACTICE_SESSIONS } from '../data/practiceDataset';
@@ -30,9 +31,9 @@ import { evaluateTaskPrerequisites } from './taskStateEngine';
 import { isProblemUnlocked } from './dsaEngine';
 import { summarizePracticeAnswers } from './practiceEngine';
 import { generateAssessmentPlanInputs, type AssessmentPlanInputs, type AssessmentProfileReadout } from './assessmentEngine';
-import type { ReviewCandidate } from './reviewScheduler';
 
-export type { RemediationRoute, RemediationSourceType };
+export type { RemediationRoute, RemediationSourceType, ReviewCandidate };
+
 
 /**
  * Canonical domain-to-preparation-topic mapping.

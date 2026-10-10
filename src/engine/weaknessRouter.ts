@@ -5,7 +5,7 @@
  * backward compatibility with existing tests and subsystem integrations while
  * centralizing all remediation and closed-loop routing logic in remediationRouter.
  */
-import type { ReviewCandidate } from './reviewScheduler';
+import type { ReviewCandidate } from '../types';
 import {
   DOMAIN_TO_PREP_TOPIC,
   PROJECT_DEFENSE_PREP_TOPIC_ID,

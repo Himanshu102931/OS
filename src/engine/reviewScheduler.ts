@@ -18,6 +18,8 @@ import type {
   WeaknessSignal,
   DSAAttempt,
   EvidenceLog,
+  ReviewPriority,
+  ReviewCandidate,
 } from '../types';
 import { getEvaluatedCandidates } from './adaptiveEngine';
 import { evaluateTaskPrerequisites } from './taskStateEngine';
@@ -26,38 +28,8 @@ import type { AssessmentProfileReadout } from './assessmentEngine';
 import { routeWeaknessSignals } from './weaknessRouter';
 import { generateCompanyFocusCandidates } from './companyPlanEngine';
 
-export type ReviewPriority =
-  | 'remediation'      // Active remediation required (highest)
-  | 'overdue_review'   // Due/overdue Leitner reviews
-  | 'routed_weakness'  // Routed weakness signals (practice, assessment, DSA concept, skills)
-  | 'company_gap'      // Target company requirement gaps (Company Focus Mode)
-  | 'stale_evidence'   // Stale or weakening evidence (>14 days)
-  | 'weak_topic'       // High-value weak topics/patterns
-  | 'retention'        // Retention reviews approaching due date
-  | 'normal_progression'; // Normal curriculum progression
+export type { ReviewPriority, ReviewCandidate };
 
-export interface ReviewCandidate {
-  id: string;
-  type: 'dsa_review' | 'dsa_remediation' | 'dsa_new' | 'roadmap_task' | 'preparation_lesson' | 'practice_session';
-  title: string;
-  description: string;
-  priority: ReviewPriority;
-  priorityScore: number; // 0-100 for sorting within priority tier
-  domainId: string;
-  topicId: string;
-  estimatedMinutes: number;
-  reason: string;
-  route: 'dsa' | 'roadmap' | 'preparation' | 'practice' | 'dashboard';
-  targetId: string;
-  // Source references for traceability
-  sourceProblemId?: string;
-  sourceTaskId?: string;
-  sourceTopicId?: string;
-  sourceSkillState?: TopicSkillState;
-  // Prerequisites check
-  isBlocked: boolean;
-  blockingReason?: string;
-}
 
 export interface ReviewSchedulerOptions {
   tasks: TaskDefinition[];

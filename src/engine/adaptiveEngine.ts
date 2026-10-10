@@ -8,7 +8,7 @@ import type {
   PlacementMode,
 } from '../types';
 import { evaluateTaskPrerequisites } from './taskStateEngine';
-import { calculateCompanyDeadlineUrgency } from './companyPlanEngine';
+import { calculateCompanyDeadlineUrgency } from './companyEngine';
 
 export interface PriorityBreakdown {
   urgency: number;         // 0 - 100
