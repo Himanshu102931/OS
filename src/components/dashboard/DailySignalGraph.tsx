@@ -98,7 +98,7 @@ export function buildSignalConnectors(
 }
 
 export const DailySignalGraph: React.FC = () => {
-  const { domains, topics, taskDefinitions, taskProgress, dsaProblems, dsaProgress, dsaAttempts, evidenceLogs, skillStates, companyOverlays, todayDate } = usePlacement();
+  const { domains, topics, taskDefinitions, taskProgress, dsaProblems, dsaProgress, dsaAttempts, evidenceLogs, skillStates, companyOverlays, todayDate, assessmentState } = usePlacement();
   const [hoveredDomain, setHoveredDomain] = useState<string | null>(null);
   const [reducedMotion, setReducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
@@ -144,10 +144,15 @@ export const DailySignalGraph: React.FC = () => {
 
   return (
     <section className="space-y-4" data-testid="daily-signal-graph">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
-          <AlertCircle className="size-4 text-accent" /> Daily Placement Signals
-        </h3>
+      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1">
+        <div>
+          <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+            <AlertCircle className="size-4 text-accent" /> Daily Placement Signals
+          </h3>
+          <p className="text-[11px] text-text-tertiary">
+            Demonstrated Practical Curriculum &amp; DSA Problem Mastery
+          </p>
+        </div>
         {urgentComps.length > 0 && (
           <span className="text-[10px] px-2 py-0.5 rounded bg-status-warning/10 text-status-warning border border-status-warning/30 font-mono">{urgentComps.length} urgent</span>
         )}
@@ -259,15 +264,26 @@ export const DailySignalGraph: React.FC = () => {
               const meta = statusMeta(r.status);
               const statusLabel = meta.label;
               const statusColor = meta.color;
+              const diagResult = assessmentState?.domainResults?.find((dr) => dr.domainId === hoveredDomain);
               return (
-                <div className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="text-text-primary font-semibold">{r.shortName}</span>
-                    <span className="text-[11px] text-text-secondary">Domain Readiness Signal</span>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-text-primary font-semibold">{r.shortName}</span>
+                      <span className="text-[11px] text-text-secondary">Domain Readiness Signal</span>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded border font-mono font-medium" style={{ color: statusColor, borderColor: `color-mix(in srgb, ${statusColor} 25%, transparent)`, background: `color-mix(in srgb, ${statusColor} 6%, transparent)` }}>
+                      {statusLabel} — {r.overallReadiness}% Practical Mastery
+                    </span>
                   </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded border font-mono font-medium" style={{ color: statusColor, borderColor: `color-mix(in srgb, ${statusColor} 25%, transparent)`, background: `color-mix(in srgb, ${statusColor} 6%, transparent)` }}>
-                    {statusLabel} — {r.overallReadiness}%
-                  </span>
+                  {diagResult && diagResult.status !== 'unassessed' && (
+                    <div className="flex items-center justify-between text-[11px] text-text-secondary bg-surface-canvas/60 px-2.5 py-1 rounded border border-border-default">
+                      <span>Diagnostic Baseline Capability:</span>
+                      <span className="font-mono font-medium text-text-primary">
+                        {diagResult.abilityScore}/100 Ability (Level {diagResult.level}) • Confidence: {diagResult.confidence}
+                      </span>
+                    </div>
+                  )}
                 </div>
               );
             })()}

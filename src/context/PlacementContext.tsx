@@ -906,7 +906,14 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const exportBackupJSON = (): string => {
-    return JSON.stringify(appState, null, 2);
+    return JSON.stringify(
+      {
+        ...appState,
+        lastSavedAt: new Date().toISOString(),
+      },
+      null,
+      2
+    );
   };
 
   const importBackupJSON = (jsonStr: string): { success: boolean; error?: string } => {

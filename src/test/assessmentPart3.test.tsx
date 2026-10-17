@@ -305,15 +305,20 @@ describe('Assessment Manufacturing Part 3 — Mode C Diagnostic Benchmark Readou
 
     renderWithProviders(<AssessmentRunnerView />);
 
-    const primaryCta = screen.getByRole('button', { name: /Review Diagnostic/i });
-    expect(primaryCta).toBeInTheDocument();
+    // Separate "Start Recommended Task" routes to remediation destination
+    const remediationCta = screen.getByRole('button', { name: /Start Recommended Task/i });
+    expect(remediationCta).toBeInTheDocument();
 
     act(() => {
-      fireEvent.click(primaryCta);
+      fireEvent.click(remediationCta);
     });
 
     // Should route to the canonical destination resolved by remediationRouter
     expect(window.location.hash).toMatch(/^#\/(roadmap|preparation|dsa|practice)/);
+
+    // "Review Diagnostic" button is present and focuses assessment results
+    const reviewCta = screen.getByRole('button', { name: /Review Diagnostic/i });
+    expect(reviewCta).toBeInTheDocument();
   });
 
   it('8. weakness taxonomy uses canonical error categories and strength indicators', () => {

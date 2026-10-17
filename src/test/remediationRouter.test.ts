@@ -65,7 +65,9 @@ function buildWeakSqlAttempt(): PracticeAttempt {
     userResponse: idx === 1 ? 'WITH ranked AS (SELECT ...) SELECT * FROM ranked;' : 'SELECT incomplete draft',
     isCorrect: idx === 1,
   }));
-  return evaluatePracticeAttempt(SQL_SESSION, answers, 600, '2026-10-15').attempt;
+  const att = evaluatePracticeAttempt(SQL_SESSION, answers, 600, '2026-10-15').attempt;
+  att.completedAt = '2026-10-15T10:00:00.000Z';
+  return att;
 }
 
 /** Passing SQL attempt: every scenario self-certified correct (100%). */
@@ -75,7 +77,9 @@ function buildPassingSqlAttempt(): PracticeAttempt {
     userResponse: 'SELECT department_id, COUNT(*) FROM employees GROUP BY department_id;',
     isCorrect: true,
   }));
-  return evaluatePracticeAttempt(SQL_SESSION, answers, 600, '2026-10-15').attempt;
+  const att = evaluatePracticeAttempt(SQL_SESSION, answers, 600, '2026-10-15').attempt;
+  att.completedAt = '2026-10-15T10:00:00.000Z';
+  return att;
 }
 
 /** Failed project defense attempt: no prompt self-certified correct (0%). */

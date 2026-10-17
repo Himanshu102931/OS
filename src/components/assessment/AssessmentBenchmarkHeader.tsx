@@ -1,5 +1,5 @@
 import React from 'react';
-import { Target, Clock, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Target, Clock, ArrowRight, ShieldCheck, ChevronDown } from 'lucide-react';
 import type { AssessmentAttempt } from '../../types';
 import type { AssessmentProfileReadout } from '../../engine/assessmentEngine';
 
@@ -110,7 +110,20 @@ export const AssessmentBenchmarkHeader: React.FC<AssessmentBenchmarkHeaderProps>
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <button
+                type="button"
+                data-testid="jump-to-breakdown-btn"
+                onClick={() => {
+                  const el = document.getElementById('diagnostic-capability-matrix');
+                  el?.scrollIntoView?.({ behavior: 'smooth' });
+                }}
+                className="px-4 py-2.5 rounded text-xs font-semibold bg-surface-elevated text-foreground hover:bg-border/60 border border-border flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+              >
+                <span>Domain Breakdown</span>
+                <ChevronDown className="size-3.5" aria-hidden="true" />
+              </button>
+
               <button
                 data-testid="continue-to-today-btn"
                 onClick={onContinueToToday}

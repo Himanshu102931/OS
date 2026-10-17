@@ -585,7 +585,7 @@ export function calculateDomainReadinessList(
     let status: ReadinessStatus = 'needs_baseline';
     if (readyCount === domTopicReadiness.length && domTopicReadiness.length > 0) {
       status = 'ready';
-    } else if (atRiskCount > 0 || overallReadiness < 40) {
+    } else if (atRiskCount > 0 || (totalEvidence > 0 && overallReadiness < 40)) {
       status = 'at_risk';
     } else if (overallReadiness >= 65) {
       status = 'ready';

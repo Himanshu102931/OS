@@ -11,6 +11,7 @@ interface AssessmentLearningTargetsProps {
     targetId?: string;
   } | null;
   onNavigateTarget: (route: string, targetId?: string) => void;
+  onReviewDiagnostic?: () => void;
 }
 
 export const AssessmentLearningTargets: React.FC<AssessmentLearningTargetsProps> = ({
@@ -19,6 +20,7 @@ export const AssessmentLearningTargets: React.FC<AssessmentLearningTargetsProps>
   primaryActionReason,
   primaryActionDeepLink,
   onNavigateTarget,
+  onReviewDiagnostic,
 }) => {
   if (targets.length === 0 && !primaryActionDeepLink) {
     return null;
@@ -90,19 +92,37 @@ export const AssessmentLearningTargets: React.FC<AssessmentLearningTargetsProps>
             </p>
           </div>
 
-          <button
-            data-testid="start-next-action-btn"
-            aria-label="Review Diagnostic"
-            onClick={() => {
-              if (primaryActionDeepLink) {
-                onNavigateTarget(primaryActionDeepLink.route, primaryActionDeepLink.targetId);
-              }
-            }}
-            className="px-5 py-2.5 rounded text-xs font-bold bg-action-accent text-action-accent-foreground hover:bg-action-accent-hover transition-colors whitespace-nowrap shadow-sm shrink-0 flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <span>Review Diagnostic</span>
-            <ArrowRight className="size-3.5" aria-hidden="true" />
-          </button>
+          <div className="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
+            <button
+              data-testid="start-next-action-btn"
+              aria-label="Start Recommended Task"
+              onClick={() => {
+                if (primaryActionDeepLink) {
+                  onNavigateTarget(primaryActionDeepLink.route, primaryActionDeepLink.targetId);
+                }
+              }}
+              className="px-4 py-2.5 rounded text-xs font-bold bg-action-accent text-action-accent-foreground hover:bg-action-accent-hover transition-colors whitespace-nowrap shadow-sm shrink-0 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>Start Recommended Task</span>
+              <ArrowRight className="size-3.5" aria-hidden="true" />
+            </button>
+
+            <button
+              data-testid="review-diagnostic-btn"
+              aria-label="Review Diagnostic"
+              onClick={() => {
+                if (onReviewDiagnostic) {
+                  onReviewDiagnostic();
+                } else {
+                  const el = document.getElementById('diagnostic-capability-matrix');
+                  el?.scrollIntoView?.({ behavior: 'smooth' });
+                }
+              }}
+              className="px-4 py-2.5 rounded text-xs font-bold bg-action-accent text-action-accent-foreground hover:bg-action-accent-hover transition-colors whitespace-nowrap shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span>Review Diagnostic</span>
+            </button>
+          </div>
         </div>
       )}
     </section>

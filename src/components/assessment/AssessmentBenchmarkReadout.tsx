@@ -104,6 +104,19 @@ export const AssessmentBenchmarkReadout: React.FC<AssessmentBenchmarkReadoutProp
             primaryActionReason={primaryAssessmentActionReason}
             primaryActionDeepLink={primaryActionDeepLink}
             onNavigateTarget={onNavigateTarget}
+            onReviewDiagnostic={() => {
+              const el = document.getElementById('diagnostic-capability-matrix');
+              el?.scrollIntoView?.({ behavior: 'smooth' });
+            }}
+          />
+
+          {/* Zone 2: 11-Domain Capability Matrix with Raw Response Counts & Item Breakdown */}
+          <AssessmentCapabilityMatrix
+            domainProfiles={profileReadout.domainProfiles}
+            companyAssessmentOverlayResult={companyAssessmentOverlayResult}
+            assessmentState={assessmentState}
+            onOpenProjectLab={onOpenProjectLab}
+            onNavigateTarget={onNavigateTarget}
           />
 
           {/* Zone 5 Launchers: Weekly Calibration & Longitudinal Reassessment Banners */}
@@ -116,13 +129,6 @@ export const AssessmentBenchmarkReadout: React.FC<AssessmentBenchmarkReadoutProp
             onStartFullReassessment={onStartFullReassessment}
             onSelectWeeklyAttempt={setSelectedWeeklyAttemptId}
             onContinueToToday={onContinueToToday}
-          />
-
-          {/* Zone 2: 11-Domain Capability Matrix */}
-          <AssessmentCapabilityMatrix
-            domainProfiles={profileReadout.domainProfiles}
-            companyAssessmentOverlayResult={companyAssessmentOverlayResult}
-            onOpenProjectLab={onOpenProjectLab}
           />
 
           {/* Zone 4: Root-Cause Weakness Taxonomy & Company Role Overlay Lab */}

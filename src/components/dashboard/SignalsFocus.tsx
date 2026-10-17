@@ -2,14 +2,17 @@ import React from 'react';
 import { Radar, Building2, Waypoints, ArrowRight } from 'lucide-react';
 import { TodaySection, SectionHeading, MonoChip } from './todayPrimitives';
 import { DailySignalGraph } from './DailySignalGraph';
-import type { CompanyOverlay } from '../../types';
+import type { CompanyOverlay, AssessmentState } from '../../types';
+import type { AssessmentProfileReadout } from '../../engine/assessmentEngine';
 
 export interface SignalsFocusProps {
   revealed: boolean;
   observeRef: (el: HTMLElement | null) => void;
 
   companyOverlays: CompanyOverlay[];
-  onRoute: (route: 'interview' | 'companies' | 'analytics') => void;
+  onRoute: (route: 'interview' | 'companies' | 'analytics' | 'assessment') => void;
+  assessmentProfileReadout?: AssessmentProfileReadout;
+  assessmentState?: AssessmentState;
 }
 
 /**
@@ -36,7 +39,7 @@ const TILES: { id: string; label: string; note: string; route: 'interview' | 'co
  * metrics, so no Attention or Progress datum is duplicated.
  */
 export const SignalsFocus: React.FC<SignalsFocusProps> = ({
-  revealed, observeRef, companyOverlays, onRoute,
+  revealed, observeRef, companyOverlays, onRoute, assessmentProfileReadout, assessmentState,
 }) => (
   <TodaySection
     section="signals"
@@ -64,6 +67,34 @@ export const SignalsFocus: React.FC<SignalsFocusProps> = ({
         </li>
       ))}
     </ul>
+
+    {((assessmentProfileReadout?.isAssessed) || (assessmentState?.attempts?.some((a) => a.status === 'submitted' || a.status === 'auto_submitted'))) && (
+      <div
+        className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-border-default bg-surface-panel p-3"
+        data-testid="diagnostic-status-callout"
+      >
+        <div className="flex items-start sm:items-center gap-2.5">
+          <div className="size-2 rounded-full bg-accent mt-1 sm:mt-0 shrink-0" />
+          <div className="space-y-0.5">
+            <div className="text-xs font-medium text-text-primary">
+              Baseline Diagnostic Completed ({assessmentProfileReadout?.overallAbility ?? 0}/100 Ability)
+            </div>
+            <p className="text-[11px] text-text-secondary">
+              Graph bars above measure practical mastery (curriculum tasks &amp; DSA problems completed). Your diagnostic capability scores and domain evaluations are preserved separately in Assessment.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => onRoute('assessment')}
+          className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded px-2.5 py-1 text-xs font-medium text-accent border border-accent/30 bg-accent/10 hover:bg-accent/20 transition-colors whitespace-nowrap cursor-pointer"
+          data-testid="review-diagnostic-today-btn"
+        >
+          Review Diagnostic Results
+          <ArrowRight className="size-3" />
+        </button>
+      </div>
+    )}
 
     {/* Navigation-only focus tiles — deliberately data-free (§9.2). */}
     <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">

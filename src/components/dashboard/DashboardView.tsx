@@ -1035,6 +1035,8 @@ export const DashboardView: React.FC = () => {
           observeRef={setScrollRef('signals')}
           companyOverlays={companyOverlays}
           onRoute={(route) => setRoute(route)}
+          assessmentProfileReadout={assessmentProfileReadout}
+          assessmentState={assessmentState}
         />
 
         {/* 7. REFLECTION / SEALING (§10) */}
