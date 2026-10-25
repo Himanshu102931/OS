@@ -7,6 +7,28 @@
  * Integrates with PlacementOS canonical DSAProblem IDs (53 mapped, 27 external practice).
  */
 
+import {
+  DSA_MODULE_LESSONS,
+  type ModuleLessonData,
+  type LessonQuestion,
+  type LessonConcept,
+  type PatternComparisonItem,
+} from './dsaModuleLessons';
+import {
+  GUIDED_SOLUTIONS_REGISTRY,
+  type TestCaseData,
+  type GuidedSolutionDetails,
+} from './dsaGuidedSolutions';
+
+export type {
+  ModuleLessonData,
+  LessonQuestion,
+  LessonConcept,
+  PatternComparisonItem,
+  TestCaseData,
+  GuidedSolutionDetails,
+};
+
 export interface GuidedScaffoldStep {
   readonly stepNumber: number;
   readonly description: string;
@@ -19,6 +41,8 @@ export interface GuidedScaffoldData {
   readonly constraints: string;
   readonly bruteForceIntuition: string;
   readonly bruteForceComplexity: string;
+  readonly whyOptimizedMatters?: string;
+  readonly pythonReferenceCode?: string;
   readonly workedExample: {
     readonly input: string;
     readonly initialState: Record<string, string | number | boolean>;
@@ -29,9 +53,13 @@ export interface GuidedScaffoldData {
   readonly fadedScaffoldingLevel: 'full' | 'medium' | 'light';
   readonly optimizedPattern: string;
   readonly invariant: string;
+  readonly correctnessArgument?: string;
   readonly timeComplexity: string;
   readonly spaceComplexity: string;
   readonly boundaryEdgeCases: readonly string[];
+  readonly testCases?: readonly TestCaseData[];
+  readonly commonMistakes?: readonly string[];
+  readonly explainBackPrompt?: string;
   readonly graphNotes?: {
     readonly representation: string;
     readonly traversalType: string;
@@ -58,11 +86,13 @@ export interface TeacherChallengeModule {
   readonly title: string;
   readonly coreSkills: string;
   readonly estimatedMinutesPerProblem: number;
+  readonly lesson?: ModuleLessonData;
   readonly guided: readonly TeacherChallengeProblem[];
   readonly independent: readonly TeacherChallengeProblem[];
 }
 
-export const TEACHER_EIGHT_DAY_DSA_CHALLENGE: readonly TeacherChallengeModule[] = [
+const RAW_TEACHER_EIGHT_DAY_DSA_CHALLENGE: readonly TeacherChallengeModule[] = [
+
   // =========================================================================
   // DAY 1: Logic Building, Complexity & Arrays (Page 1)
   // =========================================================================
@@ -358,8 +388,8 @@ export const TEACHER_EIGHT_DAY_DSA_CHALLENGE: readonly TeacherChallengeModule[] 
           problemRestatement: 'Return an array output such that output[i] is equal to the product of all elements of nums except nums[i], without using division in O(N) time.',
           inputsOutputs: 'Input: nums = [1,2,3,4] -> Output: [24,12,8,6]',
           constraints: '2 <= nums.length <= 10^5, -30 <= nums[i] <= 30. Product fits in 32-bit integer.',
-          bruteForceIntuition: 'Calculate total product of all elements and divide by nums[i]. Fails when zeroes exist and violates the "no division" constraint.',
-          bruteForceComplexity: 'Time: O(N) with division (disallowed); O(N^2) without division.',
+          bruteForceIntuition: 'For each index i, run a nested loop over all j != i to compute the product of remaining elements in O(N²) time without division.',
+          bruteForceComplexity: 'Time: O(N²), Space: O(1)',
           workedExample: {
             input: '[1, 2, 3, 4]',
             initialState: { prefix: '[1, 1, 2, 6]', suffix: 'calculated backwards' },
@@ -1457,7 +1487,7 @@ export const TEACHER_EIGHT_DAY_DSA_CHALLENGE: readonly TeacherChallengeModule[] 
           inputsOutputs: 'Input: n = 3, edges = [[0,1],[1,2],[2,0]], source = 0, destination = 2 -> true.',
           constraints: '1 <= n <= 2 * 10^5, 0 <= edges.length <= 2 * 10^5, no duplicate edges.',
           bruteForceIntuition: 'DFS without a visited set traverses duplicate cycles indefinitely.',
-          bruteForceComplexity: 'Time: Infinite O(V!) on cyclic graphs without visited set, Space: O(V) stack',
+          bruteForceComplexity: 'Non-terminating: DFS/BFS without visited-state handling fails to terminate on cyclic graphs (infinite recursion/loop). Distinguish this non-termination from valid traversal with visited tracking which runs in O(V + E) time, Space: O(V) call stack',
           workedExample: {
             input: 'n = 3, edges = [[0,1],[1,2]], source = 0, destination = 2',
             initialState: { adjList: '{0:[1], 1:[0,2], 2:[1]}', visited: '{0}', queue: '[0]' },
@@ -1651,3 +1681,27 @@ export const TEACHER_EIGHT_DAY_DSA_CHALLENGE: readonly TeacherChallengeModule[] 
     ],
   },
 ];
+
+export const TEACHER_EIGHT_DAY_DSA_CHALLENGE: readonly TeacherChallengeModule[] =
+  RAW_TEACHER_EIGHT_DAY_DSA_CHALLENGE.map((m) => {
+    return {
+      ...m,
+      lesson: DSA_MODULE_LESSONS[m.day],
+      guided: m.guided.map((p) => {
+        const extra = GUIDED_SOLUTIONS_REGISTRY[p.leetcodeNumber];
+        if (!p.scaffold || !extra) return p;
+        return {
+          ...p,
+          scaffold: {
+            ...p.scaffold,
+            ...extra,
+            // Algorithmic correction: ensure Day 8 problem 1971 distinguishes nontermination on cyclic graphs from valid O(V + E) traversal
+            bruteForceComplexity:
+              p.leetcodeNumber === 1971
+                ? 'Non-terminating: DFS/BFS without visited-state handling fails to terminate on cyclic graphs (infinite recursion/loop). With proper visited tracking, valid traversal terminates in deterministic O(V + E) time and O(V) auxiliary space.'
+                : p.scaffold.bruteForceComplexity,
+          },
+        };
+      }),
+    };
+  });

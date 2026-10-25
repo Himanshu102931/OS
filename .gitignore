@@ -40,3 +40,8 @@ scratch/
 stitch_downloads/
 *.tmp
 .gemini/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class

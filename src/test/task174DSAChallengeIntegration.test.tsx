@@ -115,7 +115,7 @@ describe('Task 174: 8-Day DSA Challenge Integration', () => {
     expect(within(dialog).getByText(/Crucial Algorithm Invariant/i)).toBeInTheDocument();
 
     // Switch to notes tab and save note
-    const notesTab = within(dialog).getByText(/My Reflection & Notes/i);
+    const notesTab = within(dialog).getByRole('button', { name: /My Reflection & Notes/i });
     fireEvent.click(notesTab);
 
     const approachInput = within(dialog).getByPlaceholderText(/Keep two pointers at ends/i);

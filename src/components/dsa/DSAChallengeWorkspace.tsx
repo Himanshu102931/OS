@@ -7,6 +7,7 @@ import {
 } from '../../data/teacherEightDayDSAChallenge';
 import { DSAGuidedScaffoldModal } from './DSAGuidedScaffoldModal';
 import { DSAExternalAttemptModal } from './DSAExternalAttemptModal';
+import { DSAModuleLessonModal } from './DSAModuleLessonModal';
 import {
   BookOpen,
   Code2,
@@ -18,6 +19,7 @@ import {
   AlertCircle,
   RotateCcw,
   Award,
+  GraduationCap,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 
@@ -44,6 +46,7 @@ export const DSAChallengeWorkspace: React.FC<DSAChallengeWorkspaceProps> = ({
 
   const [selectedScaffoldProblem, setSelectedScaffoldProblem] = useState<TeacherChallengeProblem | null>(null);
   const [selectedExternalProblem, setSelectedExternalProblem] = useState<TeacherChallengeProblem | null>(null);
+  const [isLessonModalOpen, setIsLessonModalOpen] = useState<boolean>(false);
 
   const activeModule: TeacherChallengeModule =
     TEACHER_EIGHT_DAY_DSA_CHALLENGE.find((m) => m.day === activeDay) ||
@@ -307,8 +310,8 @@ export const DSAChallengeWorkspace: React.FC<DSAChallengeWorkspaceProps> = ({
       </div>
 
       {/* Active Module Header */}
-      <div className="bg-[#131722] border border-[#2A2F3D] rounded-xl p-5 space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="bg-[#131722] border border-[#2A2F3D] rounded-xl p-5 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-1 rounded bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30 text-xs font-mono font-bold">
               MODULE {activeModule.day} OF 8
@@ -317,9 +320,19 @@ export const DSAChallengeWorkspace: React.FC<DSAChallengeWorkspaceProps> = ({
               {activeModule.title}
             </h2>
           </div>
-          <span className="text-xs text-slate-400 font-mono">
-            Source: Placement Series (Page {activeModule.sourcePage})
-          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => setIsLessonModalOpen(true)}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs h-8 px-3.5 flex items-center gap-1.5 font-semibold shadow-sm"
+            >
+              <GraduationCap className="w-4 h-4" />
+              <span>Study Module Lesson & Concepts</span>
+            </Button>
+            <span className="text-xs text-slate-400 font-mono hidden sm:inline">
+              Source: Placement Series (Page {activeModule.sourcePage})
+            </span>
+          </div>
         </div>
         <p className="text-xs text-slate-300">
           <strong className="text-slate-200">Core Skills Focus:</strong> {activeModule.coreSkills}
@@ -642,6 +655,19 @@ export const DSAChallengeWorkspace: React.FC<DSAChallengeWorkspaceProps> = ({
           onClose={() => setSelectedExternalProblem(null)}
           onSubmitAttempt={(num, res, indep, notes) => {
             recordExternalChallengeAttempt(num, res, indep, notes);
+          }}
+        />
+      )}
+
+      {isLessonModalOpen && activeModule.lesson && (
+        <DSAModuleLessonModal
+          lesson={activeModule.lesson}
+          guidedProblems={activeModule.guided}
+          isOpen={isLessonModalOpen}
+          onClose={() => setIsLessonModalOpen(false)}
+          onOpenGuidedProblem={(p) => {
+            setIsLessonModalOpen(false);
+            setSelectedScaffoldProblem(p);
           }}
         />
       )}
