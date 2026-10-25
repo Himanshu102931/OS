@@ -23,10 +23,12 @@ interface AssessmentQuestionStageProps {
     confidence?: AssessmentConfidence;
     result: string;
     executionResult?: AssessmentExecutionResult;
+    unfamiliarTopic?: boolean;
   };
   textInput: string;
-  onAnswerChange: (userResponse: number | string | null, confidence?: AssessmentConfidence) => void;
+  onAnswerChange: (userResponse: number | string | null, confidence?: AssessmentConfidence, unfamiliarTopic?: boolean) => void;
   onConfidenceChange: (confidence: AssessmentConfidence) => void;
+  onUnfamiliarityChange?: (unfamiliar: boolean) => void;
   onPrevious: () => void;
   onNext: () => void;
   onSubmitClick: () => void;
@@ -40,6 +42,7 @@ export const AssessmentQuestionStage: React.FC<AssessmentQuestionStageProps> = (
   textInput,
   onAnswerChange,
   onConfidenceChange,
+  onUnfamiliarityChange,
   onPrevious,
   onNext,
   onSubmitClick,
@@ -233,6 +236,7 @@ export const AssessmentQuestionStage: React.FC<AssessmentQuestionStageProps> = (
           currentResponse={recordedCurrent}
           onAnswerChange={onAnswerChange}
           onConfidenceChange={onConfidenceChange}
+          onUnfamiliarityChange={onUnfamiliarityChange}
         />
       </div>
 

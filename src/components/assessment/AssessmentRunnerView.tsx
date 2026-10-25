@@ -113,6 +113,7 @@ export const AssessmentRunnerView: React.FC = () => {
         confidence?: AssessmentConfidence;
         result: string;
         executionResult?: AssessmentExecutionResult;
+        unfamiliarTopic?: boolean;
       }
     >();
     if (!activeAssessmentAttempt || !assessmentState) return map;
@@ -124,6 +125,7 @@ export const AssessmentRunnerView: React.FC = () => {
           confidence: resp.responseConfidence,
           result: resp.result,
           executionResult: resp.executionResult,
+          unfamiliarTopic: resp.unfamiliarTopic,
         });
       }
     }
@@ -162,11 +164,16 @@ export const AssessmentRunnerView: React.FC = () => {
   }, [activeAssessmentAttempt, handleAutoSubmit]);
 
   // Handle answering an item
-  const handleAnswerChange = (userResponse: number | string | null, confidence?: AssessmentConfidence) => {
+  const handleAnswerChange = (
+    userResponse: number | string | null,
+    confidence?: AssessmentConfidence,
+    unfamiliarTopic?: boolean
+  ) => {
     if (!activeAssessmentAttempt || !currentItem) return;
     const existing = responseMap.get(currentItem.id);
     const conf = confidence !== undefined ? confidence : existing?.confidence;
-    recordAssessmentResponse(activeAssessmentAttempt.id, currentItem.id, userResponse, conf);
+    const unfamiliar = unfamiliarTopic !== undefined ? unfamiliarTopic : existing?.unfamiliarTopic;
+    recordAssessmentResponse(activeAssessmentAttempt.id, currentItem.id, userResponse, conf, 0, unfamiliar);
   };
 
   const handleConfidenceChange = (conf: AssessmentConfidence) => {
@@ -176,7 +183,22 @@ export const AssessmentRunnerView: React.FC = () => {
       activeAssessmentAttempt.id,
       currentItem.id,
       existing ? existing.response : null,
-      conf
+      conf,
+      0,
+      existing?.unfamiliarTopic
+    );
+  };
+
+  const handleUnfamiliarityChange = (unfamiliar: boolean) => {
+    if (!activeAssessmentAttempt || !currentItem) return;
+    const existing = responseMap.get(currentItem.id);
+    recordAssessmentResponse(
+      activeAssessmentAttempt.id,
+      currentItem.id,
+      existing ? existing.response : null,
+      existing?.confidence,
+      0,
+      unfamiliar
     );
   };
 
@@ -334,6 +356,7 @@ export const AssessmentRunnerView: React.FC = () => {
         onSelectIndex={(idx) => setCurrentIdx(idx)}
         onAnswerChange={handleAnswerChange}
         onConfidenceChange={handleConfidenceChange}
+        onUnfamiliarityChange={handleUnfamiliarityChange}
         onPrevious={() => setCurrentIdx((prev) => Math.max(0, prev - 1))}
         onNext={() => setCurrentIdx((prev) => Math.min(orderedItems.length - 1, prev + 1))}
         onOpenSubmitModal={() => setShowSubmitModal(true)}

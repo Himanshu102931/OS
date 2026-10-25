@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 
 
+import { isBaselineCompleted } from '../../engine/assessmentEngine';
+
 interface AppShellProps {
   children: React.ReactNode;
 }
@@ -36,7 +38,10 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
     persistenceError,
     storageConflict,
     resolveStorageConflict,
+    assessmentState,
   } = usePlacement();
+
+  const baselineDone = isBaselineCompleted(assessmentState);
 
   const navItems: { id: RoutePath; label: string; icon: React.FC<{ className?: string }> }[] = [
     { id: 'dashboard', label: 'Today', icon: LayoutDashboard },
@@ -197,6 +202,14 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
                     }`}
                   />
                   <span className="transition-colors duration-150">{item.label}</span>
+                  {item.id === 'assessment' && !baselineDone && (
+                    <span
+                      data-testid="diagnostic-nav-indicator"
+                      className="ml-auto size-2 rounded-full bg-danger shrink-0 motion-safe:animate-pulse"
+                      title="Baseline Diagnostic Pending"
+                      aria-label="Baseline Diagnostic Pending"
+                    />
+                  )}
                 </button>
               );
             })}

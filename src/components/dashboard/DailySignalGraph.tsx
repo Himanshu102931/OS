@@ -5,7 +5,7 @@ import {
   calculateTopicReadiness,
   type DomainReadiness,
 } from '../../engine/skillsEngine';
-import { Code2, Database, Cpu, Network, Calculator, MessageSquare, Target, Layout, Boxes, AlertCircle } from 'lucide-react';
+import { Code2, Database, Cpu, Network, Calculator, MessageSquare, Target, Layout, Boxes, AlertCircle, ArrowRight } from 'lucide-react';
 
 /**
  * Icons only. Domain LABELS come from the canonical readiness payload
@@ -98,7 +98,21 @@ export function buildSignalConnectors(
 }
 
 export const DailySignalGraph: React.FC = () => {
-  const { domains, topics, taskDefinitions, taskProgress, dsaProblems, dsaProgress, dsaAttempts, evidenceLogs, skillStates, companyOverlays, todayDate, assessmentState } = usePlacement();
+  const {
+    domains,
+    topics,
+    taskDefinitions,
+    taskProgress,
+    dsaProblems,
+    dsaProgress,
+    dsaAttempts,
+    evidenceLogs,
+    skillStates,
+    companyOverlays,
+    todayDate,
+    assessmentState,
+    setRoute,
+  } = usePlacement();
   const [hoveredDomain, setHoveredDomain] = useState<string | null>(null);
   const [reducedMotion, setReducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
@@ -111,8 +125,7 @@ export const DailySignalGraph: React.FC = () => {
 
   // C6-03 — CANONICAL readiness. Exactly the two calls SkillsView and
   // analyticsEngine make (calculateTopicReadiness → calculateDomainReadinessList),
-  // fed with the REAL task definitions instead of an empty array. The previous
-  // local 65/40 threshold rule was a second readiness formula and is gone.
+  // fed with the REAL task definitions instead of an empty array.
   const readinessByDomain = useMemo<DomainReadiness[]>(() => {
     const topicReadinessList = topics.map((top) =>
       calculateTopicReadiness(
@@ -150,12 +163,24 @@ export const DailySignalGraph: React.FC = () => {
             <AlertCircle className="size-4 text-accent" /> Daily Placement Signals
           </h3>
           <p className="text-[11px] text-text-tertiary">
-            Demonstrated Practical Curriculum &amp; DSA Problem Mastery
+            Demonstrated Practical Curriculum &amp; DSA Problem Mastery vs Diagnostic Ability
           </p>
         </div>
-        {urgentComps.length > 0 && (
-          <span className="text-[10px] px-2 py-0.5 rounded bg-status-warning/10 text-status-warning border border-status-warning/30 font-mono">{urgentComps.length} urgent</span>
-        )}
+        <div className="flex items-center gap-4 text-[10px] text-text-muted font-mono mt-1 sm:mt-0">
+          <div className="flex items-center gap-1.5" title="Track A: Baseline Diagnostic Ability Score (0-100)">
+            <span className="w-2 h-2 rounded-xs bg-info/80 border border-info" />
+            <span>Track A: Diagnostic Ability</span>
+          </div>
+          <div className="flex items-center gap-1.5" title="Track B: Demonstrated Practical Mastery (0-100%)">
+            <span className="w-2 h-2 rounded-xs bg-accent/80 border border-accent" />
+            <span>Track B: Practical Mastery</span>
+          </div>
+          {urgentComps.length > 0 && (
+            <span className="text-[10px] px-2 py-0.5 rounded bg-status-warning/10 text-status-warning border border-status-warning/30 font-mono">
+              {urgentComps.length} urgent
+            </span>
+          )}
+        </div>
       </div>
       <div className="bg-surface-panel border border-border-default rounded-xl p-4 sm:p-5">
         <div className="relative h-48 w-full overflow-hidden">
@@ -199,6 +224,9 @@ export const DailySignalGraph: React.FC = () => {
                 const isHovered = hoveredDomain === r.domainId;
                 const meta = statusMeta(r.status);
                 const statusColor = meta.color;
+                const diagResult = assessmentState?.domainResults?.find((dr) => dr.domainId === r.domainId);
+                const isUnassessed = !diagResult || diagResult.status === 'unassessed';
+
                 return (
                   <div
                     key={r.domainId}
@@ -207,9 +235,13 @@ export const DailySignalGraph: React.FC = () => {
                     data-domain-label={r.shortName}
                     data-domain-status={r.status}
                     data-domain-readiness={r.overallReadiness}
+                    data-domain-diagnostic-ability={diagResult && !isUnassessed ? String(diagResult.abilityScore) : ''}
+                    data-domain-diagnostic-status={diagResult?.status ?? 'unassessed'}
+                    data-domain-diagnostic-level={diagResult && !isUnassessed ? String(diagResult.level) : ''}
+                    data-domain-practical-mastery={String(r.overallReadiness)}
                     tabIndex={0}
                     role="button"
-                    aria-label={`${r.shortName}: ${r.overallReadiness}% (${meta.label})`}
+                    aria-label={`${r.shortName}: Practical Mastery ${r.overallReadiness}% (${meta.label}), Diagnostic Ability ${isUnassessed ? 'Unassessed' : diagResult.abilityScore + '/100'}`}
                     className="flex flex-col items-center gap-1.5 cursor-pointer transition-all duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent rounded-md p-1"
                     style={{
                       opacity: isHovered ? 1 : 0.88,
@@ -226,38 +258,84 @@ export const DailySignalGraph: React.FC = () => {
                       }
                     }}
                   >
+                    {/* Dual-track vertical bars container */}
                     <div
-                      className="w-9 sm:w-10 bg-surface-canvas rounded-t border border-border-default relative overflow-hidden flex flex-col justify-end"
+                      className="w-11 sm:w-12 bg-surface-canvas rounded-t border border-border-default relative overflow-hidden flex items-end justify-center gap-1 p-0.5"
                       style={{ height: '96px' }}
                     >
-                      {/* Honest bar fill: height corresponds directly to r.overallReadiness% */}
-                      <div
-                        className="w-full rounded-t transition-all duration-500"
-                        style={{
-                          height: `${Math.max(r.overallReadiness > 0 ? 6 : 0, r.overallReadiness)}%`,
-                          background: r.overallReadiness > 0
-                            ? `linear-gradient(to top, color-mix(in srgb, ${statusColor} 31%, transparent), ${statusColor})`
-                            : 'transparent',
-                        }}
-                      />
-                      {/* Subdued baseline indicator when at 0% */}
-                      {r.overallReadiness === 0 && (
-                        <div className="w-full h-0.5 bg-border-default" />
-                      )}
+                      {/* Track A: Diagnostic Ability Bar */}
+                      <div className="w-4 h-full flex flex-col justify-end items-center relative">
+                        {isUnassessed ? (
+                          <div
+                            className="w-full h-full border border-dashed border-border-default/60 rounded-t flex items-end justify-center pb-1"
+                            title="Track A: Unassessed"
+                          >
+                            <span className="text-[7px] font-mono text-text-muted select-none">N/A</span>
+                          </div>
+                        ) : (
+                          <>
+                            <div
+                              className="w-full rounded-t transition-all duration-500"
+                              title={`Track A Diagnostic Ability: ${diagResult.abilityScore}/100`}
+                              style={{
+                                height: `${Math.max(diagResult.abilityScore > 0 ? 6 : 0, diagResult.abilityScore)}%`,
+                                background: diagResult.abilityScore > 0
+                                  ? 'linear-gradient(to top, color-mix(in srgb, var(--info) 35%, transparent), var(--info))'
+                                  : 'transparent',
+                              }}
+                            />
+                            {diagResult.abilityScore === 0 && (
+                              <div className="w-full h-0.5 bg-info/40" />
+                            )}
+                          </>
+                        )}
+                      </div>
+
+                      {/* Track B: Practical Mastery Bar */}
+                      <div className="w-4 h-full flex flex-col justify-end items-center relative">
+                        <div
+                          className="w-full rounded-t transition-all duration-500"
+                          title={`Track B Practical Mastery: ${r.overallReadiness}%`}
+                          style={{
+                            height: `${Math.max(r.overallReadiness > 0 ? 6 : 0, r.overallReadiness)}%`,
+                            background: r.overallReadiness > 0
+                              ? `linear-gradient(to top, color-mix(in srgb, ${statusColor} 31%, transparent), ${statusColor})`
+                              : 'transparent',
+                          }}
+                        />
+                        {r.overallReadiness === 0 && (
+                          <div className="w-full h-0.5 bg-border-default" />
+                        )}
+                      </div>
                     </div>
+
                     <Icon className="size-4 text-text-secondary" />
                     <span className="text-[9px] font-mono font-medium text-text-secondary">{r.shortName}</span>
-                    <span className="text-[10px] font-bold font-mono" style={{ color: statusColor }}>
-                      {r.overallReadiness}%
-                    </span>
+                    <div className="flex items-center gap-0.5 text-[9px] font-mono leading-none">
+                      <span
+                        className={isUnassessed ? 'text-text-muted text-[8px]' : 'text-info font-semibold'}
+                        title={`Track A Diagnostic Ability: ${isUnassessed ? 'Unassessed' : diagResult.abilityScore + '/100'}`}
+                      >
+                        {isUnassessed ? '—' : diagResult.abilityScore}
+                      </span>
+                      <span className="text-text-tertiary">/</span>
+                      <span
+                        className="font-bold"
+                        style={{ color: statusColor }}
+                        title={`Track B Practical Mastery: ${r.overallReadiness}%`}
+                      >
+                        {r.overallReadiness}%
+                      </span>
+                    </div>
                   </div>
                 );
               })}
             </div>
           </div>
         </div>
+
         {hoveredDomain && (
-          <div className="mt-3 pt-3 border-t border-border-default animate-fade-in">
+          <div className="mt-3 pt-3 border-t border-border-default animate-fade-in" data-testid="signal-domain-detail">
             {(() => {
               const r = readinessByDomain.find((d) => d.domainId === hoveredDomain);
               if (!r) return null;
@@ -265,25 +343,77 @@ export const DailySignalGraph: React.FC = () => {
               const statusLabel = meta.label;
               const statusColor = meta.color;
               const diagResult = assessmentState?.domainResults?.find((dr) => dr.domainId === hoveredDomain);
+              const isUnassessed = !diagResult || diagResult.status === 'unassessed';
+
               return (
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex items-center justify-between">
+                <div className="space-y-2 text-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                     <div className="flex items-center gap-2">
                       <span className="text-text-primary font-semibold">{r.shortName}</span>
-                      <span className="text-[11px] text-text-secondary">Domain Readiness Signal</span>
+                      <span className="text-[11px] text-text-secondary">Dual-Track Domain Status</span>
                     </div>
-                    <span className="text-[10px] px-2 py-0.5 rounded border font-mono font-medium" style={{ color: statusColor, borderColor: `color-mix(in srgb, ${statusColor} 25%, transparent)`, background: `color-mix(in srgb, ${statusColor} 6%, transparent)` }}>
-                      {statusLabel} — {r.overallReadiness}% Practical Mastery
-                    </span>
-                  </div>
-                  {diagResult && diagResult.status !== 'unassessed' && (
-                    <div className="flex items-center justify-between text-[11px] text-text-secondary bg-surface-canvas/60 px-2.5 py-1 rounded border border-border-default">
-                      <span>Diagnostic Baseline Capability:</span>
-                      <span className="font-mono font-medium text-text-primary">
-                        {diagResult.abilityScore}/100 Ability (Level {diagResult.level}) • Confidence: {diagResult.confidence}
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="text-[10px] px-2 py-0.5 rounded border font-mono font-medium"
+                        style={{
+                          color: statusColor,
+                          borderColor: `color-mix(in srgb, ${statusColor} 25%, transparent)`,
+                          background: `color-mix(in srgb, ${statusColor} 6%, transparent)`,
+                        }}
+                      >
+                        Track B Practical Mastery: {r.overallReadiness}% ({statusLabel})
                       </span>
+                      <button
+                        type="button"
+                        data-testid="navigate-assessment-from-signal"
+                        onClick={() => setRoute('assessment')}
+                        className="inline-flex items-center gap-1 text-[11px] font-medium text-accent hover:text-accent-hover transition-colors ml-2 cursor-pointer"
+                      >
+                        <span>View Assessment Results</span>
+                        <ArrowRight className="size-3" />
+                      </button>
                     </div>
-                  )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    <div className="bg-surface-canvas/60 p-2.5 rounded border border-border-default flex flex-col justify-between">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono text-info font-semibold uppercase tracking-wider">Track A: Diagnostic Ability</span>
+                        <span className="text-[10px] font-mono text-text-tertiary">Assessment Evidence</span>
+                      </div>
+                      <div className="mt-1">
+                        {isUnassessed ? (
+                          <p className="text-[11px] text-text-muted">
+                            Unassessed (No multiple-choice baseline available; demonstrated project evidence required)
+                          </p>
+                        ) : (
+                          <div className="flex items-baseline justify-between">
+                            <span className="text-sm font-bold font-mono text-text-primary">
+                              {diagResult.abilityScore}/100 <span className="text-xs font-normal text-text-secondary">(Level {diagResult.level})</span>
+                            </span>
+                            <span className="text-[10px] text-text-secondary font-mono">
+                              Confidence: {diagResult.confidence} {diagResult.constructScope ? `• ${diagResult.constructScope}` : ''}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="bg-surface-canvas/60 p-2.5 rounded border border-border-default flex flex-col justify-between">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono text-accent font-semibold uppercase tracking-wider">Track B: Practical Mastery</span>
+                        <span className="text-[10px] font-mono text-text-tertiary">Canonical Curriculum</span>
+                      </div>
+                      <div className="mt-1 flex items-baseline justify-between">
+                        <span className="text-sm font-bold font-mono" style={{ color: statusColor }}>
+                          {r.overallReadiness}%
+                        </span>
+                        <span className="text-[10px] text-text-secondary font-mono">
+                          Status: {statusLabel}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               );
             })()}

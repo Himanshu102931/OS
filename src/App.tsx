@@ -43,6 +43,10 @@ const InterviewReadinessView = lazy(() =>
   import('./components/interview/InterviewReadinessView').then((m) => ({ default: m.InterviewReadinessView }))
 );
 
+import { OnboardingModal } from './components/onboarding/OnboardingModal';
+import { DiagnosticInvitation } from './components/dashboard/DiagnosticInvitation';
+import { isBaselineCompleted } from './engine/assessmentEngine';
+
 const RouteLoadingFallback: React.FC = () => (
   <div
     className="flex-1 flex items-center justify-center min-h-[400px] text-secondary"
@@ -55,6 +59,57 @@ const RouteLoadingFallback: React.FC = () => (
     </div>
   </div>
 );
+
+const OnboardingContainer: React.FC = () => {
+  const { userSettings, updateUserSettings, assessmentState, setRoute } = usePlacement();
+
+  const baselineDone = isBaselineCompleted(assessmentState);
+  const hasInProgressAttempt =
+    assessmentState?.attempts?.some(
+      (a) => a.status === 'in_progress' && a.kind === 'diagnostic_assessment'
+    ) ?? false;
+
+  const showOnboarding = !userSettings?.onboardingCompleted;
+  const showDiagnosticModal =
+    Boolean(userSettings?.onboardingCompleted) &&
+    !userSettings?.diagnosticDismissed &&
+    !baselineDone;
+
+  return (
+    <>
+      <OnboardingModal
+        isOpen={Boolean(showOnboarding)}
+        onComplete={(payload) => {
+          updateUserSettings({
+            targetPlacementGoal: payload.targetPlacementGoal,
+            dailyStudyMinutes: payload.dailyStudyMinutes,
+            placementHorizonDate: payload.placementHorizonDate,
+            onboardingCompleted: true,
+          });
+        }}
+        onExploreFirst={() => {
+          updateUserSettings({
+            onboardingCompleted: true,
+          });
+        }}
+      />
+
+      <DiagnosticInvitation
+        isOpen={Boolean(showDiagnosticModal)}
+        hasInProgressAttempt={hasInProgressAttempt}
+        onStartDiagnostic={() => {
+          updateUserSettings({ diagnosticDismissed: true });
+          setRoute('assessment');
+        }}
+        onDismiss={() => {
+          updateUserSettings({
+            diagnosticDismissed: true,
+          });
+        }}
+      />
+    </>
+  );
+};
 
 const MainContent: React.FC = () => {
   const { currentRoute } = usePlacement();
@@ -100,6 +155,7 @@ function App() {
                 <MainContent />
               </Suspense>
               <GuideOverlay />
+              <OnboardingContainer />
             </AppShell>
           </SessionProvider>
         </ErrorBoundary>

@@ -25,6 +25,8 @@ import type {
   AssessmentAttempt,
   AssessmentResponse,
   AssessmentConfidence,
+  DSAChallengeState,
+  DSAChallengeNote,
 } from '../types';
 import {
   DOMAINS,
@@ -40,6 +42,7 @@ import {
   StorageAdapter,
   StorageCoordinator,
   DEFAULT_USER_SETTINGS,
+  DEFAULT_DSA_CHALLENGE_STATE,
   type AppStorageState,
   type StorageSaveResult,
 } from '../storage/storageAdapter';
@@ -176,7 +179,8 @@ interface PlacementContextType {
     itemId: string,
     userResponse: number | string | null | undefined,
     confidence?: AssessmentConfidence,
-    timeSpentSeconds?: number
+    timeSpentSeconds?: number,
+    unfamiliarTopic?: boolean
   ) => void;
   submitAssessmentAttempt: (attemptId: string, isAuto?: boolean) => AssessmentScoringResult;
   cancelAssessmentAttempt: (attemptId: string) => void;
@@ -188,6 +192,16 @@ interface PlacementContextType {
   resetAssessmentProfileOnly: () => void;
   resetAssessmentHistoryOnly: () => void;
   syncDailyAssignmentCompletion: (assignmentId: string, completed?: boolean) => void;
+  dsaChallengeState: DSAChallengeState;
+  updateDSAChallengeState: (update: Partial<DSAChallengeState>) => void;
+  saveChallengeItemNote: (leetcodeNumber: number, note: Partial<DSAChallengeNote>) => void;
+  markChallengeGuidedCompleted: (leetcodeNumber: number, completed: boolean) => void;
+  recordExternalChallengeAttempt: (
+    leetcodeNumber: number,
+    result: 'pass' | 'partial' | 'fail',
+    passedIndependently: boolean,
+    notes?: string
+  ) => void;
   persistenceError: boolean;
   storageConflict: boolean;
   resolveStorageConflict: () => void;
@@ -273,6 +287,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       practiceAttempts: loaded.practiceAttempts || [],
       preparationTopicProgress: loaded.preparationTopicProgress || {},
       assessmentState: updatedAssessmentState,
+      dsaChallengeState: loaded.dsaChallengeState || { ...DEFAULT_DSA_CHALLENGE_STATE },
     };
   });
 
@@ -900,6 +915,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       evidenceLogs: [],
       practiceAttempts: [],
       assessmentState: undefined,
+      dsaChallengeState: { ...DEFAULT_DSA_CHALLENGE_STATE },
     });
     setStorageConflict(false);
     setPersistenceError(false);
@@ -929,6 +945,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           practiceAttempts: result.state.practiceAttempts || [],
           preparationTopicProgress: result.state.preparationTopicProgress || {},
           assessmentState: result.state.assessmentState,
+          dsaChallengeState: result.state.dsaChallengeState || { ...DEFAULT_DSA_CHALLENGE_STATE },
         });
         setStorageConflict(false);
         setPersistenceError(false);
@@ -1049,7 +1066,8 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     itemId: string,
     userResponse: number | string | null | undefined,
     confidence?: AssessmentConfidence,
-    timeSpentSeconds: number = 0
+    timeSpentSeconds: number = 0,
+    unfamiliarTopic?: boolean
   ) => {
     const activeAttempt = appState.assessmentState?.attempts.find((a) => a.id === attemptId);
     if (!activeAttempt || activeAttempt.status !== 'in_progress') {
@@ -1070,6 +1088,14 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return prev;
       }
 
+      const existingResp = existingState.responses.find(
+        (r) => r.attemptId === attemptId && r.itemId === itemId
+      );
+
+      const resolvedUnfamiliar = unfamiliarTopic !== undefined
+        ? Boolean(unfamiliarTopic)
+        : existingResp?.unfamiliarTopic ?? false;
+
       const newResp: AssessmentResponse = {
         id: `resp-${attemptId}-${itemId}`,
         attemptId,
@@ -1082,6 +1108,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         weightApplied: evaluated.weightApplied,
         responseConfidence: confidence,
         executionResult: evaluated.executionResult,
+        unfamiliarTopic: resolvedUnfamiliar,
       };
 
       const otherResponses = existingState.responses.filter(
@@ -1299,6 +1326,107 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }));
   };
 
+  const dsaChallengeState: DSAChallengeState = useMemo(() => {
+    return appState.dsaChallengeState || DEFAULT_DSA_CHALLENGE_STATE;
+  }, [appState.dsaChallengeState]);
+
+  const updateDSAChallengeState = (update: Partial<DSAChallengeState>) => {
+    setAppState((prev) => {
+      const current = prev.dsaChallengeState || DEFAULT_DSA_CHALLENGE_STATE;
+      return {
+        ...prev,
+        dsaChallengeState: {
+          ...current,
+          ...update,
+        },
+      };
+    });
+  };
+
+  const saveChallengeItemNote = (leetcodeNumber: number, note: Partial<DSAChallengeNote>) => {
+    setAppState((prev) => {
+      const current = prev.dsaChallengeState || DEFAULT_DSA_CHALLENGE_STATE;
+      const currentItem = current.itemProgress[leetcodeNumber] || {};
+      const existingNote = currentItem.notes || { savedAt: new Date().toISOString() };
+      const updatedNote: DSAChallengeNote = {
+        ...existingNote,
+        ...note,
+        savedAt: new Date().toISOString(),
+      };
+      return {
+        ...prev,
+        dsaChallengeState: {
+          ...current,
+          itemProgress: {
+            ...current.itemProgress,
+            [leetcodeNumber]: {
+              ...currentItem,
+              notes: updatedNote,
+            },
+          },
+        },
+      };
+    });
+  };
+
+  const markChallengeGuidedCompleted = (leetcodeNumber: number, completed: boolean) => {
+    setAppState((prev) => {
+      const current = prev.dsaChallengeState || DEFAULT_DSA_CHALLENGE_STATE;
+      const currentItem = current.itemProgress[leetcodeNumber] || {};
+      return {
+        ...prev,
+        dsaChallengeState: {
+          ...current,
+          itemProgress: {
+            ...current.itemProgress,
+            [leetcodeNumber]: {
+              ...currentItem,
+              guidedCompleted: completed,
+              guidedCompletedAt: completed ? new Date().toISOString() : undefined,
+            },
+          },
+        },
+      };
+    });
+  };
+
+  const recordExternalChallengeAttempt = (
+    leetcodeNumber: number,
+    result: 'pass' | 'partial' | 'fail',
+    passedIndependently: boolean,
+    notes?: string
+  ) => {
+    setAppState((prev) => {
+      const current = prev.dsaChallengeState || DEFAULT_DSA_CHALLENGE_STATE;
+      const currentItem = current.itemProgress[leetcodeNumber] || {};
+      const existingNote = currentItem.notes || { savedAt: new Date().toISOString() };
+      const updatedNote: DSAChallengeNote | undefined = notes
+        ? {
+            ...existingNote,
+            approach: notes,
+            savedAt: new Date().toISOString(),
+          }
+        : currentItem.notes;
+
+      return {
+        ...prev,
+        dsaChallengeState: {
+          ...current,
+          itemProgress: {
+            ...current.itemProgress,
+            [leetcodeNumber]: {
+              ...currentItem,
+              notes: updatedNote,
+              externalAttemptResult: result,
+              externalPassedIndependently: passedIndependently,
+              externalAttemptAt: new Date().toISOString(),
+            },
+          },
+        },
+      };
+    });
+  };
+
   return (
     <PlacementContext.Provider
       value={{
@@ -1364,6 +1492,11 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         resetAssessmentProfileOnly,
         resetAssessmentHistoryOnly,
         syncDailyAssignmentCompletion,
+        dsaChallengeState,
+        updateDSAChallengeState,
+        saveChallengeItemNote,
+        markChallengeGuidedCompleted,
+        recordExternalChallengeAttempt,
         persistenceError,
         storageConflict,
         resolveStorageConflict,
