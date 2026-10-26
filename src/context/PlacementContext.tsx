@@ -79,7 +79,21 @@ import {
   FULL_REASSESSMENT_DEFINITION,
 } from '../data/assessment/definitions';
 
-export type RoutePath = 'dashboard' | 'roadmap' | 'dsa' | 'skills' | 'practice' | 'preparation' | 'project' | 'companies' | 'analytics' | 'settings' | 'assessment' | 'interview';
+export type RoutePath =
+  | 'dashboard'
+  | 'learn'
+  | 'practice'
+  | 'progress'
+  | 'settings'
+  | 'roadmap'
+  | 'dsa'
+  | 'skills'
+  | 'preparation'
+  | 'analytics'
+  | 'assessment'
+  | 'project'
+  | 'companies'
+  | 'interview';
 
 /** Optional target identifier for route-specific deep links.
  *  - preparation: topicId (existing)
@@ -420,11 +434,30 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#/', '').toLowerCase();
       const parts = hash.split('/');
-      const route = parts[0] as RoutePath;
-      
-      if (['dashboard', 'roadmap', 'dsa', 'skills', 'practice', 'preparation', 'project', 'companies', 'analytics', 'settings', 'assessment', 'interview'].includes(route)) {
+      const rawRoute = parts[0];
+
+      if (
+        [
+          'dashboard',
+          'learn',
+          'practice',
+          'progress',
+          'settings',
+          'roadmap',
+          'dsa',
+          'skills',
+          'preparation',
+          'analytics',
+          'assessment',
+          'companies',
+          'project',
+          'interview',
+        ].includes(rawRoute as RoutePath)
+      ) {
         const targetId = parts[1];
-        setRouteState({ route, targetId });
+        setRouteState({ route: rawRoute as RoutePath, targetId });
+      } else if (rawRoute === 'today') {
+        setRouteState({ route: 'dashboard' });
       } else {
         setRouteState({ route: 'dashboard' });
       }

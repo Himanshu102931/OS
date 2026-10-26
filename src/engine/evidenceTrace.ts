@@ -56,10 +56,12 @@ import { DOMAINS } from '../data/seedData';
  */
 export type TraceRoute =
   | 'dashboard'
+  | 'learn'
+  | 'practice'
+  | 'progress'
   | 'roadmap'
   | 'dsa'
   | 'skills'
-  | 'practice'
   | 'preparation'
   | 'project'
   | 'companies'
@@ -492,6 +494,8 @@ const DEEP_LINK_ROUTES: ReadonlySet<TraceRoute> = new Set<TraceRoute>([
 
 const ROUTE_ACTION_LABEL: Record<TraceRoute, string> = {
   dashboard: 'Open Dashboard',
+  learn: 'Open Learn',
+  progress: 'Open Progress',
   roadmap: 'Open Roadmap',
   dsa: 'Open DSA',
   skills: 'Open Skills Matrix',

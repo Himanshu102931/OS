@@ -21,12 +21,6 @@ const SkillsView = lazy(() =>
 const PreparationHubView = lazy(() =>
   import('./components/preparation/PreparationHubView').then((m) => ({ default: m.PreparationHubView }))
 );
-const ProjectLabView = lazy(() =>
-  import('./components/project/ProjectLabView').then((m) => ({ default: m.ProjectLabView }))
-);
-const CompaniesView = lazy(() =>
-  import('./components/companies/CompaniesView').then((m) => ({ default: m.CompaniesView }))
-);
 const AnalyticsView = lazy(() =>
   import('./components/analytics/AnalyticsView').then((m) => ({ default: m.AnalyticsView }))
 );
@@ -39,8 +33,11 @@ const PracticeView = lazy(() =>
 const AssessmentRunnerView = lazy(() =>
   import('./components/assessment/AssessmentRunnerView').then((m) => ({ default: m.AssessmentRunnerView }))
 );
-const InterviewReadinessView = lazy(() =>
-  import('./components/interview/InterviewReadinessView').then((m) => ({ default: m.InterviewReadinessView }))
+const LearnHubView = lazy(() =>
+  import('./components/learn/LearnHubView').then((m) => ({ default: m.LearnHubView }))
+);
+const ProgressHubView = lazy(() =>
+  import('./components/progress/ProgressHubView').then((m) => ({ default: m.ProgressHubView }))
 );
 
 import { OnboardingModal } from './components/onboarding/OnboardingModal';
@@ -117,6 +114,12 @@ const MainContent: React.FC = () => {
   switch (currentRoute) {
     case 'dashboard':
       return <DashboardView />;
+    case 'learn':
+      return <LearnHubView />;
+    case 'practice':
+      return <PracticeView />;
+    case 'progress':
+      return <ProgressHubView />;
     case 'assessment':
       return <AssessmentRunnerView />;
     case 'roadmap':
@@ -127,18 +130,14 @@ const MainContent: React.FC = () => {
       return <SkillsView />;
     case 'preparation':
       return <PreparationHubView />;
-    case 'practice':
-      return <PracticeView />;
-    case 'project':
-      return <ProjectLabView />;
-    case 'companies':
-      return <CompaniesView />;
     case 'analytics':
       return <AnalyticsView />;
     case 'settings':
       return <SettingsView />;
+    case 'project':
+    case 'companies':
     case 'interview':
-      return <InterviewReadinessView />;
+      return <LearnHubView />;
     default:
       return <DashboardView />;
   }

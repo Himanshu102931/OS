@@ -4,24 +4,18 @@ import type { RoutePath } from '../../context/PlacementContext';
 import type { PlacementMode } from '../../types';
 import {
   LayoutDashboard,
-  Map,
+  BookOpen,
   Code2,
-  Building2,
   BarChart3,
   Settings,
   Calendar,
   Layers,
   Terminal,
-  Target,
-  GraduationCap,
-  Dumbbell,
-  ClipboardCheck,
-  UserCheck,
   AlertTriangle,
 } from 'lucide-react';
 
-
 import { isBaselineCompleted } from '../../engine/assessmentEngine';
+import { isRetiredRoute } from '../../engine/simpleFilter';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -43,39 +37,67 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
   const baselineDone = isBaselineCompleted(assessmentState);
 
-  const navItems: { id: RoutePath; label: string; icon: React.FC<{ className?: string }> }[] = [
-    { id: 'dashboard', label: 'Today', icon: LayoutDashboard },
-    { id: 'assessment', label: 'Diagnostic', icon: ClipboardCheck },
-    { id: 'roadmap', label: 'Roadmap', icon: Map },
-    { id: 'dsa', label: 'DSA', icon: Code2 },
-    { id: 'skills', label: 'Skills', icon: GraduationCap },
-    { id: 'preparation', label: 'Preparation', icon: Target },
-    { id: 'practice', label: 'Practice', icon: Dumbbell },
-    { id: 'project', label: 'Project Lab', icon: Terminal },
-    { id: 'companies', label: 'Companies', icon: Building2 },
-    { id: 'analytics', label: 'Review', icon: BarChart3 },
-    { id: 'interview', label: 'Interview', icon: UserCheck },
-    { id: 'settings', label: 'Settings', icon: Settings },
+  const primaryNavItems: {
+    id: RoutePath;
+    label: string;
+    icon: React.FC<{ className?: string }>;
+    isActive: (route: RoutePath) => boolean;
+  }[] = [
+    {
+      id: 'dashboard',
+      label: 'Today',
+      icon: LayoutDashboard,
+      isActive: (route) => route === 'dashboard',
+    },
+    {
+      id: 'learn',
+      label: 'Learn',
+      icon: BookOpen,
+      isActive: (route) =>
+        route === 'learn' ||
+        route === 'roadmap' ||
+        route === 'preparation' ||
+        route === 'dsa' ||
+        isRetiredRoute(route),
+    },
+    {
+      id: 'practice',
+      label: 'Practice',
+      icon: Code2,
+      isActive: (route) => route === 'practice',
+    },
+    {
+      id: 'progress',
+      label: 'Progress',
+      icon: BarChart3,
+      isActive: (route) =>
+        route === 'progress' ||
+        route === 'skills' ||
+        route === 'analytics' ||
+        route === 'assessment',
+    },
   ];
 
   const getPageTitle = (route: RoutePath): string => {
     switch (route) {
-      case 'dashboard': return 'Today / Operational Workspace';
-      case 'assessment': return 'Baseline Diagnostic Assessment';
-      case 'roadmap': return 'Master Roadmap & Trajectory';
-      case 'dsa': return 'DSA Bank & Spaced Repetition';
-      case 'skills': return 'Skills Matrix & Readiness';
-      case 'preparation':
-      case 'practice': return 'Preparation Hub & Workspace';
-      case 'project': return 'Project Lab & Engineering Defense';
-      case 'companies': return 'Target Companies & Overlays';
-      case 'analytics': return 'Analytics & Review';
-      case 'settings': return 'System Settings & Storage';
-      case 'interview': return 'Interview Readiness Scorecard';
+      case 'dashboard': return 'Today';
+      case 'learn': return 'Learn';
+      case 'roadmap': return 'Learn / Learning Path';
+      case 'preparation': return 'Learn / Core Subjects';
+      case 'dsa': return 'Learn / DSA Concepts';
+      case 'practice': return 'Practice';
+      case 'progress': return 'Progress';
+      case 'skills': return 'Progress / Skills Matrix';
+      case 'analytics': return 'Progress / Review & Stats';
+      case 'assessment': return 'Progress / Diagnostic';
+      case 'settings': return 'Settings & Backup';
+      case 'project':
+      case 'companies':
+      case 'interview':
+        return 'Learn';
       default: return 'PlacementOS';
     }
   };
-
 
   return (
     <div className="min-h-screen md:h-screen md:overflow-hidden flex flex-col font-sans bg-background text-foreground selection:bg-accent/30 selection:text-white">
@@ -122,6 +144,21 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
               <Calendar className="size-3.5 text-foreground-muted" />
               <span className="font-mono text-foreground text-xs">{todayDate}</span>
             </div>
+
+            {/* Settings & Backup Utility Header Button */}
+            <button
+              onClick={() => setRoute('settings')}
+              data-testid="header-settings-btn"
+              title="Settings & Backup"
+              aria-label="Settings & Backup"
+              className={`size-8 rounded-[4px] border flex items-center justify-center transition-colors cursor-pointer ${
+                currentRoute === 'settings'
+                  ? 'bg-[#18221B] text-[#46B982] border-[#46B982]'
+                  : 'bg-surface-elevated text-foreground-muted hover:text-foreground border-border hover:bg-surface-muted'
+              }`}
+            >
+              <Settings className="size-4" />
+            </button>
           </div>
         </div>
       </header>
@@ -181,39 +218,62 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       <div className="flex-1 max-w-[1500px] w-full mx-auto flex flex-col md:flex-row min-h-0 md:overflow-hidden">
         {/* Sidebar Navigation - Fixed & docked on desktop */}
         <aside className="w-full md:w-60 lg:w-64 border-b md:border-b-0 md:border-r border-border bg-surface p-3.5 shrink-0 flex flex-col justify-between md:h-full md:overflow-y-auto">
-          <nav className="flex md:flex-col gap-1.5 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0" aria-label="Main Navigation">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = currentRoute === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setRoute(item.id)}
-                  aria-current={isActive ? 'page' : undefined}
-                  className={`group relative flex items-center gap-3 px-3.5 py-2.5 rounded-[4px] text-xs font-medium text-left whitespace-nowrap transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#46B982] ${
-                    isActive
-                      ? 'bg-[#18221B] text-[#F3F7F3] border-l-2 border-l-[#46B982] border-y border-r border-[#26352C] font-semibold shadow-sm'
-                      : 'text-foreground-muted hover:text-[#F3F7F3] hover:bg-[#162019] hover:translate-x-0.5 border border-transparent'
-                  }`}
-                >
-                  <Icon
-                    className={`size-4 transition-colors duration-150 ${
-                      isActive ? 'text-[#46B982]' : 'text-[#6B7C72] group-hover:text-[#46B982]'
+          <div className="space-y-4">
+            <nav className="flex md:flex-col gap-1.5 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0" aria-label="Main Navigation">
+              {primaryNavItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = item.isActive(currentRoute);
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setRoute(item.id)}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`group relative flex items-center gap-3 px-3.5 py-2.5 rounded-[4px] text-xs font-medium text-left whitespace-nowrap transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#46B982] cursor-pointer ${
+                      isActive
+                        ? 'bg-[#18221B] text-[#F3F7F3] border-l-2 border-l-[#46B982] border-y border-r border-[#26352C] font-semibold shadow-sm'
+                        : 'text-foreground-muted hover:text-[#F3F7F3] hover:bg-[#162019] hover:translate-x-0.5 border border-transparent'
                     }`}
-                  />
-                  <span className="transition-colors duration-150">{item.label}</span>
-                  {item.id === 'assessment' && !baselineDone && (
-                    <span
-                      data-testid="diagnostic-nav-indicator"
-                      className="ml-auto size-2 rounded-full bg-danger shrink-0 motion-safe:animate-pulse"
-                      title="Baseline Diagnostic Pending"
-                      aria-label="Baseline Diagnostic Pending"
+                  >
+                    <Icon
+                      className={`size-4 transition-colors duration-150 ${
+                        isActive ? 'text-[#46B982]' : 'text-[#6B7C72] group-hover:text-[#46B982]'
+                      }`}
                     />
-                  )}
-                </button>
-              );
-            })}
-          </nav>
+                    <span className="transition-colors duration-150">{item.label}</span>
+                    {item.id === 'progress' && !baselineDone && (
+                      <span
+                        data-testid="diagnostic-nav-indicator"
+                        className="ml-auto size-2 rounded-full bg-danger shrink-0 motion-safe:animate-pulse"
+                        title="Baseline Diagnostic Pending"
+                        aria-label="Baseline Diagnostic Pending"
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+
+            {/* Secondary Utility Item - Settings & Backup */}
+            <div className="pt-2 border-t border-border hidden md:block">
+              <button
+                onClick={() => setRoute('settings')}
+                data-testid="settings-nav-btn"
+                aria-label="Settings & Backup"
+                className={`w-full group relative flex items-center gap-3 px-3.5 py-2.5 rounded-[4px] text-xs font-medium text-left whitespace-nowrap transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#46B982] cursor-pointer ${
+                  currentRoute === 'settings'
+                    ? 'bg-[#18221B] text-[#F3F7F3] border-l-2 border-l-[#46B982] border-y border-r border-[#26352C] font-semibold shadow-sm'
+                    : 'text-foreground-muted hover:text-[#F3F7F3] hover:bg-[#162019] hover:translate-x-0.5 border border-transparent'
+                }`}
+              >
+                <Settings
+                  className={`size-4 transition-colors duration-150 ${
+                    currentRoute === 'settings' ? 'text-[#46B982]' : 'text-[#6B7C72] group-hover:text-[#46B982]'
+                  }`}
+                />
+                <span className="transition-colors duration-150">Settings & Backup</span>
+              </button>
+            </div>
+          </div>
 
           {/* Quiet System Footer */}
           <div className="mt-6 pt-4 border-t border-border hidden md:block px-2 text-[11px] text-secondary space-y-1 font-mono shrink-0">
