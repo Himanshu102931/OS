@@ -16,10 +16,6 @@ import { evaluateAnalyticsTelemetry } from '../../engine/analyticsEngine';
 import { buildReviewPromptDatasets, filterNavigablePrompts, isPromptDue } from '../../engine/reviewPromptAdapter';
 import { captureCompletionRestore, captureDeferRestore, type TaskStateRestore } from '../../engine/taskStateEngine';
 import { getRecommendedPracticeSession } from '../../engine/practiceEngine';
-import {
-  mapCompanyRequirementTargets,
-  buildCompanyFocusSummary,
-} from '../../engine/companyPlanEngine';
 import { buildReviewCandidateTrace } from '../../engine/evidenceTrace';
 import { useEvidenceCatalog } from '../evidence/useEvidenceCatalog';
 import {
@@ -34,10 +30,16 @@ import { SessionProvider } from './SessionProvider';
 import { SessionContext } from './SessionContext';
 import { SessionModals } from './SessionModals';
 import {
-  Building2, Sun, BookOpen, Clock, SkipForward, Sparkles, Check,
+  Sun, BookOpen, Clock, SkipForward, Sparkles, Check,
   AlertCircle, CheckCircle2, X, HelpCircle,
 } from 'lucide-react';
 import { MonoChip, TodayButton, PrimaryCTA } from './todayPrimitives';
+import {
+  isEligibleSimpleTask,
+  isEligibleSimpleDailyAssignment,
+  isEligibleSimpleDomain,
+  isEligibleSimplePracticeSession,
+} from '../../engine/simpleFilter';
 
 import { isBaselineCompleted } from '../../engine/assessmentEngine';
 import { DiagnosticReminder } from './DiagnosticReminder';
@@ -69,12 +71,6 @@ export const DashboardView: React.FC = () => {
   const [activePracticeSession, setActivePracticeSession] = useState<PracticeSessionDefinition | null>(null);
   const [isPlanExpanded, setIsPlanExpanded] = useState(false);
   const [showTelemetryDetails, setShowTelemetryDetails] = useState(false);
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
-
-  const selectedCompany = useMemo(() =>
-    selectedCompanyId ? companyOverlays.find((c) => c.id === selectedCompanyId) : null,
-    [selectedCompanyId, companyOverlays]
-  );
 
   const [completionInfo, setCompletionInfo] = useState<{
     taskId: string; taskTitle: string; previousState: TaskProgress['state']; restore: TaskStateRestore;
@@ -126,12 +122,21 @@ export const DashboardView: React.FC = () => {
   const todayCheckIn = dailyCheckIns.find((c) => c.date === todayDate);
   const isDaySealed = todayCheckIn?.isSealed ?? false;
   const todayAssignments = dailyTaskAssignments.filter((a) => a.date === todayDate);
-  const isPlanCommitted = todayAssignments.length > 0;
+
+  const eligibleTaskDefinitions = useMemo(
+    () => taskDefinitions.filter(isEligibleSimpleTask),
+    [taskDefinitions]
+  );
+
+  const eligiblePracticeSessions = useMemo(
+    () => practiceSessions.filter(isEligibleSimplePracticeSession),
+    [practiceSessions]
+  );
 
   // C6 — THE canonical candidate evaluation for Today. EXACTLY ONE call.
   const evaluatedCandidates = useMemo(() =>
     getEvaluatedCandidates(
-      taskDefinitions,
+      eligibleTaskDefinitions,
       taskProgress,
       dsaProblems,
       dsaProgress,
@@ -139,11 +144,11 @@ export const DashboardView: React.FC = () => {
       companyOverlays,
       currentMode,
       todayDate,
-      selectedCompanyId || undefined
+      undefined
     ),
     [
-      taskDefinitions, taskProgress, dsaProblems, dsaProgress,
-      skillStates, companyOverlays, currentMode, todayDate, selectedCompanyId,
+      eligibleTaskDefinitions, taskProgress, dsaProblems, dsaProgress,
+      skillStates, companyOverlays, currentMode, todayDate,
     ]
   );
 
@@ -152,8 +157,8 @@ export const DashboardView: React.FC = () => {
   const nextActionState = nextBestActionTask ? taskProgress[nextBestActionTask.id]?.state || 'not_started' : 'not_started';
 
   const practiceRecommendation = useMemo(
-    () => getRecommendedPracticeSession(practiceSessions, practiceAttempts, skillStates, companyOverlays),
-    [practiceSessions, practiceAttempts, skillStates, companyOverlays]
+    () => getRecommendedPracticeSession(eligiblePracticeSessions, practiceAttempts, skillStates, []),
+    [eligiblePracticeSessions, practiceAttempts, skillStates]
   );
 
   const practiceSignals = useMemo(
@@ -165,14 +170,13 @@ export const DashboardView: React.FC = () => {
     { key: 'weakTopic', label: 'Weak topic', active: practiceSignals.weakTopic },
     { key: 'stalePreparationTopic', label: 'Evidence aging', active: practiceSignals.stalePreparationTopic },
     { key: 'lowAccuracy', label: 'Low accuracy', active: practiceSignals.lowAccuracy },
-    { key: 'interviewPracticeDue', label: 'Interview practice due', active: practiceSignals.interviewPracticeDue },
   ].filter((c) => c.active), [practiceSignals]);
 
   const analyticsTelemetry = useMemo(() =>
     evaluateAnalyticsTelemetry(
       '30d',
       todayDate,
-      taskDefinitions,
+      eligibleTaskDefinitions,
       taskProgress,
       dsaProblems,
       dsaProgress,
@@ -185,7 +189,7 @@ export const DashboardView: React.FC = () => {
       activePhase,
       evidenceLogs
     ),
-    [todayDate, taskDefinitions, taskProgress, dsaProblems, dsaProgress, dsaAttempts, topics, domains, skillStates, dailyCheckIns, companyOverlays, activePhase, evidenceLogs]
+    [todayDate, eligibleTaskDefinitions, taskProgress, dsaProblems, dsaProgress, dsaAttempts, topics, domains, skillStates, dailyCheckIns, companyOverlays, activePhase, evidenceLogs]
   );
 
   const reviewPromptDatasets = useMemo(() =>
@@ -223,7 +227,7 @@ export const DashboardView: React.FC = () => {
 
   const reviewSchedule = useMemo(() =>
     generateReviewCandidates({
-      tasks: taskDefinitions,
+      tasks: eligibleTaskDefinitions,
       taskProgressMap: taskProgress,
       dsaProblems,
       dsaProgressMap: dsaProgress,
@@ -236,17 +240,17 @@ export const DashboardView: React.FC = () => {
       todayAssignments,
       analyticsReviewPrompts: analyticsTelemetry.reviewPrompts,
       practiceAttempts,
-      practiceSessions,
+      practiceSessions: eligiblePracticeSessions,
       preparationTopicProgress,
       assessmentProfileReadout,
       activePhase,
-      targetCompanyId: selectedCompanyId || undefined,
+      targetCompanyId: undefined,
       dsaAttempts,
       evidenceLogs,
       domainResults: assessmentState?.domainResults ?? [],
       weaknessSignals: assessmentState?.weaknessSignals ?? [],
     }),
-    [taskDefinitions, taskProgress, dsaProblems, dsaProgress, topics, domains, skillStates, companyOverlays, currentMode, todayDate, todayAssignments, analyticsTelemetry, practiceAttempts, practiceSessions, preparationTopicProgress, assessmentProfileReadout, activePhase, selectedCompanyId, dsaAttempts, evidenceLogs, assessmentState]
+    [eligibleTaskDefinitions, taskProgress, dsaProblems, dsaProgress, topics, domains, skillStates, companyOverlays, currentMode, todayDate, todayAssignments, analyticsTelemetry, practiceAttempts, eligiblePracticeSessions, preparationTopicProgress, assessmentProfileReadout, activePhase, dsaAttempts, evidenceLogs, assessmentState]
   );
 
   const reviewCandidates = reviewSchedule.candidates;
@@ -264,63 +268,21 @@ export const DashboardView: React.FC = () => {
     [reviewCandidates, evidenceCatalog]
   );
 
-  const reusedRouteTargetIds = useMemo(
-    () =>
-      new Set(
-        reviewCandidates
-          .filter((c) => c.priority === 'remediation' || c.priority === 'routed_weakness' || c.priority === 'overdue_review')
-          .map((c) => c.targetId)
-      ),
-    [reviewCandidates]
+  const companyFocus = null;
+
+  const eligibleTaskIds = useMemo(
+    () => new Set(eligibleTaskDefinitions.map((t) => t.id)),
+    [eligibleTaskDefinitions]
   );
 
-  const companyMappings = useMemo(
+  const completedCount = useMemo(
     () =>
-      selectedCompany
-        ? mapCompanyRequirementTargets({
-            targetCompany: selectedCompany,
-            domains,
-            topics,
-            tasks: taskDefinitions,
-            taskProgressMap: taskProgress,
-            dsaProblems,
-            dsaProgressMap: dsaProgress,
-            dsaAttempts,
-            evidenceLogs,
-            skillStates,
-            preparationTopics: PREPARATION_TOPICS,
-            preparationTopicProgress,
-            practiceSessions,
-            todayStr: todayDate,
-            activePhase,
-            reusedRouteTargetIds,
-          })
-        : [],
-    [
-      selectedCompany, domains, topics, taskDefinitions, taskProgress, dsaProblems, dsaProgress,
-      dsaAttempts, evidenceLogs, skillStates, preparationTopicProgress, practiceSessions,
-      todayDate, activePhase, reusedRouteTargetIds,
-    ]
+      Object.entries(taskProgress).filter(
+        ([id, tp]) => eligibleTaskIds.has(id) && tp.state === 'completed'
+      ).length,
+    [taskProgress, eligibleTaskIds]
   );
-
-  const companyFocus = useMemo(
-    () =>
-      selectedCompany
-        ? buildCompanyFocusSummary({
-            targetCompany: selectedCompany,
-            todayStr: todayDate,
-            mappings: companyMappings,
-            candidates: reviewCandidates,
-            baselineTask: nextBestActionTask
-              ? { title: nextBestActionTask.title, targetId: nextBestActionTask.id, route: 'roadmap' }
-              : null,
-          })
-        : null,
-    [selectedCompany, todayDate, companyMappings, reviewCandidates, nextBestActionTask]
-  );
-
-  const completedCount = Object.values(taskProgress).filter((tp) => tp.state === 'completed').length;
-  const totalTasks = taskDefinitions.length;
+  const totalTasks = eligibleTaskDefinitions.length;
   const progressPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
 
   const getDomain = useCallback((domainId: string) => domains.find((d) => d.id === domainId), [domains]);
@@ -482,11 +444,15 @@ export const DashboardView: React.FC = () => {
     ? buildCompletionNextStep({ completedTaskId: completionInfo.taskId, evidenceLogs, nextCandidates: evaluatedCandidates })
     : null;
 
+  const visibleTodayAssignments = useMemo(
+    () => todayAssignments.filter((a) => isEligibleSimpleDailyAssignment(a, taskDefinitions)),
+    [todayAssignments, taskDefinitions]
+  );
+
   const assignedPlanTasks: QueuePlanItem[] = useMemo(() => {
-    if (!isPlanCommitted) return [];
     const items: QueuePlanItem[] = [];
-    todayAssignments.forEach((assign) => {
-      const task = taskDefinitions.find((t) => t.id === assign.referenceId);
+    visibleTodayAssignments.forEach((assign) => {
+      const task = eligibleTaskDefinitions.find((t) => t.id === assign.referenceId);
       if (task) {
         items.push({
           kind: 'task',
@@ -497,7 +463,7 @@ export const DashboardView: React.FC = () => {
         });
       } else {
         const prob = dsaProblems.find((p) => p.id === assign.referenceId);
-        if (prob) {
+        if (prob && isEligibleSimpleDomain(prob.domainId)) {
           items.push({
             kind: 'dsa',
             assignmentId: assign.id,
@@ -510,7 +476,9 @@ export const DashboardView: React.FC = () => {
       }
     });
     return items;
-  }, [isPlanCommitted, todayAssignments, taskDefinitions, taskProgress, dsaProblems, dsaProgress]);
+  }, [visibleTodayAssignments, eligibleTaskDefinitions, taskProgress, dsaProblems, dsaProgress]);
+
+  const isPlanCommitted = assignedPlanTasks.length > 0;
 
   const completedPlanCount = useMemo(
     () => assignedPlanTasks.filter((item) => item.completed).length,
@@ -536,9 +504,9 @@ export const DashboardView: React.FC = () => {
       availableMinutes={todayCheckIn?.availableMinutes || 0}
       todayStr={todayDate}
       mode={currentMode}
-      selectedCompanyId={selectedCompanyId || undefined}
+      selectedCompanyId={undefined}
       energyLevel={todayCheckIn?.energyLevel || 'medium'}
-      tasks={taskDefinitions}
+      tasks={eligibleTaskDefinitions}
       taskProgressMap={taskProgress}
       dsaProblems={dsaProblems}
       dsaProgressMap={dsaProgress}
@@ -546,7 +514,7 @@ export const DashboardView: React.FC = () => {
       domains={domains}
       skillStates={skillStates}
       companyOverlays={companyOverlays}
-      practiceSessions={practiceSessions}
+      practiceSessions={eligiblePracticeSessions}
       practiceAttempts={practiceAttempts}
       preparationTopics={PREPARATION_TOPICS}
       preparationTopicProgress={preparationTopicProgress}
@@ -554,7 +522,7 @@ export const DashboardView: React.FC = () => {
       weaknessSignals={assessmentState?.weaknessSignals ?? []}
       assessmentProfileReadout={assessmentProfileReadout}
       activePhase={activePhase.order}
-      todayAssignments={todayAssignments}
+      todayAssignments={visibleTodayAssignments}
       dsaAttempts={dsaAttempts}
       evidenceLogs={evidenceLogs}
     >
@@ -589,42 +557,6 @@ export const DashboardView: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {companyOverlays.length > 0 && (
-              <div
-                className="flex items-center gap-1.5 bg-surface-subtle border border-border-default rounded-md px-2.5 h-9"
-                data-testid="company-focus-container"
-              >
-                <Building2 className="size-3.5 text-info shrink-0" />
-                <select
-                  value={selectedCompanyId || ''}
-                  onChange={(e) => setSelectedCompanyId(e.target.value || null)}
-                  data-testid="company-focus-select"
-                  aria-label="Company Focus Mode"
-                  className="bg-transparent text-xs text-text-primary focus:outline-none cursor-pointer pr-1"
-                  title="Company Focus Mode"
-                >
-                  <option value="" className="bg-surface-panel text-text-secondary">
-                    All Companies
-                  </option>
-                  {companyOverlays.map((comp) => (
-                    <option key={comp.id} value={comp.id} className="bg-surface-panel text-text-primary">
-                      {comp.companyName} {comp.eventDate ? `(${comp.eventDate})` : ''}
-                    </option>
-                  ))}
-                </select>
-                {selectedCompanyId && (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCompanyId(null)}
-                    data-testid="clear-company-focus"
-                    className="text-text-tertiary hover:text-text-primary text-xs px-1 font-mono"
-                    title="Clear company focus"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            )}
             <GuideTrigger route="dashboard" />
             <TodayButton
               variant="tonal"
@@ -807,18 +739,6 @@ export const DashboardView: React.FC = () => {
                         </div>
                         <span className="text-text-tertiary w-6 text-right">
                           {nextBestActionCandidate.breakdown.importance}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-text-tertiary w-24">COMPANY 15%</span>
-                        <div className="h-1 flex-1 bg-surface-subtle rounded-sm overflow-hidden mx-1">
-                          <div
-                            className={`h-full ${nextBestActionCandidate.breakdown.companyRelevance >= 70 ? 'bg-primary' : 'bg-primary/45'}`}
-                            style={{ width: `${nextBestActionCandidate.breakdown.companyRelevance}%` }}
-                          />
-                        </div>
-                        <span className="text-text-tertiary w-6 text-right">
-                          {nextBestActionCandidate.breakdown.companyRelevance}
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-2">
@@ -1149,7 +1069,7 @@ export const DashboardView: React.FC = () => {
           setIsMorningModalOpen={setIsMorningModalOpen}
           isEveningModalOpen={isEveningModalOpen}
           setIsEveningModalOpen={setIsEveningModalOpen}
-          selectedCompanyId={selectedCompanyId}
+          selectedCompanyId={null}
           todayDate={todayDate}
           domains={domains}
           recordPracticeAttempt={recordPracticeAttempt}

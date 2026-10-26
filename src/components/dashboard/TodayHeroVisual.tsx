@@ -5,6 +5,7 @@ import type { RoutePath } from '../../context/PlacementContext';
 import type { CandidateTask } from '../../engine/adaptiveEngine';
 import { getTaskLearningRoute } from '../../engine/taskFlowEngine';
 import { Sparkles, Clock, AlertCircle, ShieldAlert, Check } from 'lucide-react';
+import { isEligibleSimpleDailyAssignment } from '../../engine/simpleFilter';
 
 /* ─── Types ─── */
 export interface TodayHeroVisualProps {
@@ -39,11 +40,9 @@ export const DOMAIN_TO_PREP_TOPIC: Record<string, string> = {
   cn: 'prep-cn',
   aptitude: 'prep-apt-quant',
   communication: 'prep-comm',
-  interviews: 'prep-interview-tech',
-  projects: 'prep-coding-ds',
 };
 
-const DOMAIN_IDS = ['dsa', 'python', 'sql', 'oop', 'dbms', 'os', 'cn', 'aptitude', 'communication', 'interviews', 'projects'] as const;
+const DOMAIN_IDS = ['dsa', 'python', 'sql', 'oop', 'dbms', 'os', 'cn', 'aptitude', 'communication'] as const;
 const DOMAIN_NODE_PREFIX = 'domain-';
 const HERO_MAX_PX = 520;
 
@@ -58,7 +57,7 @@ export function resolveHeroNodeDestination(
     return { route: route.route, linkedTopicId: route.linkedTopicId };
   }
 
-  if (nodeId === 'company') return { route: 'companies' };
+  if (nodeId === 'company') return null;
 
   const domainId = nodeId.startsWith(DOMAIN_NODE_PREFIX)
     ? nodeId.slice(DOMAIN_NODE_PREFIX.length)
@@ -130,7 +129,6 @@ export const TodayHeroVisual: React.FC<TodayHeroVisualProps> = ({ candidates }) 
     dsaProblems,
     dsaProgress,
     skillStates,
-    companyOverlays,
     todayDate,
     setRoute,
     dailyTaskAssignments,
@@ -190,20 +188,6 @@ export const TodayHeroVisual: React.FC<TodayHeroVisualProps> = ({ candidates }) 
 
   const missionDomainId = candidates[0]?.task?.domainId;
 
-  const activeComps = useMemo(
-    () => companyOverlays.filter(
-      (c) => c.applicationStatus !== 'rejected' && c.applicationStatus !== 'archived'
-    ),
-    [companyOverlays]
-  );
-
-  const urgentComps = useMemo(
-    () => activeComps.filter(
-      (c) => c.applicationStatus === 'interview_scheduled' || c.applicationStatus === 'oa_scheduled'
-    ),
-    [activeComps]
-  );
-
   // Nodes derivation
   const nodes: VisualNode[] = useMemo(() => {
     const primaryTask = candidates[0]?.task;
@@ -245,10 +229,7 @@ export const TodayHeroVisual: React.FC<TodayHeroVisualProps> = ({ candidates }) 
 
       const isMission = hasCandidate && did === missionDomainId;
       const isBlocked = domainSkillStates.some((s) => s.freshness === 'stale');
-      const isUrgent = activeComps.some(
-        (c) => (c.applicationStatus === 'interview_scheduled' || c.applicationStatus === 'oa_scheduled') &&
-               c.requiredDomains?.includes(did)
-      );
+      const isUrgent = false;
       const isDue = did === 'dsa'
         ? dsaProblems.some((p) => {
             const dp = dsaProgress[p.id];
@@ -256,7 +237,9 @@ export const TodayHeroVisual: React.FC<TodayHeroVisualProps> = ({ candidates }) 
           })
         : domainSkillStates.some((s) => s.freshness === 'aging');
 
-      const domainAssignments = dailyTaskAssignments.filter((a) => a.date === todayDate);
+      const domainAssignments = dailyTaskAssignments.filter(
+        (a) => a.date === todayDate && isEligibleSimpleDailyAssignment(a)
+      );
       const isComplete = domainAssignments.length > 0 && domainAssignments.every((a) => a.completed);
 
       // Resolution order: mission > blocked > urgent > due > complete > idle
@@ -281,21 +264,8 @@ export const TodayHeroVisual: React.FC<TodayHeroVisualProps> = ({ candidates }) 
       };
     });
 
-    if (urgentComps.length > 0) {
-      domainNodes.push({
-        id: 'company',
-        label: `Companies — ${urgentComps.length} urgent`,
-        shortLabel: 'CO',
-        angle: Math.PI * 0.5,
-        baseRadius: Math.round(16 * scale),
-        state: 'urgent',
-        evidenceStrength: 0,
-        destination: resolveHeroNodeDestination('company', candidates),
-      });
-    }
-
     return [centerNode, ...domainNodes];
-  }, [candidates, dsaProblems, dsaProgress, skillStates, todayDate, dailyTaskAssignments, missionDomainId, activeComps, urgentComps, size]);
+  }, [candidates, dsaProblems, dsaProgress, skillStates, todayDate, dailyTaskAssignments, missionDomainId, size]);
 
   const cx = size / 2;
   const cy = size / 2;
@@ -303,7 +273,9 @@ export const TodayHeroVisual: React.FC<TodayHeroVisualProps> = ({ candidates }) 
 
   const dueCount = nodes.filter((n) => n.id !== 'primary' && n.state === 'due').length;
   const urgentCount = nodes.filter((n) => n.id !== 'primary' && n.state === 'urgent').length;
-  const todayAssignments = dailyTaskAssignments.filter((a) => a.date === todayDate);
+  const todayAssignments = dailyTaskAssignments.filter(
+    (a) => a.date === todayDate && isEligibleSimpleDailyAssignment(a)
+  );
   const completedAssignments = todayAssignments.filter((a) => a.completed).length;
 
   const activateNode = useCallback(

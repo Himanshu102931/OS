@@ -3,6 +3,9 @@
  *
  * Ensures that retired modules (Project Lab, Companies, Interview)
  * do not appear in the active learner journey, while preserving all underlying data.
+ *
+ * Uses stable canonical metadata (domainId, category, route, taskType, and ID prefixes).
+ * Does NOT rely on title or descriptive text matching, protecting legitimate learning topics.
  */
 
 export const RETIRED_DOMAIN_IDS = Object.freeze([
@@ -17,6 +20,17 @@ export const RETIRED_DOMAIN_IDS = Object.freeze([
 ] as const);
 
 export const RETIRED_ROUTE_PATHS = Object.freeze(['project', 'companies', 'interview'] as const);
+
+export const RETIRED_PRACTICE_CATEGORIES = Object.freeze([
+  'interviews',
+  'interview',
+  'projects',
+  'project',
+  'technical_interview',
+  'behavioral_interview',
+  'mock_interview',
+  'project_defense',
+] as const);
 
 export type RetiredDomainId = (typeof RETIRED_DOMAIN_IDS)[number];
 export type RetiredRoutePath = (typeof RETIRED_ROUTE_PATHS)[number];
@@ -49,13 +63,21 @@ export function isEligibleSimpleRoute(route?: string | null): boolean {
   return !isRetiredRoute(route);
 }
 
-export function isEligibleSimpleTask(task?: { id?: string; domainId?: string; route?: string } | null): boolean {
+export function isEligibleSimpleTask(task?: {
+  id?: string;
+  domainId?: string;
+  route?: string;
+  taskType?: string;
+} | null): boolean {
   if (!task) return false;
   if (task.id) {
     const tid = task.id.toLowerCase();
-    if (tid.startsWith('proj') || tid.startsWith('int-') || tid.startsWith('interview')) {
+    if (tid.startsWith('proj') || tid.startsWith('int-') || tid.startsWith('interview-')) {
       return false;
     }
+  }
+  if (task.taskType && (task.taskType === 'project' || task.taskType === 'interview')) {
+    return false;
   }
   if (isRetiredDomain(task.domainId)) return false;
   if (isRetiredRoute(task.route)) return false;
@@ -63,13 +85,12 @@ export function isEligibleSimpleTask(task?: { id?: string; domainId?: string; ro
 }
 
 export function isEligibleSimpleCandidate(candidate?: {
-  task?: { id?: string; domainId?: string; route?: string };
+  task?: { id?: string; domainId?: string; route?: string; taskType?: string };
   domainId?: string;
   route?: string;
   priority?: string;
 } | null): boolean {
   if (!candidate) return false;
-  if (candidate.priority === 'company_gap') return false;
   if (candidate.task && !isEligibleSimpleTask(candidate.task)) return false;
   if (isRetiredDomain(candidate.domainId)) return false;
   if (isRetiredRoute(candidate.route)) return false;
@@ -89,17 +110,51 @@ export function isEligibleSimplePracticeSession(session?: {
     }
   }
   if (isRetiredDomain(session.domainId)) return false;
-  if (
-    session.category === 'interviews' ||
-    session.category === 'interview' ||
-    session.category === 'projects' ||
-    session.category === 'project' ||
-    session.category === 'technical_interview' ||
-    session.category === 'behavioral_interview' ||
-    session.category === 'mock_interview' ||
-    session.category === 'project_defense'
-  ) {
+  if (session.category && (RETIRED_PRACTICE_CATEGORIES as readonly string[]).includes(session.category)) {
     return false;
+  }
+  return true;
+}
+
+export function isEligibleSimpleDailyAssignment(
+  assignment?: { referenceId?: string; domainId?: string; taskType?: string } | null,
+  tasks?: Array<{ id: string; domainId: string }>
+): boolean {
+  if (!assignment) return false;
+  if (assignment.domainId && isRetiredDomain(assignment.domainId)) return false;
+  if (assignment.taskType && (assignment.taskType === 'project' || assignment.taskType === 'interview')) {
+    return false;
+  }
+  if (assignment.referenceId) {
+    const ref = assignment.referenceId.toLowerCase();
+    if (ref.startsWith('proj') || ref.startsWith('int-') || ref.startsWith('interview-')) {
+      return false;
+    }
+    if (tasks) {
+      const matched = tasks.find((t) => t.id === assignment.referenceId);
+      if (matched && isRetiredDomain(matched.domainId)) return false;
+    }
+  }
+  return true;
+}
+
+export function isEligibleSimpleReviewCandidate(candidate?: {
+  id?: string;
+  domainId?: string;
+  route?: string;
+  priority?: string;
+  type?: string;
+  targetId?: string;
+} | null): boolean {
+  if (!candidate) return false;
+  if (isRetiredDomain(candidate.domainId)) return false;
+  if (isRetiredRoute(candidate.route)) return false;
+  if (candidate.type === 'project' || candidate.type === 'interview') return false;
+  if (candidate.targetId) {
+    const tid = candidate.targetId.toLowerCase();
+    if (tid.startsWith('proj') || tid.startsWith('int-') || tid.startsWith('interview-')) {
+      return false;
+    }
   }
   return true;
 }

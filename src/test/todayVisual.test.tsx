@@ -212,8 +212,6 @@ const EXPECTED_DOMAIN_PREP_TOPIC: Record<string, string> = {
   'domain-cn': 'prep-cn',
   'domain-aptitude': 'prep-apt-quant',
   'domain-communication': 'prep-comm',
-  'domain-interviews': 'prep-interview-tech',
-  'domain-projects': 'prep-coding-ds',
 };
 
 /**
@@ -269,14 +267,14 @@ afterEach(() => {
 
 /* ═══ A. HERO ROUTING ═══════════════════════════════════════════════ */
 describe('C7-01 — hero node routing', () => {
-  it('A1. renders the primary node and all 11 domain nodes, every one actionable', () => {
+  it('A1. renders the primary node and all 9 active curriculum domain nodes, every one actionable', () => {
     renderToday();
 
     const ids = heroNodes().map((n) => n.getAttribute('data-node-id'));
     expect(ids).toContain('primary');
     for (const id of Object.keys(EXPECTED_DOMAIN_PREP_TOPIC)) expect(ids).toContain(id);
-    // primary + 11 domains, no company node without an urgent overlay
-    expect(ids).toHaveLength(12);
+    // primary + 9 active domains, no retired domains or company node in Simple Mode
+    expect(ids).toHaveLength(10);
 
     for (const el of heroNodes()) {
       expect(el.getAttribute('data-actionable'), el.getAttribute('data-node-id') ?? undefined).toBe('true');
@@ -318,23 +316,20 @@ describe('C7-01 — hero node routing', () => {
     }
   });
 
-  it('A4. the company node appears with an urgent overlay and routes to companies', () => {
+  it('A4. the company node does NOT appear even with an urgent overlay in Simple Mode', () => {
     seed({ companyOverlays: [URGENT_OVERLAY] });
     renderToday();
 
-    const company = node('company');
-    expect(company.getAttribute('data-destination-route')).toBe('companies');
-
-    fireEvent.click(company);
-    expect(routeState().route).toBe('companies');
+    const ids = heroNodes().map((n) => n.getAttribute('data-node-id'));
+    expect(ids).not.toContain('company');
   });
 
-  it('A5. an unknown node id and a missing candidate resolve to no destination', () => {
+  it('A5. an unknown node id, retired company node, and a missing candidate resolve to no destination', () => {
     renderToday();
 
     expect(resolveHeroNodeDestination('domain-unknown', canonicalList())).toBeNull();
     expect(resolveHeroNodeDestination('primary', [])).toBeNull();
-    expect(resolveHeroNodeDestination('company', [])).toEqual({ route: 'companies' });
+    expect(resolveHeroNodeDestination('company', [])).toBeNull();
   });
 });
 

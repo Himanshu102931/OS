@@ -5,6 +5,11 @@ import {
   getTimeBudget,
 } from '../../engine/adaptiveEngine';
 import { isProblemUnlocked } from '../../engine/dsaEngine';
+import {
+  isEligibleSimpleTask,
+  isEligibleSimpleCandidate,
+  isEligibleSimpleDomain,
+} from '../../engine/simpleFilter';
 import type {
   PlacementMode,
   DailyTaskAssignment,
@@ -135,7 +140,12 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
       targetCompanyId
     );
     return rawCandidates
-      .filter((c) => !committedTodayTargetIds.has(c.task.id))
+      .filter(
+        (c) =>
+          !committedTodayTargetIds.has(c.task.id) &&
+          isEligibleSimpleCandidate(c) &&
+          isEligibleSimpleTask(c.task)
+      )
       .map((c) => {
         const domain = domains.find((d) => d.id === c.task.domainId);
         return {
@@ -171,6 +181,7 @@ export const MorningPlanningModal: React.FC<MorningPlanningModalProps> = ({
     const newProblems: MorningDSAPlanItem[] = [];
 
     for (const prob of dsaProblems) {
+      if (!isEligibleSimpleDomain(prob.domainId)) continue;
       if (committedTodayTargetIds.has(prob.id)) continue;
       const prog = dsaProgress[prob.id];
 

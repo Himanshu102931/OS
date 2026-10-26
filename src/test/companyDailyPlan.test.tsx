@@ -17,7 +17,7 @@
 // could agree with a wrong implementation by construction.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { useEffect } from 'react';
-import { render, cleanup, fireEvent } from '@testing-library/react';
+import { render, cleanup } from '@testing-library/react';
 import { PlacementProvider, usePlacement } from '../context/PlacementContext';
 import { DashboardView } from '../components/dashboard/DashboardView';
 import {
@@ -978,14 +978,6 @@ describe('§8 Today Company Focus panel', () => {
   const panel = (): HTMLElement | null =>
     document.querySelector('[data-testid="company-focus-summary"]');
 
-  const selectCompany = (id: string) => {
-    const select = document.querySelector(
-      '[data-testid="company-focus-select"]'
-    ) as HTMLSelectElement | null;
-    expect(select, 'company focus select must exist').toBeTruthy();
-    fireEvent.change(select!, { target: { value: id } });
-  };
-
   /** A real date a handful of days from the machine's actual today. */
   const upcomingEventDate = (daysAhead: number): string => {
     const d = new Date();
@@ -1009,88 +1001,27 @@ describe('§8 Today Company Focus panel', () => {
     mountedCtx = null;
   });
 
-  it('stays hidden while no company is selected — existing Today behaviour is untouched', () => {
+  it('preserves company overlay records in storage while retiring company controls from Today in Simple Mode', () => {
     seed({ companyOverlays: [DATED_FOR_TODAY, UNDATED_COMPANY] });
     renderToday();
 
+    // Company Focus controls must NOT be rendered on Today in Simple Mode
+    expect(document.querySelector('[data-testid="company-focus-container"]')).toBeNull();
+    expect(document.querySelector('[data-testid="company-focus-select"]')).toBeNull();
     expect(panel()).toBeNull();
+
+    // Storage and context retain all underlying company overlay records
     expect(mountedCtx).not.toBeNull();
     expect(mountedCtx!.companyOverlays).toHaveLength(2);
+    expect(mountedCtx!.companyOverlays[0].id).toBe(DATED_FOR_TODAY.id);
   });
 
-  it('appears once a company is selected and explains itself in plain language', () => {
+  it('keeps Today pure and unpolluted by company urgency badges in Simple Mode', () => {
     seed({ companyOverlays: [DATED_FOR_TODAY, UNDATED_COMPANY] });
     renderToday();
 
-    selectCompany(DATED_FOR_TODAY.id);
-
-    const el = panel();
-    expect(el).not.toBeNull();
-    expect(el!.textContent).toContain('Dated Corp');
-
-    const reason = document.querySelector(
-      '[data-testid="company-focus-reason"]'
-    ) as HTMLElement;
-    expect(reason.textContent).toBeTruthy();
-    expect(reason.textContent).toMatch(/Dated Corp/);
-    // §14 — no weights, no scores, no fabricated mastery claim.
-    expect(reason.textContent).not.toMatch(/weight|0\.\d{2}|mastery|proficient/i);
-
-    // Counts row exists and is human readable.
-    const counts = document.querySelector(
-      '[data-testid="company-focus-counts"]'
-    ) as HTMLElement;
-    expect(counts.textContent).toMatch(/\d+ of \d+ requirements/);
-  });
-
-  it('shows urgency wording only when the selected company has a real event date', () => {
-    seed({ companyOverlays: [DATED_FOR_TODAY, UNDATED_COMPANY] });
-    renderToday();
-
-    selectCompany(DATED_FOR_TODAY.id);
-    const datedBadge = document.querySelector('[data-testid="company-focus-urgency"]');
-    expect(datedBadge).not.toBeNull();
-    expect(datedBadge?.textContent).toMatch(/until event|today or overdue/i);
-
-    // The reason itself also carries the calendar fact for the dated company.
-    const datedReason = document.querySelector(
-      '[data-testid="company-focus-reason"]'
-    ) as HTMLElement;
-    expect(datedReason.textContent).toMatch(/\d+ days?/i);
-
-    // Switch to the company with no date → urgency wording must disappear.
-    cleanup();
-    mountedCtx = null;
-    seed({ companyOverlays: [DATED_FOR_TODAY, UNDATED_COMPANY] });
-    renderToday();
-    selectCompany(UNDATED_COMPANY.id);
-
-    expect(panel()).not.toBeNull();
     expect(document.querySelector('[data-testid="company-focus-urgency"]')).toBeNull();
-
-    const reason = document.querySelector(
-      '[data-testid="company-focus-reason"]'
-    ) as HTMLElement;
-    expect(reason.textContent).not.toMatch(/\d+\s*days?|today or overdue/i);
-  });
-
-  it('follows the current selection rather than a stale one when the company changes', () => {
-    seed({ companyOverlays: [DATED_FOR_TODAY, UNDATED_COMPANY] });
-    renderToday();
-
-    selectCompany(UNDATED_COMPANY.id);
-    expect(panel()?.textContent).toContain('Undated Ltd');
-
-    selectCompany(DATED_FOR_TODAY.id);
-    expect(panel()?.textContent).toContain('Dated Corp');
-    expect(panel()?.textContent).not.toContain('Undated Ltd');
-
-    // Clearing returns Today to its pre-company state.
-    const clear = document.querySelector(
-      '[data-testid="clear-company-focus"]'
-    ) as HTMLElement | null;
-    expect(clear).not.toBeNull();
-    fireEvent.click(clear!);
-    expect(panel()).toBeNull();
+    expect(document.querySelector('[data-testid="company-focus-reason"]')).toBeNull();
+    expect(document.querySelector('[data-testid="company-focus-counts"]')).toBeNull();
   });
 });

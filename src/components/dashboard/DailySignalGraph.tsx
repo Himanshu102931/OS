@@ -114,9 +114,14 @@ export const DailySignalGraph: React.FC = () => {
     setRoute,
   } = usePlacement();
   const [hoveredDomain, setHoveredDomain] = useState<string | null>(null);
-  const [reducedMotion, setReducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const [reducedMotion, setReducedMotion] = useState(() =>
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      : false
+  );
 
   useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
     const h = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
     mq.addEventListener('change', h);

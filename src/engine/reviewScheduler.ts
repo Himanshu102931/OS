@@ -27,6 +27,7 @@ import { type ReviewPrompt } from './analyticsEngine';
 import type { AssessmentProfileReadout } from './assessmentEngine';
 import { routeWeaknessSignals } from './weaknessRouter';
 import { generateCompanyFocusCandidates } from './companyPlanEngine';
+import { isEligibleSimpleReviewCandidate, isEligibleSimpleDomain } from './simpleFilter';
 
 export type { ReviewPriority, ReviewCandidate };
 
@@ -203,8 +204,9 @@ export function generateReviewCandidates(options: ReviewSchedulerOptions): Revie
   );
   candidates.push(...progressionCandidates);
 
-  // Filter out already committed/completed for today
+  // Filter out already committed/completed for today, plus retired modules in Simple Mode
   const filteredCandidates = candidates.filter(c => {
+    if (!isEligibleSimpleReviewCandidate(c) || !isEligibleSimpleDomain(c.domainId)) return false;
     if (todayAssignmentsSet.has(c.targetId)) return false;
     if (completedTasksToday.has(c.targetId)) return false;
     return true;

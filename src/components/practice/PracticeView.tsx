@@ -12,6 +12,7 @@ import { PracticeSessionGrid } from './PracticeSessionGrid';
 import { PracticeRunnerModal } from './PracticeRunnerModal';
 import type { PracticeSessionDefinition } from '../../types';
 import type { RoutePath } from '../../context/PlacementContext';
+import { isEligibleSimplePracticeSession } from '../../engine/simpleFilter';
 
 function useSafeSession() {
   try {
@@ -25,7 +26,6 @@ export const PracticeView: React.FC = () => {
   const {
     practiceAttempts,
     skillStates,
-    companyOverlays,
     todayDate,
     recordPracticeAttempt,
     routeState,
@@ -39,6 +39,10 @@ export const PracticeView: React.FC = () => {
   const [timedOnly, setTimedOnly] = useState(false);
   const [activeSession, setActiveSession] = useState<PracticeSessionDefinition | null>(null);
 
+  const eligiblePracticeSessions = useMemo(() => {
+    return PRACTICE_SESSIONS.filter(isEligibleSimplePracticeSession);
+  }, []);
+
   // Derive deep-linked session directly from canonical route state
   const isDeepLinked =
     routeState.route === 'practice' &&
@@ -46,7 +50,7 @@ export const PracticeView: React.FC = () => {
     routeState.targetId !== dismissedTargetId;
 
   const deepLinkedSession = isDeepLinked
-    ? PRACTICE_SESSIONS.find((s) => s.id === routeState.targetId) ?? null
+    ? eligiblePracticeSessions.find((s) => s.id === routeState.targetId) ?? null
     : null;
 
   const effectiveSession = activeSession ?? deepLinkedSession;
@@ -54,12 +58,12 @@ export const PracticeView: React.FC = () => {
   // Recommendation engine call
   const recommendation = useMemo(() => {
     return getRecommendedPracticeSession(
-      PRACTICE_SESSIONS,
+      eligiblePracticeSessions,
       practiceAttempts,
       skillStates,
-      companyOverlays
+      []
     );
-  }, [practiceAttempts, skillStates, companyOverlays]);
+  }, [eligiblePracticeSessions, practiceAttempts, skillStates]);
 
   // Macro metrics for proving strip
   const totalAttempts = practiceAttempts.length;
@@ -95,7 +99,7 @@ export const PracticeView: React.FC = () => {
 
   // Filter sessions
   const filteredSessions = useMemo(() => {
-    return PRACTICE_SESSIONS.filter((s) => {
+    return eligiblePracticeSessions.filter((s) => {
       // Category filter
       if (activeCategory !== 'all' && s.category !== activeCategory) return false;
 
@@ -121,7 +125,7 @@ export const PracticeView: React.FC = () => {
 
       return true;
     });
-  }, [activeCategory, timedOnly, searchQuery]);
+  }, [eligiblePracticeSessions, activeCategory, timedOnly, searchQuery]);
 
   return (
     <div
@@ -151,7 +155,7 @@ export const PracticeView: React.FC = () => {
       {/* Zone 3: Persistent Remediation & Review Queue */}
       <PracticeRemediationQueue
         attempts={practiceAttempts}
-        allSessions={PRACTICE_SESSIONS}
+        allSessions={eligiblePracticeSessions}
         onStartSession={(s) => setActiveSession(s)}
         onNavigate={(route, targetId) => setRoute(route, targetId)}
       />

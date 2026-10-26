@@ -299,7 +299,7 @@ describe('TASK 48: Constellation Interaction Contract & Polish Verification', ()
   it('T48-3: each constellation node has an actionable button and destination', () => {
     renderToday();
     const nodes = document.querySelectorAll('.today-hero-node');
-    expect(nodes.length).toBeGreaterThanOrEqual(12);
+    expect(nodes.length).toBeGreaterThanOrEqual(10);
 
     nodes.forEach((nodeEl) => {
       expect(nodeEl.tagName).toBe('BUTTON');
@@ -354,7 +354,7 @@ describe('TASK 49: Today Final Visual Manufacturing & Experience Polish', () => 
     expect(orbitContainer).not.toBeNull();
 
     const counterElements = document.querySelectorAll('.constellation-node-counter');
-    expect(counterElements.length).toBeGreaterThanOrEqual(11);
+    expect(counterElements.length).toBeGreaterThanOrEqual(9);
 
     // Primary mission node has subtle breathing energy pulse class
     const primaryNode = screen.getByTestId('hero-node-primary');

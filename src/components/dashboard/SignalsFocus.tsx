@@ -1,5 +1,5 @@
 import React from 'react';
-import { Radar, Building2, Waypoints, ArrowRight } from 'lucide-react';
+import { Waypoints, ArrowRight } from 'lucide-react';
 import { TodaySection, SectionHeading, MonoChip } from './todayPrimitives';
 import { DailySignalGraph } from './DailySignalGraph';
 import type { CompanyOverlay, AssessmentState } from '../../types';
@@ -28,8 +28,6 @@ const LEGEND: { status: string; label: string; swatch: string }[] = [
 ];
 
 const TILES: { id: string; label: string; note: string; route: 'interview' | 'companies' | 'analytics'; icon: React.ReactElement }[] = [
-  { id: 'interview', label: 'Interview', note: 'canonical readiness surface', route: 'interview', icon: <Radar className="size-4" /> },
-  { id: 'companies', label: 'Companies', note: '', route: 'companies', icon: <Building2 className="size-4" /> },
   { id: 'evidence', label: 'Evidence trace', note: '', route: 'analytics', icon: <Waypoints className="size-4" /> },
 ];
 
@@ -50,7 +48,7 @@ export const SignalsFocus: React.FC<SignalsFocusProps> = ({
     data-testid="signals-focus"
     data-guide-target="today-readiness-signals"
   >
-    <SectionHeading right={<span className="font-mono text-[11px] text-text-tertiary">11 domains</span>}>
+    <SectionHeading right={<span className="font-mono text-[11px] text-text-tertiary">9 domains</span>}>
       Signals &amp; Focus
     </SectionHeading>
 

@@ -27,6 +27,13 @@ import { evaluateTaskPrerequisites } from './taskStateEngine';
 import { PRACTICE_SESSIONS } from '../data/practiceDataset';
 import { PREPARATION_TOPICS } from '../data/preparationDataset';
 import { COVERAGE_STAGES } from './preparationEngine';
+import {
+  isEligibleSimplePracticeSession,
+  isEligibleSimpleDailyAssignment,
+  isEligibleSimpleTask,
+  isEligibleSimpleReviewCandidate,
+  isEligibleSimpleDomain,
+} from './simpleFilter';
 
 /**
  * Session Composer Modes supported by PlacementOS.
@@ -336,12 +343,13 @@ export function composeAdaptiveSession(options: AdaptiveSessionOptions): Session
     };
   }
 
-  // Available catalogs with canonical fallbacks
-  const availablePracticeCatalog = (
+  // Available catalogs with canonical fallbacks (filtered to eligible modules in Simple Mode)
+  const rawPracticeCatalog = (
     practiceSessions && (practiceSessions as unknown[]).length > 0
       ? practiceSessions
       : PRACTICE_SESSIONS
   ) as PracticeSessionDefinition[];
+  const availablePracticeCatalog = rawPracticeCatalog.filter(isEligibleSimplePracticeSession);
 
   const prepTopicsCatalog = (
     preparationTopics && (preparationTopics as unknown[]).length > 0
@@ -407,7 +415,11 @@ export function composeAdaptiveSession(options: AdaptiveSessionOptions): Session
   };
 
   const eligibleCandidates = reviewResult.candidates.filter(
-    (c) => !c.isBlocked && !isCompletedOrArchived(c.targetId)
+    (c) =>
+      !c.isBlocked &&
+      !isCompletedOrArchived(c.targetId) &&
+      isEligibleSimpleReviewCandidate(c) &&
+      isEligibleSimpleDomain(c.domainId)
   );
 
   // 3b. Collect uncompleted committed daily assignments (user's committed morning plan)
@@ -419,12 +431,14 @@ export function composeAdaptiveSession(options: AdaptiveSessionOptions): Session
   const committedCandidates: CommittedReviewCandidate[] = [];
   for (const assign of todayAssignmentsTyped) {
     if (isCompletedOrArchived(assign.referenceId)) continue;
+    if (!isEligibleSimpleDailyAssignment(assign, tasks as TaskDefinition[])) continue;
 
     const task = (tasks as TaskDefinition[]).find((t) => t.id === assign.referenceId);
     const prob = !task ? (dsaProblems as DSAProblem[]).find((p) => p.id === assign.referenceId) : null;
     const prep = !task && !prob ? (preparationTopics as PreparationTopic[]).find((pt) => pt.id === assign.referenceId) : null;
 
     if (task) {
+      if (!isEligibleSimpleTask(task)) continue;
       const prereq = evaluateTaskPrerequisites(task, taskProgressMap as Record<string, TaskProgress>);
       committedCandidates.push({
         id: `session-assign-${assign.id}`,
@@ -446,6 +460,7 @@ export function composeAdaptiveSession(options: AdaptiveSessionOptions): Session
         blockingReason: prereq.unmetPrerequisiteIds.join(', '),
       });
     } else if (prob) {
+      if (!isEligibleSimpleDomain(prob.domainId)) continue;
       const isReview =
         assign.taskType === 'dsa_review' ||
         ((dsaProgressMap as Record<string, DSAProgress>)[prob.id]?.attemptCount ?? 0) > 0;
@@ -468,6 +483,7 @@ export function composeAdaptiveSession(options: AdaptiveSessionOptions): Session
         isBlocked: false,
       });
     } else if (prep) {
+      if (!isEligibleSimpleDomain(prep.domainId)) continue;
       committedCandidates.push({
         id: `session-assign-${assign.id}`,
         type: 'preparation_lesson',

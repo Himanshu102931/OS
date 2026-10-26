@@ -9,6 +9,7 @@ import type {
 } from '../types';
 import { evaluateTaskPrerequisites } from './taskStateEngine';
 import { calculateCompanyDeadlineUrgency } from './companyEngine';
+import { isEligibleSimpleTask } from './simpleFilter';
 
 export interface PriorityBreakdown {
   urgency: number;         // 0 - 100
@@ -297,6 +298,11 @@ export function getEvaluatedCandidates(
   const candidates: CandidateTask[] = [];
 
   for (const task of tasks) {
+    // Exclude retired module tasks (projects, interviews, companies) in Simple Mode
+    if (!isEligibleSimpleTask(task)) {
+      continue;
+    }
+
     const progress = taskProgressMap[task.id];
 
     // Exclude completed or archived tasks
