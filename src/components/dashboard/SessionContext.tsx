@@ -4,7 +4,8 @@ import type { SessionState, SessionComposerMode } from '../../engine/sessionComp
 export interface SessionContextValue {
   sessionState: SessionState | null;
   composeSession: (availableMinutes?: number, sessionMode?: SessionComposerMode) => void;
-  advanceActivity: (outcome: 'completed' | 'skipped' | 'failed' | 'postponed') => void;
+  advanceActivity: (outcome: 'completed' | 'skipped' | 'failed' | 'postponed', expectedActivityId?: string) => void;
+  reopenActivity: (activityIdOrAssignmentId: string) => void;
   recoverActivity: (availableMinutes: number) => void;
   clearSession: () => void;
   currentActivity: SessionState['plan']['activities'][0] | null;

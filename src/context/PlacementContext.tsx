@@ -296,6 +296,8 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [persistenceError, setPersistenceError] = useState<boolean>(false);
   const [storageConflict, setStorageConflict] = useState<boolean>(false);
   const currentRevisionRef = useRef<number>(appState.storageRevision ?? 1);
+  const isSavingRef = useRef<boolean>(false);
+  const pendingSaveRef = useRef<AppExtendedStorageState | null>(null);
 
   // Cross-tab storage conflict detection via native StorageEvent
   useEffect(() => {
@@ -337,65 +339,45 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
       } else {
         if (result.persistedRevision !== undefined) {
-          currentRevisionRef.current = result.persistedRevision;
+          currentRevisionRef.current = Math.max(currentRevisionRef.current, result.persistedRevision);
         }
         setPersistenceError(false);
-        setStorageConflict((prev) => (prev ? true : false));
       }
     };
 
-    if (StorageCoordinator.isWebLocksSupported()) {
-      let isCurrent = true;
-      StorageAdapter.saveStateCoordinated(appState, {
-        expectedRevision: currentRevisionRef.current,
-      })
-        .then((result) => {
-          if (isCurrent) {
-            handleSaveResult(result);
-          }
-        })
-        .catch(() => {
-          if (isCurrent) {
-            setPersistenceError(true);
-          }
-        });
-      return () => {
-        isCurrent = false;
-      };
-    } else {
+    const runSave = async (stateToPersist: AppExtendedStorageState) => {
+      if (isSavingRef.current) {
+        pendingSaveRef.current = stateToPersist;
+        return;
+      }
+      isSavingRef.current = true;
+
       try {
-        const result = StorageAdapter.saveStateDetailed(appState, {
-          expectedRevision: currentRevisionRef.current,
-        });
-        if (result.persistedRevision !== undefined) {
-          currentRevisionRef.current = result.persistedRevision;
-        }
-        if (result.success) {
-          queueMicrotask(() => {
-            setPersistenceError(false);
-            setStorageConflict((prev) => (prev ? true : false));
+        if (StorageCoordinator.isWebLocksSupported()) {
+          const result = await StorageAdapter.saveStateCoordinated(stateToPersist, {
+            expectedRevision: currentRevisionRef.current,
           });
+          handleSaveResult(result);
         } else {
-          queueMicrotask(() => {
-            if (result.conflict) {
-              setStorageConflict(true);
-              setPersistenceError(false);
-            } else {
-              setPersistenceError(true);
-            }
+          const result = StorageAdapter.saveStateDetailed(stateToPersist, {
+            expectedRevision: currentRevisionRef.current,
           });
+          handleSaveResult(result);
         }
       } catch {
-        queueMicrotask(() => {
-          setPersistenceError(true);
-        });
+        setPersistenceError(true);
+      } finally {
+        isSavingRef.current = false;
+        if (pendingSaveRef.current) {
+          const next = pendingSaveRef.current;
+          pendingSaveRef.current = null;
+          runSave(next);
+        }
       }
-    }
+    };
+
+    runSave(appState);
   }, [appState, storageConflict]);
-
-
-
-
 
   // Periodically check local calendar date rollover (e.g. crossing midnight)
   useEffect(() => {
@@ -404,7 +386,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       // Guard against stale write if storage was modified externally while idle
       const persistedRev = StorageAdapter.getPersistedRevision();
-      if (persistedRev !== null && persistedRev > currentRevisionRef.current) {
+      if (persistedRev !== null && persistedRev > currentRevisionRef.current && !isSavingRef.current) {
         setStorageConflict(true);
         return;
       }

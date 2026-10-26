@@ -11,6 +11,15 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import type { SessionActivity, SessionComposerMode } from '../../engine/sessionComposer';
+import { usePlacement } from '../../context/PlacementContext';
+
+function useSafePlacement() {
+  try {
+    return usePlacement();
+  } catch {
+    return null;
+  }
+}
 
 interface SessionDisplayProps {
   onStartActivity: (activity: SessionActivity) => void;
@@ -29,12 +38,15 @@ export const SessionDisplay: React.FC<SessionDisplayProps> = ({
   onStartActivity,
   onCompleteActivity,
 }) => {
+  const placement = useSafePlacement();
+  const isDaySealed = placement?.dailyCheckIns.find((c) => c.date === placement?.todayDate)?.isSealed;
   const {
     sessionState,
     currentActivity,
     remainingTime,
     sessionProgress,
     advanceActivity,
+    reopenActivity,
     selectedDuration,
     setSelectedDuration,
     sessionMode,
@@ -242,9 +254,35 @@ export const SessionDisplay: React.FC<SessionDisplayProps> = ({
                     {/* Operational Action Button */}
                     <div className="flex items-center gap-2 shrink-0 sm:self-center">
                       {isCompleted ? (
-                        <span className="text-xs text-status-success flex items-center gap-1 font-medium font-mono px-2 py-1 rounded bg-status-success/10 border border-status-success/20">
-                          <CheckCircle2 className="size-3.5" /> Completed
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-status-success flex items-center gap-1 font-medium font-mono px-2 py-1 rounded bg-status-success/10 border border-status-success/20">
+                            <CheckCircle2 className="size-3.5" /> Completed
+                          </span>
+                          {!isDaySealed && (
+                            <Button
+                              size="xs"
+                              variant="ghost"
+                              onClick={() => {
+                                if (activity.sourceAssignmentId) {
+                                  placement?.syncDailyAssignmentCompletion(activity.sourceAssignmentId, false);
+                                } else if (activity.sourceTaskId) {
+                                  const match = placement?.dailyTaskAssignments.find(
+                                    (a) => a.date === placement?.todayDate && a.referenceId === activity.sourceTaskId
+                                  );
+                                  if (match) {
+                                    placement?.syncDailyAssignmentCompletion(match.id, false);
+                                  }
+                                }
+                                reopenActivity(activity.id);
+                              }}
+                              className="h-7 text-[11px] text-text-secondary hover:text-text-primary px-1.5"
+                              title="Reopen activity"
+                              data-testid={`reopen-session-activity-${activity.id}`}
+                            >
+                              <RotateCcw className="size-3 mr-1" /> Reopen
+                            </Button>
+                          )}
+                        </div>
                       ) : isSkipped ? (
                         <span className="text-[11px] text-text-secondary font-mono px-2 py-1 rounded bg-surface-elevated border border-border-default">
                           Skipped
@@ -258,7 +296,7 @@ export const SessionDisplay: React.FC<SessionDisplayProps> = ({
                                 if (onCompleteActivity) {
                                   onCompleteActivity(activity);
                                 }
-                                advanceActivity('completed');
+                                advanceActivity('completed', activity.id);
                               }}
                               className="h-8 px-2.5 text-xs font-bold bg-status-success/20 hover:bg-status-success/30 text-status-success border border-status-success/40 rounded-md shadow-xs"
                               title="Complete activity and sync daily plan"

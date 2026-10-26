@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback, useContext } from 'react';
 import { usePlacement } from '../../context/PlacementContext';
 import { TodayHeroVisual } from './TodayHeroVisual';
 import { StateStrip } from './StateStrip';
@@ -31,6 +31,7 @@ import type { TaskProgress, TaskDefinition, PracticeSessionDefinition } from '..
 import type { SessionActivity } from '../../engine/sessionComposer';
 import { PREPARATION_TOPICS } from '../../data/preparationDataset';
 import { SessionProvider } from './SessionProvider';
+import { SessionContext } from './SessionContext';
 import { SessionModals } from './SessionModals';
 import {
   Building2, Sun, BookOpen, Clock, SkipForward, Sparkles, Check,
@@ -60,6 +61,7 @@ export const DashboardView: React.FC = () => {
     userSettings,
   } = usePlacement();
   const evidenceCatalog = useEvidenceCatalog();
+  const session = useContext(SessionContext);
 
   const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
   const [isEveningModalOpen, setIsEveningModalOpen] = useState(false);
@@ -383,6 +385,14 @@ export const DashboardView: React.FC = () => {
 
     updateTaskState(taskId, newState);
 
+    if (newState === 'not_started' || newState === 'in_progress') {
+      const matchAssign = todayAssignments.find((a) => a.referenceId === taskId && a.completed);
+      if (matchAssign) {
+        syncDailyAssignmentCompletion(matchAssign.id, false);
+      }
+      session?.reopenActivity(taskId);
+    }
+
     if (restore && targetTask) {
       setCompletionInfo({
         taskId,
@@ -394,6 +404,12 @@ export const DashboardView: React.FC = () => {
       setCompletionInfo(null);
     }
   };
+
+  const handleReopenAssignment = useCallback((assignmentId: string) => {
+    if (isDaySealed) return;
+    syncDailyAssignmentCompletion(assignmentId, false);
+    session?.reopenActivity(assignmentId);
+  }, [isDaySealed, syncDailyAssignmentCompletion, session]);
 
   const handleUndoCompletion = () => {
     if (!completionInfo) return;
@@ -1068,6 +1084,8 @@ export const DashboardView: React.FC = () => {
           onOpenLearning={openTaskLearning}
           onPostpone={handlePostponeTask}
           onSkip={handleSkipTask}
+          onReopenAssignment={handleReopenAssignment}
+          isDaySealed={isDaySealed}
           getDomain={getDomain}
           todayISO={todayDate}
         />

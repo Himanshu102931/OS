@@ -368,6 +368,34 @@ describe('TASK 3: PREPARATION EVIDENCE & CROSS-SYSTEM COMPLETION', () => {
       );
 
       expect(capturedPlacement!.currentRoute).toBe('dashboard');
+      const todayStr = capturedPlacement!.todayDate;
+      const checkIn = {
+        id: `checkin-${todayStr}`,
+        date: todayStr,
+        mode: 'normal' as const,
+        availableMinutes: 60,
+        energyLevel: 'medium' as const,
+        assignmentIds: ['assign-prep-lang'],
+        totalActualMinutes: 0,
+        isSealed: false,
+        createdAt: '2026-10-01T08:00:00Z',
+        updatedAt: '2026-10-01T08:00:00Z',
+      };
+      const assignments = [
+        {
+          id: 'assign-prep-lang',
+          date: todayStr,
+          taskType: 'catalog_task' as const,
+          referenceId: 'prep-lang',
+          allocatedMinutes: 30,
+          completed: false,
+        },
+      ];
+      act(() => {
+        capturedPlacement!.commitDailyPlan(checkIn, assignments);
+        capturedSession!.composeSession(60, 'balanced');
+      });
+
       const initialCompleted = capturedSession!.sessionState?.completedActivityIds.length ?? 0;
       const initialActivityIndex = capturedSession!.sessionState?.currentActivityIndex ?? 0;
 
