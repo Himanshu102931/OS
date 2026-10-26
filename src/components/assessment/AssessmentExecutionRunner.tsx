@@ -22,6 +22,7 @@ interface AssessmentExecutionRunnerProps {
       confidence?: AssessmentConfidence;
       result: string;
       executionResult?: AssessmentExecutionResult;
+      unfamiliarTopic?: boolean;
     }
   >;
   timeRemainingSeconds: number;
@@ -29,8 +30,9 @@ interface AssessmentExecutionRunnerProps {
   showCancelModal: boolean;
   textInput: string;
   onSelectIndex: (index: number) => void;
-  onAnswerChange: (userResponse: number | string | null, confidence?: AssessmentConfidence) => void;
+  onAnswerChange: (userResponse: number | string | null, confidence?: AssessmentConfidence, unfamiliarTopic?: boolean) => void;
   onConfidenceChange: (confidence: AssessmentConfidence) => void;
+  onUnfamiliarityChange?: (unfamiliar: boolean) => void;
   onPrevious: () => void;
   onNext: () => void;
   onOpenSubmitModal: () => void;
@@ -53,6 +55,7 @@ export const AssessmentExecutionRunner: React.FC<AssessmentExecutionRunnerProps>
   onSelectIndex,
   onAnswerChange,
   onConfidenceChange,
+  onUnfamiliarityChange,
   onPrevious,
   onNext,
   onOpenSubmitModal,
@@ -116,6 +119,7 @@ export const AssessmentExecutionRunner: React.FC<AssessmentExecutionRunnerProps>
             textInput={textInput}
             onAnswerChange={onAnswerChange}
             onConfidenceChange={onConfidenceChange}
+            onUnfamiliarityChange={onUnfamiliarityChange}
             onPrevious={onPrevious}
             onNext={onNext}
             onSubmitClick={onOpenSubmitModal}

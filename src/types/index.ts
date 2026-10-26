@@ -169,6 +169,44 @@ export interface DSAProgress {
   updatedAt: string;
 }
 
+export interface DSAChallengeNote {
+  approach?: string;
+  invariant?: string;
+  dryRun?: string;
+  timeComplexity?: string;
+  spaceComplexity?: string;
+  edgeCases?: string;
+  helpNeeded?: string;
+  savedAt: string;
+}
+
+export interface DSAChallengeItemState {
+  guidedCompleted?: boolean;
+  guidedCompletedAt?: string;
+  notes?: DSAChallengeNote;
+  externalAttemptResult?: AttemptResult;
+  externalPassedIndependently?: boolean;
+  externalAttemptAt?: string;
+}
+
+export interface DSAModuleLessonProgress {
+  preCheckAttempted?: boolean;
+  preCheckScore?: number;
+  coreConceptsViewed?: boolean;
+  patternGuideViewed?: boolean;
+  exitCheckAttempted?: boolean;
+  exitCheckScore?: number;
+}
+
+export interface DSAChallengeState {
+  enrolled: boolean;
+  enrolledAt?: string;
+  pacingMode: 'guided' | 'flexible' | 'intensive';
+  currentDay: number; // 1..8
+  itemProgress: Record<number, DSAChallengeItemState>; // Keyed by LeetCode problem number
+  moduleLessonProgress?: Record<number, DSAModuleLessonProgress>; // Keyed by Day (1..8)
+}
+
 export type SkillFreshnessState = 'untested' | 'fresh' | 'aging' | 'stale';
 
 export interface UserSettings {
@@ -183,6 +221,8 @@ export interface UserSettings {
   showExplanationTooltips: boolean;
   dailyCheckInReminder: boolean;
   reminderTime: string; // HH:mm format
+  onboardingCompleted?: boolean;
+  diagnosticDismissed?: boolean;
 }
 
 /**
@@ -495,6 +535,7 @@ export interface AssessmentResponse {
   scoredCredit: number;
   weightApplied: number;
   executionResult?: AssessmentExecutionResult;
+  unfamiliarTopic?: boolean;
 }
 
 export interface AssessmentItemExposure {

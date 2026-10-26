@@ -948,7 +948,7 @@ export function scoreAssessmentAttempt(
             sourceAttemptIds: [terminalAttempt.id],
           });
         }
-      } else if (resp.result === 'correct' && resp.responseConfidence === 'confident') {
+      } else if (resp.result === 'correct' && resp.responseConfidence === 'confident' && !resp.unfamiliarTopic) {
         const existingSignal = (existingWeaknessSignals || []).find(
           (ws) => ws.domainId === domainId && ws.competency === item.competency && ws.status !== 'resolved'
         );
@@ -959,6 +959,38 @@ export function scoreAssessmentAttempt(
             resolvedAt: assessmentDate,
             lastSeenAt: assessmentDate,
             sourceAttemptIds: Array.from(new Set([...existingSignal.sourceAttemptIds, terminalAttempt.id])),
+          });
+        }
+      }
+
+      // Unfamiliarity topic learning-gap recording (Phase 4)
+      if (resp.unfamiliarTopic && resp.result !== 'incorrect') {
+        const existingSignal = (existingWeaknessSignals || []).find(
+          (ws) => ws.domainId === domainId && (ws.competency === item.competency || ws.topicId === item.topicId) && ws.status !== 'resolved'
+        );
+
+        if (existingSignal) {
+          weaknessSignals.push({
+            ...existingSignal,
+            status: 'reinforced',
+            strength: Math.max(existingSignal.strength, 2) as 1 | 2 | 3,
+            lastSeenAt: assessmentDate,
+            occurrences: existingSignal.occurrences + 1,
+            sourceAttemptIds: Array.from(new Set([...existingSignal.sourceAttemptIds, terminalAttempt.id])),
+          });
+        } else {
+          weaknessSignals.push({
+            id: `ws-${domainId}-${item.competency}-${terminalAttempt.id}`,
+            domainId,
+            topicId: item.topicId,
+            competency: item.competency,
+            errorCategory: item.errorCategories.length > 0 ? item.errorCategories[0] : 'E-CONCEPT',
+            strength: 2,
+            status: 'open',
+            firstSeenAt: assessmentDate,
+            lastSeenAt: assessmentDate,
+            occurrences: 1,
+            sourceAttemptIds: [terminalAttempt.id],
           });
         }
       }
@@ -1918,6 +1950,22 @@ export const SUNDAY_TEST_CONSTANTS = {
  */
 export function isSundayTestEligible(assessmentState?: AssessmentState): boolean {
   if (!assessmentState) return false;
+  return (assessmentState.attempts || []).some(
+    (a) => a.kind === 'diagnostic_assessment' && (a.status === 'submitted' || a.status === 'auto_submitted')
+  );
+}
+
+/**
+ * Checks whether a qualifying baseline diagnostic assessment has been completed.
+ * Partially completed (in_progress) or cancelled/abandoned attempts do not qualify.
+ */
+export function isBaselineCompleted(assessmentState?: AssessmentState): boolean {
+  if (!assessmentState) return false;
+  if (assessmentState.profile?.baselineCompletedAt) return true;
+  const legacy = assessmentState as unknown as Record<string, unknown>;
+  if (Boolean(legacy.isAssessed) && (legacy.overallAbility !== undefined || (assessmentState.domainResults && assessmentState.domainResults.length > 0))) {
+    return true;
+  }
   return (assessmentState.attempts || []).some(
     (a) => a.kind === 'diagnostic_assessment' && (a.status === 'submitted' || a.status === 'auto_submitted')
   );

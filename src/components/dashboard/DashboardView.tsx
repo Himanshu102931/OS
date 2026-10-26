@@ -38,6 +38,10 @@ import {
 } from 'lucide-react';
 import { MonoChip, TodayButton, PrimaryCTA } from './todayPrimitives';
 
+import { isBaselineCompleted } from '../../engine/assessmentEngine';
+import { DiagnosticReminder } from './DiagnosticReminder';
+import { DSAChallengeTodayCard } from './DSAChallengeTodayCard';
+
 /**
  * C7-09 — every Today section that renders `.scroll-reveal`, by the id its
  * `data-reveal` attribute carries. Graceful-fallback set for IntersectionObserver.
@@ -53,6 +57,7 @@ export const DashboardView: React.FC = () => {
     decomposeTask, practiceSessions, practiceAttempts,
     recordPracticeAttempt, evidenceLogs, pendingSundayObligation,
     preparationTopicProgress, assessmentProfileReadout, assessmentState,
+    userSettings,
   } = usePlacement();
   const evidenceCatalog = useEvidenceCatalog();
 
@@ -629,6 +634,18 @@ export const DashboardView: React.FC = () => {
           sealedAt={todayCheckIn?.sealedAt}
         />
 
+        {/* PERSISTENT DIAGNOSTIC REMINDER (TASK 174 PHASE 2 & 3) */}
+        {!isBaselineCompleted(assessmentState) && Boolean(userSettings?.diagnosticDismissed) && (
+          <DiagnosticReminder
+            onStartDiagnostic={() => setRoute('assessment')}
+            hasInProgressAttempt={
+              assessmentState?.attempts?.some(
+                (a) => a.status === 'in_progress' && a.kind === 'diagnostic_assessment'
+              ) ?? false
+            }
+          />
+        )}
+
         {/* 2. TODAY'S MISSION (§5) */}
         <section
           data-section="mission"
@@ -651,10 +668,20 @@ export const DashboardView: React.FC = () => {
                 data-guide-target="today-primary"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <MonoChip tone="accent">
                       <Sparkles className="size-3.5 text-accent" /> TODAY'S MISSION
                     </MonoChip>
+                    {!isBaselineCompleted(assessmentState) && (
+                      <span
+                        data-testid="preliminary-curriculum-badge"
+                        className="inline-flex items-center gap-1 text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-warning/15 text-warning border border-warning/30"
+                        title="Uncalibrated: Baseline diagnostic is pending. Priority scoring currently follows generic curriculum order."
+                      >
+                        <AlertCircle className="size-3" />
+                        <span>Preliminary · Diagnostic Pending</span>
+                      </span>
+                    )}
                     <span className="font-mono text-xs text-text-tertiary">
                       {nextBestActionTask.estimatedMinutes} mins
                     </span>
@@ -665,6 +692,29 @@ export const DashboardView: React.FC = () => {
                     </MonoChip>
                   )}
                 </div>
+
+                {!isBaselineCompleted(assessmentState) && (
+                  <div
+                    data-testid="preliminary-recommendation-notice"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded border border-warning/30 bg-warning/5 text-xs text-text-secondary"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <AlertCircle className="size-4 text-warning shrink-0" />
+                      <span>
+                        <strong className="text-text-primary font-medium">Preliminary Activity: </strong>
+                        This recommendation follows default Phase 1 sequencing. Complete your diagnostic baseline to calibrate personalized weakness-weighted priorities.
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setRoute('assessment')}
+                      data-testid="prioritize-diagnostic-btn"
+                      className="text-xs font-semibold text-warning hover:underline whitespace-nowrap self-end sm:self-auto cursor-pointer"
+                    >
+                      Prioritize Diagnostic &rarr;
+                    </button>
+                  </div>
+                )}
 
                 <div className="space-y-1">
                   <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-text-primary">
@@ -954,6 +1004,11 @@ export const DashboardView: React.FC = () => {
             </div>
           )}
         </section>
+
+        {/* 2.5 8-DAY DSA CHALLENGE NEXT STEP */}
+        <DSAChallengeTodayCard
+          onNavigateToChallenge={() => setRoute('dsa', 'challenge')}
+        />
 
         {/* 3. ATTENTION RAIL (§6) */}
         <AttentionRail

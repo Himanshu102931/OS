@@ -104,7 +104,7 @@ Open `http://localhost:5173` in your browser.
 ### 3. Run Quality Suite
 ```bash
 npm test        # Execute Vitest suite (1,701 tests across 94 test files)
-npm run lint    # Run ESLint check
+npm run lint    # Run ESLint check.
 ```
 
 ### 4. Build for Production

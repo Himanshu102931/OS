@@ -80,7 +80,7 @@ export const StudyParametersSection: React.FC<StudyParametersSectionProps> = ({
           <input
             id="placementHorizonDate"
             type="date"
-            value={userSettings.placementHorizonDate || '2027-05-31'}
+            value={userSettings.placementHorizonDate || ''}
             onChange={(e) => {
               onUpdate({ placementHorizonDate: e.target.value }, 'Placement horizon date updated');
             }}
