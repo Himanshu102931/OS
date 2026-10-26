@@ -422,6 +422,7 @@ export function composeAdaptiveSession(options: AdaptiveSessionOptions): Session
 
     const task = (tasks as TaskDefinition[]).find((t) => t.id === assign.referenceId);
     const prob = !task ? (dsaProblems as DSAProblem[]).find((p) => p.id === assign.referenceId) : null;
+    const prep = !task && !prob ? (preparationTopics as PreparationTopic[]).find((pt) => pt.id === assign.referenceId) : null;
 
     if (task) {
       const prereq = evaluateTaskPrerequisites(task, taskProgressMap as Record<string, TaskProgress>);
@@ -462,6 +463,25 @@ export function composeAdaptiveSession(options: AdaptiveSessionOptions): Session
         route: 'dsa',
         targetId: prob.id,
         sourceProblemId: prob.id,
+        sourceAssignmentId: assign.id,
+        isCommittedAssignment: true,
+        isBlocked: false,
+      });
+    } else if (prep) {
+      committedCandidates.push({
+        id: `session-assign-${assign.id}`,
+        type: 'preparation_lesson',
+        title: prep.title,
+        description: prep.description,
+        priority: 'normal_progression',
+        priorityScore: 85,
+        domainId: prep.domainId,
+        topicId: prep.id,
+        estimatedMinutes: assign.allocatedMinutes || 30,
+        reason: `Committed in today's morning plan`,
+        route: 'preparation',
+        targetId: prep.id,
+        sourceTopicId: prep.id,
         sourceAssignmentId: assign.id,
         isCommittedAssignment: true,
         isBlocked: false,
@@ -826,5 +846,33 @@ export function getSessionProgress(state: SessionState) {
     completed,
     total,
     percent: total > 0 ? Math.round((completed / total) * 100) : 0,
+  };
+}
+
+/**
+ * Safely reopens a completed/skipped/failed activity in SessionState.
+ * Removes the activity from completion lists and adjusts currentActivityIndex
+ * to the reopened activity if earlier than current index.
+ */
+export function reopenSessionActivity(state: SessionState, activityId: string): SessionState {
+  const targetIndex = state.plan.activities.findIndex((a) => a.id === activityId);
+  if (targetIndex === -1) {
+    return state;
+  }
+
+  const newCompleted = state.completedActivityIds.filter((id) => id !== activityId);
+  const newSkipped = state.skippedActivityIds.filter((id) => id !== activityId);
+  const newFailed = state.failedActivityIds.filter((id) => id !== activityId);
+  const newPostponed = state.postponedActivityIds.filter((id) => id !== activityId);
+
+  const nextIndex = Math.min(state.currentActivityIndex, targetIndex);
+
+  return {
+    ...state,
+    currentActivityIndex: nextIndex,
+    completedActivityIds: newCompleted,
+    skippedActivityIds: newSkipped,
+    failedActivityIds: newFailed,
+    postponedActivityIds: newPostponed,
   };
 }

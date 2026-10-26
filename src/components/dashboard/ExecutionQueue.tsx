@@ -43,6 +43,8 @@ export interface ExecutionQueueProps {
   onOpenLearning: (task: TaskDefinition) => void;
   onPostpone: (taskId: string) => void;
   onSkip: (taskId: string) => void;
+  onReopenAssignment?: (assignmentId: string) => void;
+  isDaySealed?: boolean;
 
   getDomain: (domainId: string) => DomainDefinition | undefined;
   todayISO: string;
@@ -67,6 +69,7 @@ export const ExecutionQueue: React.FC<ExecutionQueueProps> = ({
   todayAssignments,
   onStartActivity, onCompleteActivity,
   onPlanToday, onOpenRoadmap, onOpenDsa, onUpdateState, onDecomposeTask, onOpenLearning, onPostpone, onSkip,
+  onReopenAssignment, isDaySealed,
   getDomain, todayISO,
 }) => {
   const session = useContext(SessionContext);
@@ -223,9 +226,21 @@ export const ExecutionQueue: React.FC<ExecutionQueueProps> = ({
                         {allocated || item.problem.estimatedTimeMinutes}m
                       </span>
                       {item.completed ? (
-                        <span className="flex items-center gap-1 text-xs text-status-success">
-                          <CheckCircle2 className="size-3.5" aria-hidden="true" /> completed
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="flex items-center gap-1 text-xs text-status-success">
+                            <CheckCircle2 className="size-3.5" aria-hidden="true" /> completed
+                          </span>
+                          {!isDaySealed && onReopenAssignment && (
+                            <TodayButton
+                              variant="ghost"
+                              onClick={() => onReopenAssignment(item.assignmentId)}
+                              aria-label={`Reopen ${item.problem.title}`}
+                              data-testid={`reopen-assignment-${item.assignmentId}`}
+                            >
+                              Reopen
+                            </TodayButton>
+                          )}
+                        </div>
                       ) : (
                         <TodayButton
                           variant={isActive ? 'outline' : 'ghost'}

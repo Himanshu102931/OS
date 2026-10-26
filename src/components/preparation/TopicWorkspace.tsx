@@ -53,6 +53,11 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
     routeState.targetId === topic.id &&
     routeState.targetId !== dismissedTargetId;
 
+  const isCurrentSessionActivity = Boolean(
+    session?.currentActivity &&
+    (session.currentActivity.targetId === topic.id || session.currentActivity.id === topic.id)
+  );
+
   const topicProgress = preparationTopicProgress[topic.id];
 
   // Restores the stage THIS topic saved, falling back to the topic's first stage
@@ -111,25 +116,22 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
 
   const handleMarkStageComplete = () => {
     completePreparationStage(topic, activeStage);
-    if (isDeepLinked) {
-      setDismissedTargetId(routeState.targetId ?? null);
-      session?.advanceActivity('completed');
-      setRoute('dashboard');
-    } else {
-      const updatedStages = topicProgress?.completedStages.includes(activeStage)
-        ? topicProgress.completedStages
-        : [...(topicProgress?.completedStages ?? []), activeStage];
-      const nextStage = topic.stages.find((s) => !updatedStages.includes(s)) ?? activeStage;
-      if (topic.stages.includes(nextStage)) {
-        setActiveStage(nextStage);
-      }
+    const updatedStages = topicProgress?.completedStages.includes(activeStage)
+      ? topicProgress.completedStages
+      : [...(topicProgress?.completedStages ?? []), activeStage];
+    const nextStage = topic.stages.find((s) => !updatedStages.includes(s)) ?? activeStage;
+    if (topic.stages.includes(nextStage)) {
+      setActiveStage(nextStage);
     }
   };
 
   const handleCompleteActivity = () => {
     completePreparationStage(topic, activeStage);
     setDismissedTargetId(routeState.targetId ?? null);
-    session?.advanceActivity('completed');
+    // Check A: Verify workspace target matches the session activity being completed
+    if (isCurrentSessionActivity && session?.currentActivity?.id) {
+      session.advanceActivity('completed', topic.id);
+    }
     setRoute('dashboard');
   };
 
@@ -139,6 +141,8 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
       setRoute('dashboard');
     } else if (onBackToHub) {
       onBackToHub();
+    } else {
+      setRoute('preparation');
     }
   };
 

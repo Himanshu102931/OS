@@ -5,6 +5,7 @@ import {
   createSessionState,
   advanceSession,
   recoverSession,
+  reopenSessionActivity,
   getCurrentActivity,
   getRemainingTime,
   getSessionProgress,
@@ -329,39 +330,76 @@ function SessionProviderInner({
     [composeSession, selectedDuration]
   );
 
-  const advanceActivity = useCallback((outcome: 'completed' | 'skipped' | 'failed' | 'postponed') => {
-    if (outcome === 'completed' && placement && sessionState) {
-      const currentAct = getCurrentActivity(sessionState);
-      if (currentAct) {
-        const isSealed = placement.dailyCheckIns.find((c) => c.date === placement.todayDate)?.isSealed;
-        if (!isSealed) {
-          if (currentAct.sourceAssignmentId) {
-            placement.syncDailyAssignmentCompletion(currentAct.sourceAssignmentId, true);
-          } else if (currentAct.sourceTaskId) {
-            const match = placement.dailyTaskAssignments.find(
-              (a) => a.date === placement.todayDate && a.referenceId === currentAct.sourceTaskId
-            );
-            if (match && !match.completed) {
-              placement.syncDailyAssignmentCompletion(match.id, true);
-            }
-          } else if (currentAct.sourceProblemId) {
-            const match = placement.dailyTaskAssignments.find(
-              (a) => a.date === placement.todayDate && a.referenceId === currentAct.sourceProblemId
-            );
-            if (match && !match.completed) {
-              placement.syncDailyAssignmentCompletion(match.id, true);
+  const advanceActivity = useCallback(
+    (outcome: 'completed' | 'skipped' | 'failed' | 'postponed', expectedActivityId?: string) => {
+      setSessionState((prev) => {
+        if (!prev) return prev;
+        const currentAct = getCurrentActivity(prev);
+        if (!currentAct) return prev;
+
+        // Requirement 8: Explicit session completion must match expected activity
+        if (
+          expectedActivityId &&
+          currentAct.id !== expectedActivityId &&
+          currentAct.targetId !== expectedActivityId
+        ) {
+          return prev;
+        }
+
+        if (outcome === 'completed' && placement) {
+          const isSealed = placement.dailyCheckIns.find((c) => c.date === placement.todayDate)?.isSealed;
+          if (!isSealed) {
+            if (currentAct.sourceAssignmentId) {
+              placement.syncDailyAssignmentCompletion(currentAct.sourceAssignmentId, true);
+            } else if (currentAct.sourceTaskId) {
+              const match = placement.dailyTaskAssignments.find(
+                (a) => a.date === placement.todayDate && a.referenceId === currentAct.sourceTaskId
+              );
+              if (match && !match.completed) {
+                placement.syncDailyAssignmentCompletion(match.id, true);
+              }
+            } else if (currentAct.sourceProblemId) {
+              const match = placement.dailyTaskAssignments.find(
+                (a) => a.date === placement.todayDate && a.referenceId === currentAct.sourceProblemId
+              );
+              if (match && !match.completed) {
+                placement.syncDailyAssignmentCompletion(match.id, true);
+              }
+            } else if (currentAct.targetId) {
+              const match = placement.dailyTaskAssignments.find(
+                (a) => a.date === placement.todayDate && a.referenceId === currentAct.targetId
+              );
+              if (match && !match.completed) {
+                placement.syncDailyAssignmentCompletion(match.id, true);
+              }
             }
           }
         }
-      }
-    }
 
-    setSessionState((prev) => {
-      if (!prev) return prev;
-      const { newState } = advanceSession(prev, outcome);
-      return newState;
-    });
-  }, [placement, sessionState]);
+        const { newState } = advanceSession(prev, outcome);
+        return newState;
+      });
+    },
+    [placement]
+  );
+
+  const reopenActivity = useCallback(
+    (activityIdOrAssignmentId: string) => {
+      setSessionState((prev) => {
+        if (!prev) return prev;
+        const match = prev.plan.activities.find(
+          (a) =>
+            a.id === activityIdOrAssignmentId ||
+            a.sourceAssignmentId === activityIdOrAssignmentId ||
+            a.sourceTaskId === activityIdOrAssignmentId ||
+            a.sourceProblemId === activityIdOrAssignmentId
+        );
+        if (!match) return prev;
+        return reopenSessionActivity(prev, match.id);
+      });
+    },
+    []
+  );
 
   const recoverActivity = useCallback((minutes: number) => {
     setSessionState((prev) => {
@@ -401,6 +439,7 @@ function SessionProviderInner({
     sessionState,
     composeSession,
     advanceActivity,
+    reopenActivity,
     recoverActivity,
     clearSession,
     currentActivity,
