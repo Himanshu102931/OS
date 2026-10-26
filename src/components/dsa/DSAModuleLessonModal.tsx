@@ -125,6 +125,18 @@ export const DSAModuleLessonModal: React.FC<DSAModuleLessonModalProps> = ({
     if (exitCheckAnswers[q.id] === q.correctIndex) exitCheckCorrectCount++;
   }
 
+  // Effective pre-check score (calculated if user interacted in current session, else fallback to saved)
+  const hasPreCheckInteraction = Object.keys(preCheckAnswers).length > 0;
+  const effectivePreCheckScore = hasPreCheckInteraction
+    ? preCheckCorrectCount
+    : (savedPreCheckScore ?? preCheckCorrectCount);
+
+  // Effective exit check score (calculated if user interacted in current session, else fallback to saved)
+  const hasExitCheckInteraction = Object.keys(exitCheckAnswers).length > 0;
+  const effectiveExitCheckScore = hasExitCheckInteraction
+    ? exitCheckCorrectCount
+    : (savedExitCheckScore ?? exitCheckCorrectCount);
+
   if (!isOpen) return null;
 
   return (
@@ -178,7 +190,7 @@ export const DSAModuleLessonModal: React.FC<DSAModuleLessonModalProps> = ({
             <span>A. Pre-Check</span>
             {preCheckSubmitted && (
               <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                {preCheckCorrectCount}/{lesson.startingKnowledgeCheck.length}
+                {effectivePreCheckScore}/{lesson.startingKnowledgeCheck.length}
               </span>
             )}
           </button>
@@ -237,7 +249,7 @@ export const DSAModuleLessonModal: React.FC<DSAModuleLessonModalProps> = ({
             <span>E. Exit Check</span>
             {exitCheckSubmitted && (
               <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                {exitCheckCorrectCount}/{lesson.exitCheck.length}
+                {effectiveExitCheckScore}/{lesson.exitCheck.length}
               </span>
             )}
           </button>
@@ -353,7 +365,7 @@ export const DSAModuleLessonModal: React.FC<DSAModuleLessonModalProps> = ({
                 ) : (
                   <div className="flex items-center justify-between w-full">
                     <div className="text-xs text-slate-300">
-                      Score: <strong className="text-emerald-400 font-mono text-sm">{preCheckCorrectCount}</strong> / {lesson.startingKnowledgeCheck.length} correct
+                      Score: <strong className="text-emerald-400 font-mono text-sm">{effectivePreCheckScore}</strong> / {lesson.startingKnowledgeCheck.length} correct
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
@@ -366,7 +378,10 @@ export const DSAModuleLessonModal: React.FC<DSAModuleLessonModalProps> = ({
                       </Button>
                       <Button
                         size="sm"
-                        onClick={() => setActiveTab('concepts')}
+                        onClick={() => {
+                          setActiveTab('concepts');
+                          if (onSaveProgress) onSaveProgress({ coreConceptsViewed: true });
+                        }}
                         className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs h-8 px-4 flex items-center gap-1.5"
                       >
                         <span>Explore Core Concepts</span>
@@ -453,7 +468,10 @@ export const DSAModuleLessonModal: React.FC<DSAModuleLessonModalProps> = ({
               <div className="flex justify-end pt-2">
                 <Button
                   size="sm"
-                  onClick={() => setActiveTab('patterns')}
+                  onClick={() => {
+                    setActiveTab('patterns');
+                    if (onSaveProgress) onSaveProgress({ patternGuideViewed: true });
+                  }}
                   className="bg-[var(--accent)] text-black hover:bg-[var(--accent-hover)] text-xs h-8 px-4 font-semibold flex items-center gap-1.5"
                 >
                   <span>Study Pattern Recognition</span>
@@ -772,7 +790,7 @@ export const DSAModuleLessonModal: React.FC<DSAModuleLessonModalProps> = ({
                 ) : (
                   <div className="flex items-center justify-between w-full">
                     <div className="text-xs text-slate-300">
-                      Exit Score: <strong className="text-emerald-400 font-mono text-sm">{exitCheckCorrectCount}</strong> / {lesson.exitCheck.length} correct
+                      Exit Score: <strong className="text-emerald-400 font-mono text-sm">{effectiveExitCheckScore}</strong> / {lesson.exitCheck.length} correct
                     </div>
                     <div className="flex items-center gap-2">
                       <Button

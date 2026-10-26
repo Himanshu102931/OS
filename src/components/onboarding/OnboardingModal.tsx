@@ -33,9 +33,9 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   onComplete,
   onExploreFirst,
 }) => {
-  const [goal, setGoal] = useState('Software Engineer (SDE-1)');
+  const [goal, setGoal] = useState('');
   const [studyMinutes, setStudyMinutes] = useState<number>(120);
-  const [horizonDate, setHorizonDate] = useState('2027-05-31');
+  const [horizonDate, setHorizonDate] = useState('');
   const [isUnknownDeadline, setIsUnknownDeadline] = useState(false);
 
   const modalRef = useRef<HTMLDivElement>(null);
@@ -57,7 +57,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onComplete({
-      targetPlacementGoal: goal.trim() || 'Software Engineer (SDE-1)',
+      targetPlacementGoal: goal.trim(),
       dailyStudyMinutes: Math.min(480, Math.max(30, studyMinutes || 120)),
       placementHorizonDate: isUnknownDeadline ? '' : horizonDate.trim(),
     });
@@ -140,7 +140,6 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               onChange={(e) => setGoal(e.target.value)}
               placeholder="e.g. Software Engineer (SDE-1), Backend Developer"
               className="w-full px-3.5 py-2 text-sm rounded-lg bg-surface-canvas border border-border-default text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent"
-              required
             />
             <div className="flex flex-wrap gap-1.5 pt-1">
               {COMMON_GOALS.map((cg) => (

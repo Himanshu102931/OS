@@ -60,8 +60,8 @@ function quarantineUnreadableState(raw: string, reason: string): void {
 }
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
-  placementHorizonDate: '2027-05-31',
-  targetPlacementGoal: 'Software Engineer (SDE-1)',
+  placementHorizonDate: '',
+  targetPlacementGoal: '',
   targetPhaseId: 'phase-1',
   dailyStudyMinutes: 120,
   dsaDailyCap: 5,
@@ -80,6 +80,7 @@ export const DEFAULT_DSA_CHALLENGE_STATE: DSAChallengeState = {
   pacingMode: 'flexible',
   currentDay: 1,
   itemProgress: {},
+  moduleLessonProgress: {},
 };
 
 export interface AppStorageState {
@@ -683,6 +684,7 @@ function validateDSAChallengeState(challenge: unknown): boolean {
   if (c.pacingMode !== undefined && !['guided', 'flexible', 'intensive'].includes(c.pacingMode)) return false;
   if (c.currentDay !== undefined && (typeof c.currentDay !== 'number' || c.currentDay < 1 || c.currentDay > 8)) return false;
   if (c.itemProgress !== undefined && typeof c.itemProgress !== 'object') return false;
+  if (c.moduleLessonProgress !== undefined && (typeof c.moduleLessonProgress !== 'object' || c.moduleLessonProgress === null)) return false;
   return true;
 }
 
@@ -816,6 +818,25 @@ export function hasUserLearningHistory(state: Partial<AppExtendedStorageState>):
   }
 
   if (Array.isArray(state.dsaAttempts) && state.dsaAttempts.length > 0) return true;
+
+  // 2b. DSA Challenge state
+  if (state.dsaChallengeState) {
+    if (state.dsaChallengeState.enrolled) return true;
+    if (state.dsaChallengeState.moduleLessonProgress && Object.keys(state.dsaChallengeState.moduleLessonProgress).length > 0) {
+      for (const mlp of Object.values(state.dsaChallengeState.moduleLessonProgress)) {
+        if (mlp && (mlp.preCheckAttempted || mlp.exitCheckAttempted || mlp.coreConceptsViewed || mlp.patternGuideViewed)) {
+          return true;
+        }
+      }
+    }
+    if (state.dsaChallengeState.itemProgress && Object.keys(state.dsaChallengeState.itemProgress).length > 0) {
+      for (const ip of Object.values(state.dsaChallengeState.itemProgress)) {
+        if (ip && (ip.guidedCompleted || ip.externalAttemptResult || ip.notes)) {
+          return true;
+        }
+      }
+    }
+  }
 
   // 3. Skill states with evidence
   if (state.skillStates) {
@@ -991,6 +1012,7 @@ export const StorageAdapter = {
                 pacingMode: validatedParsed.dsaChallengeState.pacingMode || 'flexible',
                 currentDay: typeof validatedParsed.dsaChallengeState.currentDay === 'number' ? validatedParsed.dsaChallengeState.currentDay : 1,
                 itemProgress: validatedParsed.dsaChallengeState.itemProgress || {},
+                moduleLessonProgress: validatedParsed.dsaChallengeState.moduleLessonProgress || {},
               }
             : { ...DEFAULT_DSA_CHALLENGE_STATE },
         };
@@ -1224,6 +1246,14 @@ export const StorageAdapter = {
           practiceAttempts: parsed.practiceAttempts || [],
           preparationTopicProgress: parsed.preparationTopicProgress || {},
           assessmentState: parsed.assessmentState,
+          dsaChallengeState: parsed.dsaChallengeState
+            ? {
+                ...DEFAULT_DSA_CHALLENGE_STATE,
+                ...parsed.dsaChallengeState,
+                itemProgress: parsed.dsaChallengeState.itemProgress || {},
+                moduleLessonProgress: parsed.dsaChallengeState.moduleLessonProgress || {},
+              }
+            : { ...DEFAULT_DSA_CHALLENGE_STATE },
         };
         const hasHistory = hasUserLearningHistory(migratedState);
         if (hasHistory && parsed.userSettings?.onboardingCompleted === undefined) {

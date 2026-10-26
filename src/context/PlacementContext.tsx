@@ -27,6 +27,7 @@ import type {
   AssessmentConfidence,
   DSAChallengeState,
   DSAChallengeNote,
+  DSAModuleLessonProgress,
 } from '../types';
 import {
   DOMAINS,
@@ -202,6 +203,7 @@ interface PlacementContextType {
     passedIndependently: boolean,
     notes?: string
   ) => void;
+  saveModuleLessonProgress: (day: number, progress: Partial<DSAModuleLessonProgress>) => void;
   persistenceError: boolean;
   storageConflict: boolean;
   resolveStorageConflict: () => void;
@@ -1427,6 +1429,27 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   };
 
+  const saveModuleLessonProgress = (day: number, progress: Partial<DSAModuleLessonProgress>) => {
+    setAppState((prev) => {
+      const current = prev.dsaChallengeState || DEFAULT_DSA_CHALLENGE_STATE;
+      const currentModuleProgress = current.moduleLessonProgress?.[day] || {};
+      const updatedModuleProgress: DSAModuleLessonProgress = {
+        ...currentModuleProgress,
+        ...progress,
+      };
+      return {
+        ...prev,
+        dsaChallengeState: {
+          ...current,
+          moduleLessonProgress: {
+            ...(current.moduleLessonProgress || {}),
+            [day]: updatedModuleProgress,
+          },
+        },
+      };
+    });
+  };
+
   return (
     <PlacementContext.Provider
       value={{
@@ -1497,6 +1520,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         saveChallengeItemNote,
         markChallengeGuidedCompleted,
         recordExternalChallengeAttempt,
+        saveModuleLessonProgress,
         persistenceError,
         storageConflict,
         resolveStorageConflict,

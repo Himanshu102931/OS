@@ -189,12 +189,22 @@ export interface DSAChallengeItemState {
   externalAttemptAt?: string;
 }
 
+export interface DSAModuleLessonProgress {
+  preCheckAttempted?: boolean;
+  preCheckScore?: number;
+  coreConceptsViewed?: boolean;
+  patternGuideViewed?: boolean;
+  exitCheckAttempted?: boolean;
+  exitCheckScore?: number;
+}
+
 export interface DSAChallengeState {
   enrolled: boolean;
   enrolledAt?: string;
   pacingMode: 'guided' | 'flexible' | 'intensive';
   currentDay: number; // 1..8
   itemProgress: Record<number, DSAChallengeItemState>; // Keyed by LeetCode problem number
+  moduleLessonProgress?: Record<number, DSAModuleLessonProgress>; // Keyed by Day (1..8)
 }
 
 export type SkillFreshnessState = 'untested' | 'fresh' | 'aging' | 'stale';

@@ -37,6 +37,7 @@ export const DSAChallengeWorkspace: React.FC<DSAChallengeWorkspaceProps> = ({
     saveChallengeItemNote,
     markChallengeGuidedCompleted,
     recordExternalChallengeAttempt,
+    saveModuleLessonProgress,
     todayDate,
   } = usePlacement();
 
@@ -320,7 +321,23 @@ export const DSAChallengeWorkspace: React.FC<DSAChallengeWorkspaceProps> = ({
               {activeModule.title}
             </h2>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {dsaChallengeState.moduleLessonProgress?.[activeModule.day]?.preCheckScore !== undefined && (
+              <span
+                data-testid={`module-${activeModule.day}-precheck-badge`}
+                className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+              >
+                Pre: {dsaChallengeState.moduleLessonProgress[activeModule.day].preCheckScore}/{activeModule.lesson?.startingKnowledgeCheck.length ?? 3}
+              </span>
+            )}
+            {dsaChallengeState.moduleLessonProgress?.[activeModule.day]?.exitCheckScore !== undefined && (
+              <span
+                data-testid={`module-${activeModule.day}-exitcheck-badge`}
+                className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+              >
+                Exit: {dsaChallengeState.moduleLessonProgress[activeModule.day].exitCheckScore}/{activeModule.lesson?.exitCheck.length ?? 3}
+              </span>
+            )}
             <Button
               size="sm"
               onClick={() => setIsLessonModalOpen(true)}
@@ -661,6 +678,7 @@ export const DSAChallengeWorkspace: React.FC<DSAChallengeWorkspaceProps> = ({
 
       {isLessonModalOpen && activeModule.lesson && (
         <DSAModuleLessonModal
+          key={activeModule.day}
           lesson={activeModule.lesson}
           guidedProblems={activeModule.guided}
           isOpen={isLessonModalOpen}
@@ -668,6 +686,11 @@ export const DSAChallengeWorkspace: React.FC<DSAChallengeWorkspaceProps> = ({
           onOpenGuidedProblem={(p) => {
             setIsLessonModalOpen(false);
             setSelectedScaffoldProblem(p);
+          }}
+          savedPreCheckScore={dsaChallengeState.moduleLessonProgress?.[activeModule.day]?.preCheckScore}
+          savedExitCheckScore={dsaChallengeState.moduleLessonProgress?.[activeModule.day]?.exitCheckScore}
+          onSaveProgress={(progress) => {
+            saveModuleLessonProgress(activeModule.day, progress);
           }}
         />
       )}
