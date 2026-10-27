@@ -167,7 +167,17 @@ describe('P0 ACCEPTANCE TESTS: LEARNING FLOW & COMPLETION INTEGRITY', () => {
       fireEvent.click(screen.getByTestId('mark-orient-complete'));
     });
 
-    // Now on Learn stage; complete Learn
+    // Navigate to final subtopic where deliberate Learn completion occurs
+    const pythonTopic = getPreparationTopic('prep-lang')!;
+    const lastSubtopicIdx = (pythonTopic.subtopics?.length ?? 1) - 1;
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: /Outline/i }));
+    });
+    act(() => {
+      fireEvent.click(screen.getByTestId(`outline-subtopic-${lastSubtopicIdx}`));
+    });
+
+    // Now on final subtopic of Learn stage; complete Learn
     const markLearnBtn = screen.getByTestId('mark-learn-complete');
     act(() => {
       fireEvent.click(markLearnBtn);
@@ -246,6 +256,17 @@ describe('P0 ACCEPTANCE TESTS: LEARNING FLOW & COMPLETION INTEGRITY', () => {
     act(() => {
       fireEvent.click(screen.getByTestId('mark-orient-complete'));
     });
+
+    // Navigate to final subtopic where deliberate Learn completion occurs
+    const pythonTopic = getPreparationTopic('prep-lang')!;
+    const lastSubtopicIdx = (pythonTopic.subtopics?.length ?? 1) - 1;
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: /Outline/i }));
+    });
+    act(() => {
+      fireEvent.click(screen.getByTestId(`outline-subtopic-${lastSubtopicIdx}`));
+    });
+
     act(() => {
       fireEvent.click(screen.getByTestId('mark-learn-complete'));
     });

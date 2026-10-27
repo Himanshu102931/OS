@@ -14,7 +14,7 @@ import { calculateTopicReadiness } from '../engine/skillsEngine';
 import { calculateWeakness } from '../engine/adaptiveEngine';
 import { resolveEvidenceSource, type EvidenceCatalog } from '../engine/evidenceTrace';
 import { TOPICS, DOMAINS, TASK_DEFINITIONS } from '../data/seedData';
-import type { EvidenceLog, PreparationTopicProgress, TopicSkillState } from '../types';
+import type { EvidenceLog, PreparationTopicProgress, TopicSkillState, DailyCheckIn, DailyTaskAssignment } from '../types';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -221,15 +221,16 @@ describe('TASK 3: PREPARATION EVIDENCE & CROSS-SYSTEM COMPLETION', () => {
 
       const logsBefore = capturedPlacement!.evidenceLogs.length;
 
-      // Click Learn stage tab button
-      const learnTab = screen.getByRole('button', { name: /Learn/i });
+      // Click Practice stage tab button
+      const practiceTab = screen.getByRole('button', { name: /2\.\s*Practice/i });
       act(() => {
-        fireEvent.click(learnTab);
+        fireEvent.click(practiceTab);
       });
 
       expect(capturedPlacement!.evidenceLogs.length).toBe(logsBefore);
       expect(capturedPlacement!.preparationTopicProgress['prep-lang']?.completedStages ?? []).toEqual([]);
-      expect(capturedPlacement!.preparationTopicProgress['prep-lang']?.currentStage).toBe('learn');
+      expect(capturedPlacement!.preparationTopicProgress['prep-lang']?.currentStage).toBe('apply');
+      expect(capturedPlacement!.preparationTopicProgress['prep-lang']?.learningCursor?.activeStep).toBe('practice');
     });
   });
 
@@ -260,17 +261,42 @@ describe('TASK 3: PREPARATION EVIDENCE & CROSS-SYSTEM COMPLETION', () => {
         </PlacementProvider>
       );
 
-      const initialLogs = capturedPlacement!.evidenceLogs.length;
-      const initialCompletedActivities = capturedSession!.sessionState?.completedActivityIds.length ?? 0;
+      const todayISO = capturedPlacement!.todayDate;
+      const checkIn: DailyCheckIn = {
+        id: `checkin-${todayISO}`,
+        date: todayISO,
+        mode: 'normal',
+        availableMinutes: 120,
+        energyLevel: 'medium',
+        assignmentIds: ['assign-prep'],
+        totalActualMinutes: 0,
+        isSealed: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      const assignments: DailyTaskAssignment[] = [
+        {
+          id: 'assign-prep',
+          date: todayISO,
+          taskType: 'catalog_task',
+          referenceId: 'prep-lang',
+          allocatedMinutes: 60,
+          completed: false,
+        },
+      ];
 
-      // Deep link to prep-lang
       act(() => {
+        capturedPlacement!.commitDailyPlan(checkIn, assignments);
+        capturedSession!.composeSession(120, 'balanced');
         capturedPlacement!.setRoute('preparation', 'prep-lang');
       });
 
+      const initialLogs = capturedPlacement!.evidenceLogs.length;
+      const initialCompletedActivities = capturedSession!.sessionState?.completedActivityIds.length ?? 0;
+
       expect(capturedPlacement!.currentRoute).toBe('preparation');
 
-      // Click "Return to Session" button
+      // Click "Return to Session" button in session banner
       const returnBtn = screen.getByRole('button', { name: /Return to Session/i });
       act(() => {
         fireEvent.click(returnBtn);

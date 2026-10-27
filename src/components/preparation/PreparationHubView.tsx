@@ -6,6 +6,10 @@ import {
 import type { PreparationTopic } from '../../types';
 import { usePlacement } from '../../context/PlacementContext';
 import { evaluateTopicPreparedness } from '../../engine/preparationEngine';
+import {
+  isEligibleSimplePreparationSection,
+  isEligibleSimplePreparationTopic,
+} from '../../engine/simpleFilter';
 import { PreparationHeader } from './PreparationHeader';
 import { PreparationMasteryStrip } from './PreparationMasteryStrip';
 import { PreparationSectionMatrix } from './PreparationSectionMatrix';
@@ -22,6 +26,17 @@ export const PreparationHubView: React.FC = () => {
     setRoute,
   } = usePlacement();
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+
+  // In Simple Mode, exclude retired sections (Interview & Career) at presentation boundary
+  const activeSections = useMemo(
+    () => PREPARATION_SECTIONS.filter(isEligibleSimplePreparationSection),
+    []
+  );
+
+  const activeTopics = useMemo(
+    () => PREPARATION_TOPICS.filter(isEligibleSimplePreparationTopic),
+    []
+  );
 
   // Route state IS the single source of truth — no local mirror needed.
   const selectedTopic: PreparationTopic | null =
@@ -46,7 +61,7 @@ export const PreparationHubView: React.FC = () => {
     let latestTopic: PreparationTopic | null = null;
     let latestTime = '';
 
-    for (const topic of PREPARATION_TOPICS) {
+    for (const topic of activeTopics) {
       const prog = preparationTopicProgress[topic.id];
       if (prog?.lastAccessedAt && prog.lastAccessedAt > latestTime) {
         latestTopic = topic;
@@ -54,12 +69,12 @@ export const PreparationHubView: React.FC = () => {
       }
     }
 
-    return latestTopic ?? PREPARATION_TOPICS[0] ?? null;
-  }, [preparationTopicProgress]);
+    return latestTopic ?? activeTopics[0] ?? null;
+  }, [activeTopics, preparationTopicProgress]);
 
   // Compute ready topics count for macro header
   const readyTopicsCount = useMemo(() => {
-    return PREPARATION_TOPICS.filter((t) => {
+    return activeTopics.filter((t) => {
       const prog = preparationTopicProgress[t.id];
       const skill = skillStates[t.id];
       const prep = evaluateTopicPreparedness({
@@ -72,7 +87,7 @@ export const PreparationHubView: React.FC = () => {
       });
       return prep.readiness === 'ready';
     }).length;
-  }, [preparationTopicProgress, skillStates, practiceAttempts]);
+  }, [activeTopics, preparationTopicProgress, skillStates, practiceAttempts]);
 
   const handleStartSession = (sessionId?: string) => {
     if (sessionId) {
@@ -81,9 +96,8 @@ export const PreparationHubView: React.FC = () => {
     }
     // Only launch a session that actually belongs to the open topic
     const matched = selectedTopic
-      ? practiceSessions.find(
-          (sess) => sess.topicId === selectedTopic.id || sess.domainId === selectedTopic.domainId
-        )
+      ? practiceSessions.find((sess) => sess.topicId === selectedTopic.id) ??
+        practiceSessions.find((sess) => !sess.topicId && sess.domainId === selectedTopic.domainId)
       : undefined;
     setActiveSessionId(matched?.id ?? null);
   };
@@ -114,13 +128,13 @@ export const PreparationHubView: React.FC = () => {
     <div className="space-y-6" data-testid="preparation-hub-view">
       {/* Zone 1: Hub Header */}
       <PreparationHeader
-        totalTopicsCount={PREPARATION_TOPICS.length}
+        totalTopicsCount={activeTopics.length}
         readyTopicsCount={readyTopicsCount}
       />
 
       {/* Zone 1: Macro Readiness Strip */}
       <PreparationMasteryStrip
-        topics={PREPARATION_TOPICS}
+        topics={activeTopics}
         topicProgressMap={preparationTopicProgress}
         skillStates={skillStates}
         attempts={practiceAttempts}
@@ -130,7 +144,7 @@ export const PreparationHubView: React.FC = () => {
 
       {/* Zone 2: Section Progression Matrix */}
       <PreparationSectionMatrix
-        sections={PREPARATION_SECTIONS}
+        sections={activeSections}
         topicProgressMap={preparationTopicProgress}
         skillStates={skillStates}
         attempts={practiceAttempts}

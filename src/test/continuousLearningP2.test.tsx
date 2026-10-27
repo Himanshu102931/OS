@@ -246,6 +246,14 @@ describe('P2 CONTINUOUS LEARNING EXPERIENCE & PROGRESSION INTEGRITY', () => {
 
       render(<WorkspaceHarness topic={pythonTopic} />);
       expect(screen.getByTestId('learn-section')).toBeInTheDocument();
+      // Jump to last subtopic via outline to access deliberate finish button
+      act(() => {
+        fireEvent.click(screen.getByRole('button', { name: /Outline/i }));
+      });
+      const lastSub = pythonTopic.subtopics[pythonTopic.subtopics.length - 1];
+      act(() => {
+        fireEvent.click(screen.getByRole('button', { name: new RegExp(lastSub, 'i') }));
+      });
       expect(screen.getByTestId('mark-learn-complete')).toBeInTheDocument();
     });
 
@@ -404,9 +412,13 @@ describe('P2 CONTINUOUS LEARNING EXPERIENCE & PROGRESSION INTEGRITY', () => {
         </PlacementProvider>
       );
 
-      // Complete Orient and Learn
+      // Jump to last subtopic to deliberately complete learning
       act(() => {
-        fireEvent.click(screen.getByTestId('mark-orient-complete'));
+        fireEvent.click(screen.getByRole('button', { name: /Outline/i }));
+      });
+      const lastSub = pythonTopic.subtopics[pythonTopic.subtopics.length - 1];
+      act(() => {
+        fireEvent.click(screen.getByRole('button', { name: new RegExp(lastSub, 'i') }));
       });
       act(() => {
         fireEvent.click(screen.getByTestId('mark-learn-complete'));

@@ -28,7 +28,7 @@ describe('PREPARATION MANUFACTURING PART 1: Hub & Macro Progression', () => {
     expect(screen.getByRole('heading', { level: 1, name: /PREPARATION/i })).toBeInTheDocument();
     expect(screen.getByText(/Learning Progression \/ Knowledge Workspace/i)).toBeInTheDocument();
     expect(screen.getByText(/4 Core Domains/i)).toBeInTheDocument();
-    expect(screen.getByText(/13 Foundational Modules/i)).toBeInTheDocument();
+    expect(screen.getByText(/11 Foundational Modules/i)).toBeInTheDocument();
 
     // Mastery Strip section
     const strip = screen.getByTestId('preparation-mastery-strip');
@@ -41,28 +41,31 @@ describe('PREPARATION MANUFACTURING PART 1: Hub & Macro Progression', () => {
     expect(screen.getByText(/Active Focus/i)).toBeInTheDocument();
   });
 
-  it('2. Renders all 4 canonical sections in Section Progression Matrix', () => {
+  it('2. Renders active sections in Section Progression Matrix excluding retired modules', () => {
     render(<TestHarness />);
 
     const matrix = screen.getByTestId('preparation-section-matrix');
     expect(matrix).toBeInTheDocument();
 
-    for (const section of PREPARATION_SECTIONS) {
+    const activeSections = PREPARATION_SECTIONS.filter((s) => s.id !== 'interview_career');
+    for (const section of activeSections) {
       expect(screen.getByTestId(`section-card-${section.id}`)).toBeInTheDocument();
       expect(screen.getByRole('heading', { level: 2, name: new RegExp(section.title, 'i') })).toBeInTheDocument();
       expect(screen.getByText(section.subtitle)).toBeInTheDocument();
     }
+    expect(screen.queryByTestId('section-card-interview_career')).not.toBeInTheDocument();
   });
 
-  it('3. Displays canonical topic counts for each section', () => {
+  it('3. Displays canonical topic counts for each active section', () => {
     render(<TestHarness />);
 
-    for (const section of PREPARATION_SECTIONS) {
+    const activeSections = PREPARATION_SECTIONS.filter((s) => s.id !== 'interview_career');
+    for (const section of activeSections) {
       const card = screen.getByTestId(`section-card-${section.id}`);
       expect(card).toHaveTextContent(`${section.topicIds.length} Topics`);
     }
 
-    // Baseline counts: 0 / 13
+    // Baseline counts: 0 / 11
     expect(screen.getByTestId('prep-covered-count')).toHaveTextContent('0');
     expect(screen.getByTestId('prep-proven-count')).toHaveTextContent('0');
     expect(screen.getByTestId('prep-ready-count')).toHaveTextContent('0');
@@ -222,7 +225,7 @@ describe('PREPARATION MANUFACTURING PART 1: Hub & Macro Progression', () => {
     }
   });
 
-  it('9. Preserves existing deep link contract and return to hub navigation', () => {
+  it('9. Preserves navigation contract: returns to preparation hub from topic view', () => {
     let capturedContext: ReturnType<typeof usePlacement> | null = null;
 
     function ContextCaptureHarness() {
@@ -238,7 +241,7 @@ describe('PREPARATION MANUFACTURING PART 1: Hub & Macro Progression', () => {
       </PlacementProvider>
     );
 
-    // Set deep link to prep-sql
+    // Open prep-sql from preparation hub
     act(() => {
       capturedContext!.setRoute('preparation', 'prep-sql');
     });
@@ -246,11 +249,12 @@ describe('PREPARATION MANUFACTURING PART 1: Hub & Macro Progression', () => {
     expect(screen.getByRole('heading', { level: 1, name: /SQL & Relational Queries/i })).toBeInTheDocument();
 
     // Click back button to return to hub
-    const backBtn = screen.getByRole('button', { name: /Back to Today/i });
+    const backBtn = screen.getByRole('button', { name: /Preparation Hub/i });
     fireEvent.click(backBtn);
 
-    // Should return to dashboard or hub
-    expect(capturedContext!.routeState.route).toBe('dashboard');
+    // Should return to preparation hub
+    expect(capturedContext!.routeState.route).toBe('preparation');
+    expect(capturedContext!.routeState.targetId).toBeUndefined();
   });
 
   it('10. Renders signature motion: Preparation Knowledge Flow rail with luminous traveler', () => {
@@ -265,10 +269,12 @@ describe('PREPARATION MANUFACTURING PART 1: Hub & Macro Progression', () => {
     expect(traveler).toBeInTheDocument();
     expect(traveler).toHaveClass('prep-knowledge-traveler');
 
-    // 4 section waypoints exist
-    for (const section of PREPARATION_SECTIONS) {
+    // Active section waypoints exist, retired section excluded
+    const activeSections = PREPARATION_SECTIONS.filter((s) => s.id !== 'interview_career');
+    for (const section of activeSections) {
       expect(screen.getByTestId(`prep-flow-step-${section.id}`)).toBeInTheDocument();
     }
+    expect(screen.queryByTestId('prep-flow-step-interview_career')).not.toBeInTheDocument();
   });
 
   it('11. Applies active breathing emphasis to dominant section in knowledge flow rail', () => {

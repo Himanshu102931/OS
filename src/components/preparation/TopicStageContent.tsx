@@ -76,7 +76,6 @@ export const TopicStageContent: React.FC<TopicStageContentProps> = ({
   const isOrientDone = topicProgress?.completedStages.includes('orient') ?? false;
   const isLearnDone = topicProgress?.completedStages.includes('learn') ?? false;
   const isApplyDone = topicProgress?.completedStages.includes('apply') ?? false;
-  const isAssessDone = topicProgress?.completedStages.includes('assess') ?? false;
   const isInterviewDone = topicProgress?.completedStages.includes('interview') ?? false;
 
   const handlePrevSubtopic = () => {
@@ -184,6 +183,7 @@ export const TopicStageContent: React.FC<TopicStageContentProps> = ({
                   return (
                     <button
                       key={idx}
+                      data-testid={`outline-subtopic-${idx}`}
                       type="button"
                       onClick={() => {
                         if (onSelectSubtopic) onSelectSubtopic(idx);
@@ -287,19 +287,6 @@ export const TopicStageContent: React.FC<TopicStageContentProps> = ({
                   >
                     <CheckCircle2 className="size-3.5 text-[var(--success)]" />
                     <span>Mark Orient complete</span>
-                  </button>
-                )}
-
-                {/* Learn completion button if orient is complete and not on last subtopic */}
-                {isOrientDone && !isLearnDone && subtopicIndex < totalSubtopics - 1 && (
-                  <button
-                    type="button"
-                    data-testid="mark-learn-complete"
-                    onClick={() => onMarkStageComplete('learn')}
-                    className="flex items-center gap-1.5 px-3 py-2 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] text-[var(--foreground)] hover:border-[var(--accent)] transition-colors cursor-pointer"
-                  >
-                    <CheckCircle2 className="size-3.5 text-[var(--success)]" />
-                    <span>Mark Learn complete</span>
                   </button>
                 )}
               </div>
@@ -491,7 +478,10 @@ export const TopicStageContent: React.FC<TopicStageContentProps> = ({
 
             {/* Historical Recorded Attempts if any */}
             {topicAttempts.length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-[var(--border)]">
+              <div
+                className="space-y-2 pt-2 border-t border-[var(--border)]"
+                data-testid="recorded-practice-attempts"
+              >
                 <h3 className="text-xs font-mono font-semibold uppercase tracking-wider text-[var(--foreground-muted)]">
                   Recorded Practice Attempts ({topicAttempts.length})
                 </h3>
@@ -527,17 +517,6 @@ export const TopicStageContent: React.FC<TopicStageContentProps> = ({
 
             {/* Bottom Controls */}
             <div className="pt-4 border-t border-[var(--border)] flex items-center justify-between gap-3">
-              {/* Legacy assess button for test compatibility */}
-              {!isAssessDone && (
-                <button
-                  type="button"
-                  data-testid="mark-assess-complete"
-                  onClick={() => onMarkStageComplete('assess')}
-                  className="hidden text-xs"
-                >
-                  Mark Assess complete
-                </button>
-              )}
 
               <button
                 type="button"
@@ -711,26 +690,6 @@ export const TopicStageContent: React.FC<TopicStageContentProps> = ({
                 <span className="font-mono text-[var(--foreground-muted)]">
                   Evidence score: {topicSkill.evidenceStrength}/100 ({topicSkill.freshness})
                 </span>
-              </div>
-
-              {/* Legacy review and evidence complete buttons for test compatibility */}
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  data-testid="mark-review-complete"
-                  onClick={() => onMarkStageComplete('review')}
-                  className="px-2.5 py-1 text-[11px] rounded bg-[var(--surface-muted)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
-                >
-                  Record Review complete
-                </button>
-                <button
-                  type="button"
-                  data-testid="mark-evidence-complete"
-                  onClick={() => onMarkStageComplete('evidence')}
-                  className="px-2.5 py-1 text-[11px] rounded bg-[var(--surface-muted)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
-                >
-                  Record Evidence complete
-                </button>
               </div>
             </div>
 

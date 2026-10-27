@@ -28,6 +28,7 @@ import type {
   DSAChallengeState,
   DSAChallengeNote,
   DSAModuleLessonProgress,
+  ContinuousLearningStep,
 } from '../types';
 import {
   DOMAINS,
@@ -176,6 +177,10 @@ interface PlacementContextType {
   updateDSAProgress: (updatedProgress: DSAProgress) => void;
   updateSkillState: (updatedSkillState: TopicSkillState) => void;
   updatePreparationTopicProgress: (updatedProgress: PreparationTopicProgress) => void;
+  updatePreparationLearningCursor: (
+    topicId: string,
+    cursor: { activeStep: ContinuousLearningStep; subtopicIndex: number }
+  ) => void;
   completePreparationStage: (topic: PreparationTopic, stage: TopicStageId) => void;
   saveCompanyOverlay: (company: CompanyOverlay) => void;
   deleteCompanyOverlay: (companyId: string) => void;
@@ -796,7 +801,6 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const existing = prev.preparationTopicProgress[updatedProgress.topicId];
       const merged: PreparationTopicProgress = existing
         ? {
-            ...existing,
             ...updatedProgress,
             completedStages: Array.from(
               new Set([
@@ -804,10 +808,13 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 ...(updatedProgress.completedStages || []),
               ])
             ),
+            evidenceStrength: Math.max(existing.evidenceStrength ?? 0, updatedProgress.evidenceStrength ?? 0),
+            freshness: existing.freshness !== 'untested' ? existing.freshness : updatedProgress.freshness,
             stageProgress: {
-              ...(existing.stageProgress || {}),
               ...(updatedProgress.stageProgress || {}),
+              ...(existing.stageProgress || {}),
             },
+            learningCursor: updatedProgress.learningCursor || existing.learningCursor,
           }
         : updatedProgress;
 
@@ -816,6 +823,85 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         preparationTopicProgress: {
           ...prev.preparationTopicProgress,
           [updatedProgress.topicId]: merged,
+        },
+      };
+    });
+  };
+
+  const updatePreparationLearningCursor = (
+    topicId: string,
+    cursor: { activeStep: ContinuousLearningStep; subtopicIndex: number }
+  ) => {
+    setAppState((prev) => {
+      const existing = prev.preparationTopicProgress[topicId];
+      const nowISO = new Date().toISOString();
+      const topic = PREPARATION_TOPICS.find((t) => t.id === topicId);
+
+      const targetStage: TopicStageId =
+        cursor.activeStep === 'learn'
+          ? (existing?.completedStages.includes('learn')
+              ? 'learn'
+              : (existing?.completedStages.includes('orient') ? 'learn' : 'orient'))
+          : cursor.activeStep === 'practice'
+          ? 'apply'
+          : 'review';
+
+      if (!existing) {
+        if (!topic) return prev;
+        const newProg: PreparationTopicProgress = {
+          topicId: topic.id,
+          sectionId: topic.sectionId,
+          domainId: topic.domainId,
+          currentStage: targetStage,
+          completedStages: [],
+          stageProgress: {
+            orient: { timeSpentMinutes: 0 },
+            learn: { timeSpentMinutes: 0 },
+            apply: { timeSpentMinutes: 0 },
+            assess: { timeSpentMinutes: 0 },
+            review: { timeSpentMinutes: 0 },
+            interview: { timeSpentMinutes: 0 },
+            evidence: { timeSpentMinutes: 0 },
+          },
+          lastAccessedAt: nowISO,
+          totalTimeSpentMinutes: 0,
+          evidenceStrength: 0,
+          freshness: 'untested',
+          createdAt: nowISO,
+          updatedAt: nowISO,
+          learningCursor: {
+            activeStep: cursor.activeStep,
+            subtopicIndex: cursor.subtopicIndex,
+            lastAccessedAt: nowISO,
+          },
+        };
+        return {
+          ...prev,
+          preparationTopicProgress: {
+            ...prev.preparationTopicProgress,
+            [topicId]: newProg,
+          },
+        };
+      }
+
+      // Existing topic progress: ONLY update owned cursor navigation fields!
+      // Do NOT overwrite completedStages, stageProgress, evidenceStrength, freshness, totalTimeSpentMinutes, createdAt.
+      const updatedProg: PreparationTopicProgress = {
+        ...existing,
+        currentStage: targetStage,
+        lastAccessedAt: nowISO,
+        learningCursor: {
+          activeStep: cursor.activeStep,
+          subtopicIndex: cursor.subtopicIndex,
+          lastAccessedAt: nowISO,
+        },
+      };
+
+      return {
+        ...prev,
+        preparationTopicProgress: {
+          ...prev.preparationTopicProgress,
+          [topicId]: updatedProg,
         },
       };
     });
@@ -1526,6 +1612,7 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         updateDSAProgress,
         updateSkillState,
         updatePreparationTopicProgress,
+        updatePreparationLearningCursor,
         completePreparationStage,
         saveCompanyOverlay,
         deleteCompanyOverlay,

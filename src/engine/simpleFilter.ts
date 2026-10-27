@@ -158,3 +158,25 @@ export function isEligibleSimpleReviewCandidate(candidate?: {
   }
   return true;
 }
+
+export function isEligibleSimplePreparationSection(section?: { id?: string } | null): boolean {
+  if (!section || !section.id) return false;
+  return section.id !== 'interview_career';
+}
+
+export function isEligibleSimplePreparationTopic(topic?: {
+  id?: string;
+  sectionId?: string;
+  domainId?: string;
+} | null): boolean {
+  if (!topic) return false;
+  if (topic.sectionId === 'interview_career') return false;
+  if (isRetiredDomain(topic.domainId)) return false;
+  if (topic.id) {
+    const tid = topic.id.toLowerCase();
+    if (tid.startsWith('prep-interview') || tid.startsWith('prep-proj')) {
+      return false;
+    }
+  }
+  return true;
+}

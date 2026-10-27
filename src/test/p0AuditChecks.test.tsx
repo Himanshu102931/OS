@@ -98,14 +98,10 @@ describe('P0 AUDIT CHECKS: IDENTITY VERIFICATION & DATA SAFETY', () => {
       expect(capturedPlacement!.routeState.route).toBe('preparation');
       expect(capturedPlacement!.routeState.targetId).toBe('prep-lang');
 
-      // Banner is rendered
-      const advanceBtn = screen.getByRole('button', { name: /Complete Activity & Advance/i });
-      expect(advanceBtn).toBeInTheDocument();
-
-      // Click "Complete Activity & Advance" in the Python workspace header
-      act(() => {
-        fireEvent.click(advanceBtn);
-      });
+      // Per STEP 5 requirements:
+      // When Two Pointers is active, opening Python must NOT display session banner or Complete Activity button
+      expect(screen.queryByTestId('session-deep-link-banner')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Complete Activity & Advance/i })).not.toBeInTheDocument();
 
       // Crucial assertions:
       // 1. Two Pointers MUST NOT be completed!

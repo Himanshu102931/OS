@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import { PlacementProvider, usePlacement } from '../context/PlacementContext';
 import { SessionProvider } from '../components/dashboard/SessionProvider';
+import { SessionContext, type SessionContextValue } from '../components/dashboard/SessionContext';
 import { TopicWorkspace } from '../components/preparation/TopicWorkspace';
 import { getPreparationTopic } from '../data/preparationDataset';
 
@@ -257,6 +258,40 @@ describe('PREPARATION MANUFACTURING PART 2: Topic Knowledge Workspace', () => {
     expect(capturedContext!.routeState.targetId).toBe('prep-lang');
   });
 
+  const mockActiveSessionMatchingPrepLang: SessionContextValue = {
+    sessionState: null,
+    composeSession: vi.fn(),
+    advanceActivity: vi.fn(),
+    reopenActivity: vi.fn(),
+    recoverActivity: vi.fn(),
+    clearSession: vi.fn(),
+    currentActivity: {
+      id: 'act-prep-lang',
+      type: 'preparation_lesson',
+      title: 'Programming Language (Python)',
+      description: 'Core syntax and typing system',
+      sourceSubsystem: 'preparation',
+      priority: 'normal_progression',
+      priorityScore: 85,
+      domainId: 'python',
+      topicId: 'prep-lang',
+      targetId: 'prep-lang',
+      estimatedMinutes: 30,
+      reason: "Committed in today's morning plan",
+      route: 'preparation',
+      deepLink: { route: 'preparation', param: 'prep-lang' },
+      producesEvidence: true,
+      isBlocked: false,
+    },
+    remainingTime: 30,
+    sessionProgress: { completed: 0, total: 1, percent: 0 },
+    isSessionActive: true,
+    selectedDuration: 30,
+    setSelectedDuration: vi.fn(),
+    sessionMode: 'balanced',
+    setSessionMode: vi.fn(),
+  };
+
   it('13. Deep-link route contract renders session banner when deep-linked from Today', () => {
     let capturedContext: ReturnType<typeof usePlacement> | null = null;
 
@@ -267,9 +302,9 @@ describe('PREPARATION MANUFACTURING PART 2: Topic Knowledge Workspace', () => {
 
     render(
       <PlacementProvider>
-        <SessionProvider>
+        <SessionContext.Provider value={mockActiveSessionMatchingPrepLang}>
           <ContextCapture />
-        </SessionProvider>
+        </SessionContext.Provider>
       </PlacementProvider>
     );
 
@@ -293,9 +328,9 @@ describe('PREPARATION MANUFACTURING PART 2: Topic Knowledge Workspace', () => {
 
     render(
       <PlacementProvider>
-        <SessionProvider>
+        <SessionContext.Provider value={mockActiveSessionMatchingPrepLang}>
           <ContextCapture />
-        </SessionProvider>
+        </SessionContext.Provider>
       </PlacementProvider>
     );
 
@@ -308,6 +343,7 @@ describe('PREPARATION MANUFACTURING PART 2: Topic Knowledge Workspace', () => {
       fireEvent.click(advanceBtn);
     });
 
+    expect(mockActiveSessionMatchingPrepLang.advanceActivity).toHaveBeenCalledWith('completed', 'prep-lang');
     expect(capturedContext!.routeState.route).toBe('dashboard');
   });
 

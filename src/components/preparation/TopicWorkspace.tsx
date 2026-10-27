@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { PreparationTopic, TopicStageId, ContinuousLearningStep } from '../../types';
 import { usePlacement } from '../../context/PlacementContext';
 import { useSession } from '../dashboard/SessionContext';
@@ -10,7 +10,6 @@ import {
   evaluateTopicProgression,
   resolveContinuousLearningStep,
   resolveSubtopicIndex,
-  updateLearningCursor,
 } from '../../engine/preparationEngine';
 import { getPreparationTopic } from '../../data/preparationDataset';
 import { TopicWorkspaceHeader } from './TopicWorkspaceHeader';
@@ -45,20 +44,32 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
     evidenceLogs,
     preparationTopicProgress,
     updatePreparationTopicProgress,
+    updatePreparationLearningCursor,
     completePreparationStage,
   } = usePlacement();
   const session = useSafeSession();
   const [dismissedTargetId, setDismissedTargetId] = useState<string | null>(null);
 
-  const isDeepLinked =
-    routeState.route === 'preparation' &&
-    Boolean(routeState.targetId) &&
-    routeState.targetId === topic.id &&
-    routeState.targetId !== dismissedTargetId;
-
+  // An active adaptive session activity is deep-linked ONLY IF:
+  // 1. A session is currently active
+  // 2. The active activity specifically targets or references THIS topic
+  // 3. The route targetId matches this topic
+  // 4. The user has not dismissed this deep-link banner in this view
   const isCurrentSessionActivity = Boolean(
-    session?.currentActivity &&
-    (session.currentActivity.targetId === topic.id || session.currentActivity.id === topic.id)
+    session?.isSessionActive &&
+    session.currentActivity &&
+    (session.currentActivity.targetId === topic.id ||
+      session.currentActivity.topicId === topic.id ||
+      session.currentActivity.sourceTopicId === topic.id ||
+      session.currentActivity.sourceTaskId === topic.id ||
+      session.currentActivity.id === topic.id)
+  );
+
+  const isDeepLinked = Boolean(
+    isCurrentSessionActivity &&
+    routeState.route === 'preparation' &&
+    routeState.targetId === topic.id &&
+    routeState.targetId !== dismissedTargetId
   );
 
   const topicProgress = preparationTopicProgress[topic.id];
@@ -122,18 +133,20 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
 
   const handleStepSelect = (step: ContinuousLearningStep) => {
     setActiveStep(step);
-    updatePreparationTopicProgress(
-      updateLearningCursor(topic, topicProgress, step, subtopicIndex)
-    );
+    updatePreparationLearningCursor(topic.id, {
+      activeStep: step,
+      subtopicIndex,
+    });
   };
 
   const handleSubtopicSelect = (index: number) => {
     const maxIdx = Math.max(0, (topic.subtopics?.length ?? 1) - 1);
     const clamped = Math.max(0, Math.min(index, maxIdx));
     setSubtopicIndex(clamped);
-    updatePreparationTopicProgress(
-      updateLearningCursor(topic, topicProgress, activeStep, clamped)
-    );
+    updatePreparationLearningCursor(topic.id, {
+      activeStep,
+      subtopicIndex: clamped,
+    });
   };
 
   const handleStageSelect = (stage: TopicStageId) => {
@@ -205,20 +218,25 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
     setRoute('dashboard');
   };
 
-  // Topic specific sessions
-  const matchingSessions = practiceSessions.filter(
-    (s) => s.topicId === topic.id || s.domainId === topic.domainId
-  );
+  // Topic specific sessions:
+  // Prefer sessions explicitly assigned to this topic (s.topicId === topic.id).
+  // If none exist, include domain-level sessions only if they are unassigned to any topic (!s.topicId && s.domainId === topic.domainId).
+  // Never match sessions explicitly assigned to a different topic!
+  const matchingSessions = useMemo(() => {
+    const exact = practiceSessions.filter((s) => s.topicId === topic.id);
+    if (exact.length > 0) return exact;
+    return practiceSessions.filter((s) => !s.topicId && s.domainId === topic.domainId);
+  }, [practiceSessions, topic.id, topic.domainId]);
 
-  // Topic specific attempts
-  const topicAttempts = practiceAttempts.filter(
-    (a) => a.topicId === topic.id || a.domainId === topic.domainId
-  );
+  // Topic specific attempts: strict topic identity
+  const topicAttempts = useMemo(() => {
+    return practiceAttempts.filter((a) => a.topicId === topic.id);
+  }, [practiceAttempts, topic.id]);
 
-  // Topic specific evidence logs
-  const topicEvidence = evidenceLogs.filter(
-    (e) => e.topicId === topic.id || e.domainId === topic.domainId
-  );
+  // Topic specific evidence logs: strict topic identity
+  const topicEvidence = useMemo(() => {
+    return evidenceLogs.filter((e) => e.topicId === topic.id);
+  }, [evidenceLogs, topic.id]);
 
   return (
     <div className="space-y-6" data-testid="topic-knowledge-workspace">
