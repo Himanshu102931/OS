@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart3, ChevronDown, ChevronUp, Settings, Building2, AlertCircle } from 'lucide-react';
+import { BarChart3, ChevronDown, ChevronUp, Settings, AlertCircle } from 'lucide-react';
 import { TodaySection, Panel, MonoChip, TodayButton } from './todayPrimitives';
 import type { CompanyOverlay, TopicSkillState } from '../../types';
 
@@ -11,7 +11,7 @@ export interface TelemetryDisclosureProps {
   onToggle: () => void;
 
   skillStates: Record<string, TopicSkillState>;
-  companyOverlays: CompanyOverlay[];
+  companyOverlays?: CompanyOverlay[];
   /** Engine metadata — read, never recomputed (§11). */
   mode: string;
   candidateCount: number;
@@ -34,7 +34,7 @@ const FRESHNESS_TONE: Record<string, 'success' | 'warning' | 'neutral'> = {
  */
 export const TelemetryDisclosure: React.FC<TelemetryDisclosureProps> = ({
   revealed, observeRef, open, onToggle,
-  skillStates, companyOverlays, mode, candidateCount, revealedSectionCount, observerActive,
+  skillStates, mode, candidateCount, revealedSectionCount, observerActive,
   onRoute,
 }) => (
   <TodaySection
@@ -65,7 +65,7 @@ export const TelemetryDisclosure: React.FC<TelemetryDisclosureProps> = ({
     </button>
 
     {open ? (
-      <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-3">
         <Panel className="p-4">
           <h3 className="flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-text-secondary">
             <AlertCircle className="size-3.5 text-text-tertiary" aria-hidden="true" />
@@ -76,21 +76,6 @@ export const TelemetryDisclosure: React.FC<TelemetryDisclosureProps> = ({
               <div key={sk.topicId} className="flex items-center justify-between gap-2 text-xs">
                 <span className="truncate text-text-primary">{sk.topicId.replace('topic-', '')}</span>
                 <MonoChip micro tone={FRESHNESS_TONE[sk.freshness] ?? 'neutral'}>{sk.freshness}</MonoChip>
-              </div>
-            ))}
-          </div>
-        </Panel>
-
-        <Panel className="p-4">
-          <h3 className="flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-text-secondary">
-            <Building2 className="size-3.5 text-text-tertiary" aria-hidden="true" />
-            Target Companies
-          </h3>
-          <div className="mt-2 space-y-1.5">
-            {companyOverlays.slice(0, 3).map((comp) => (
-              <div key={comp.id} className="flex items-center justify-between gap-2 text-xs">
-                <span className="truncate text-text-primary">{comp.companyName}</span>
-                <span className="font-mono text-[11px] text-text-tertiary">{comp.eventDate ?? 'no date'}</span>
               </div>
             ))}
           </div>

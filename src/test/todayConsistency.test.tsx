@@ -34,6 +34,7 @@ import {
   getDefaultStorageState,
   type AppExtendedStorageState,
 } from '../storage/storageAdapter';
+import { isEligibleSimpleDomain } from '../engine/simpleFilter';
 import type { CompanyOverlay, DSAAttempt, DSAProgress, PlacementMode } from '../types';
 
 // React 19 requires this flag for act()-based updates outside a test renderer.
@@ -363,21 +364,21 @@ describe('C6 A — TodayHeroVisual uses the canonical Today candidate', () => {
 
 /* ═══ B. DAILY SIGNAL GRAPH ═════════════════════════════════════════ */
 describe('C6 B — DailySignalGraph uses canonical readiness', () => {
-  it('B1. renders every domain the canonical engine returns (no eight-domain cap)', () => {
+  it('B1. renders every active simple domain the canonical engine returns (9 active domains, no eight-domain cap)', () => {
     renderSignals();
 
-    const canonical = canonicalDomains();
-    expect(getCtx().domains.length).toBeGreaterThan(8); // seed really has 11
+    const canonical = canonicalDomains().filter((d) => isEligibleSimpleDomain(d.domainId));
+    expect(canonical.length).toBe(9);
 
     const shown = renderedDomains();
     expect(shown).toHaveLength(canonical.length);
     expect(shown.map((d) => d.id)).toEqual(canonical.map((d) => d.domainId));
   });
 
-  it('B2. labels, statuses and percentages match the canonical engine exactly', () => {
+  it('B2. labels, statuses and percentages match the canonical engine exactly for active domains', () => {
     renderSignals();
 
-    const canonical = canonicalDomains();
+    const canonical = canonicalDomains().filter((d) => isEligibleSimpleDomain(d.domainId));
     const shown = renderedDomains();
 
     expect(shown.map((d) => d.label)).toEqual(canonical.map((d) => d.shortName));
@@ -394,7 +395,7 @@ describe('C6 B — DailySignalGraph uses canonical readiness', () => {
       getCtx().logDSAAttempt(dsaAttempt(todayISO), dsaProgress(todayISO), 95);
     });
 
-    const canonical = canonicalDomains();
+    const canonical = canonicalDomains().filter((d) => isEligibleSimpleDomain(d.domainId));
     const shown = renderedDomains();
     expect(shown.map((d) => d.readiness)).toEqual(canonical.map((d) => d.overallReadiness));
     expect(shown.map((d) => d.status)).toEqual(canonical.map((d) => d.status));
@@ -406,9 +407,10 @@ describe('C6 B — DailySignalGraph uses canonical readiness', () => {
     renderSignals();
 
     const shown = renderedDomains();
-    expect(shown.length).toBeGreaterThan(0);
+    expect(shown.length).toBe(9);
     for (const d of shown) expect(d.readiness).toBe(0);
-    expect(shown.map((d) => d.status)).toEqual(canonicalDomains().map((d) => d.status));
+    const canonical = canonicalDomains().filter((d) => isEligibleSimpleDomain(d.domainId));
+    expect(shown.map((d) => d.status)).toEqual(canonical.map((d) => d.status));
   });
 
   it('B5. no local 40/65 thresholds, no slice(0, 8), no shadow engine call remain', () => {
@@ -503,7 +505,7 @@ describe('C6 D — Today consumes the same readiness result as Skills/Analytics'
     });
 
     const shown = renderedDomains();
-    const canonical = canonicalDomains();
+    const canonical = canonicalDomains().filter((d) => isEligibleSimpleDomain(d.domainId));
     expect(shown.map((d) => d.id)).toEqual(canonical.map((d) => d.domainId));
     expect(shown.map((d) => d.status)).toEqual(canonical.map((d) => d.status));
     expect(shown.map((d) => d.readiness)).toEqual(canonical.map((d) => d.overallReadiness));

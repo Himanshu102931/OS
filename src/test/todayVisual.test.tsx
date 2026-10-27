@@ -621,7 +621,7 @@ describe('C7-05 — signal graph connectors', () => {
     expect(buildSignalConnectors([readiness('dsa', 0), readiness('os', 0)])).toEqual([]);
   });
 
-  it('G5. renders all 11 domains and one connector per drawable adjacent pair', () => {
+  it('G5. renders all 9 active domains and one connector per drawable adjacent pair in Simple Mode', () => {
     seed({ skillStates: skillStatesForEveryDomain() });
     renderSignals();
 
@@ -629,7 +629,7 @@ describe('C7-05 — signal graph connectors', () => {
       domainId: el.getAttribute('data-domain-id') ?? '',
       overallReadiness: Number(el.getAttribute('data-domain-readiness')),
     }));
-    expect(domains).toHaveLength(11);
+    expect(domains).toHaveLength(9);
     expect(domains.every((d) => d.overallReadiness > 0)).toBe(true);
 
     const expectedCount = domains.reduce((n, d, i) => {

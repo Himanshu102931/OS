@@ -505,9 +505,9 @@ describe('TASK 174 — Personalized Onboarding, Dual-Track Dashboard & Assessmen
         </PlacementProvider>
       );
 
-      // Verify all 11 domain elements render with dual-track attributes
+      // Verify exactly 9 active domain elements render with dual-track attributes (interviews & projects filtered in Simple Mode)
       const domainElements = screen.getAllByTestId('signal-domain');
-      expect(domainElements).toHaveLength(11);
+      expect(domainElements).toHaveLength(9);
 
       // Helper to find domain by id
       const findDomain = (id: string) => domainElements.find((el) => el.getAttribute('data-domain-id') === id);
@@ -531,18 +531,12 @@ describe('TASK 174 — Personalized Onboarding, Dual-Track Dashboard & Assessmen
       expect(comm?.getAttribute('data-domain-diagnostic-ability')).toBe('53');
       expect(comm?.getAttribute('data-domain-practical-mastery')).toBe('0');
 
-      // Interviews: ability 52, practical 0
-      const interviews = findDomain('interviews');
-      expect(interviews).toBeDefined();
-      expect(interviews?.getAttribute('data-domain-diagnostic-ability')).toBe('52');
-      expect(interviews?.getAttribute('data-domain-practical-mastery')).toBe('0');
+      // Interviews & Projects: retired from Today presentation in Simple Mode
+      expect(findDomain('interviews')).toBeUndefined();
+      expect(findDomain('projects')).toBeUndefined();
 
-      // Projects: unassessed diagnostic, practical 0
-      const proj = findDomain('projects');
-      expect(proj).toBeDefined();
-      expect(proj?.getAttribute('data-domain-diagnostic-ability')).toBe('');
-      expect(proj?.getAttribute('data-domain-diagnostic-status')).toBe('unassessed');
-      expect(proj?.getAttribute('data-domain-practical-mastery')).toBe('0');
+      // Underlying assessment domain results remain intact in stored state
+      expect(state.assessmentState?.domainResults?.find((dr) => dr.domainId === 'interviews')?.abilityScore).toBe(52);
 
       // Hover on Aptitude and check detail breakdown and navigation CTA
       act(() => {

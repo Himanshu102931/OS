@@ -1,10 +1,11 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { usePlacement } from '../../context/PlacementContext';
 import {
   calculateDomainReadinessList,
   calculateTopicReadiness,
   type DomainReadiness,
 } from '../../engine/skillsEngine';
+import { isEligibleSimpleDomain } from '../../engine/simpleFilter';
 import { Code2, Database, Cpu, Network, Calculator, MessageSquare, Target, Layout, Boxes, AlertCircle, ArrowRight } from 'lucide-react';
 
 /**
@@ -114,19 +115,6 @@ export const DailySignalGraph: React.FC = () => {
     setRoute,
   } = usePlacement();
   const [hoveredDomain, setHoveredDomain] = useState<string | null>(null);
-  const [reducedMotion, setReducedMotion] = useState(() =>
-    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      : false
-  );
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const h = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
-    mq.addEventListener('change', h);
-    return () => mq.removeEventListener('change', h);
-  }, []);
 
   // C6-03 — CANONICAL readiness. Exactly the two calls SkillsView and
   // analyticsEngine make (calculateTopicReadiness → calculateDomainReadinessList),
@@ -150,14 +138,16 @@ export const DailySignalGraph: React.FC = () => {
     return calculateDomainReadinessList(domains, topics, topicReadinessList);
   }, [domains, topics, taskDefinitions, taskProgress, dsaProblems, dsaProgress, dsaAttempts, evidenceLogs, skillStates, companyOverlays, todayDate]);
 
-  const urgentComps = companyOverlays.filter(
-    (c) => c.applicationStatus === 'interview_scheduled' || c.applicationStatus === 'oa_scheduled'
+  // P1 — Simple Mode eligible readiness domains (active curriculum only)
+  const visibleReadinessByDomain = useMemo<DomainReadiness[]>(
+    () => readinessByDomain.filter((r) => isEligibleSimpleDomain(r.domainId)),
+    [readinessByDomain]
   );
 
   // C7-05 — connector geometry derived from the displayed sequence.
   const connectors = useMemo(
-    () => buildSignalConnectors(readinessByDomain, SIGNAL_VIEWBOX_WIDTH),
-    [readinessByDomain]
+    () => buildSignalConnectors(visibleReadinessByDomain, SIGNAL_VIEWBOX_WIDTH),
+    [visibleReadinessByDomain]
   );
 
   return (
@@ -180,11 +170,6 @@ export const DailySignalGraph: React.FC = () => {
             <span className="w-2 h-2 rounded-xs bg-accent/80 border border-accent" />
             <span>Track B: Practical Mastery</span>
           </div>
-          {urgentComps.length > 0 && (
-            <span className="text-[10px] px-2 py-0.5 rounded bg-status-warning/10 text-status-warning border border-status-warning/30 font-mono">
-              {urgentComps.length} urgent
-            </span>
-          )}
         </div>
       </div>
       <div className="bg-surface-panel border border-border-default rounded-xl p-4 sm:p-5">
@@ -221,10 +206,10 @@ export const DailySignalGraph: React.FC = () => {
             ))}
           </svg>
           <div className="absolute inset-0 overflow-x-auto overflow-y-hidden">
-            {/* C6-04 — render EVERY domain the canonical engine returns.
+            {/* C6-04 — render EVERY active simple domain returned by the policy.
                 No slice cap: the row scrolls horizontally instead. */}
             <div className="flex h-full min-w-max items-center justify-around gap-2 px-4">
-              {readinessByDomain.map((r) => {
+              {visibleReadinessByDomain.map((r) => {
                 const Icon = DOMAIN_ICON[r.domainId] ?? Code2;
                 const isHovered = hoveredDomain === r.domainId;
                 const meta = statusMeta(r.status);
@@ -342,7 +327,7 @@ export const DailySignalGraph: React.FC = () => {
         {hoveredDomain && (
           <div className="mt-3 pt-3 border-t border-border-default animate-fade-in" data-testid="signal-domain-detail">
             {(() => {
-              const r = readinessByDomain.find((d) => d.domainId === hoveredDomain);
+              const r = visibleReadinessByDomain.find((d) => d.domainId === hoveredDomain);
               if (!r) return null;
               const meta = statusMeta(r.status);
               const statusLabel = meta.label;
@@ -425,17 +410,6 @@ export const DailySignalGraph: React.FC = () => {
           </div>
         )}
       </div>
-      {urgentComps.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {urgentComps.map((comp) => (
-            <div key={comp.id} className="flex items-center gap-2 px-3 py-2 bg-surface-panel border border-status-warning/30 rounded-lg">
-              <div className="w-2 h-2 rounded-full bg-status-warning" style={{ animation: reducedMotion ? 'none' : 'pulse-dot 2s ease-in-out infinite' }} />
-              <span className="text-xs text-text-primary">{comp.companyName}</span>
-              <span className="text-[10px] font-mono text-status-warning">{comp.applicationStatus.replace('_', ' ')}</span>
-            </div>
-          ))}
-        </div>
-      )}
     </section>
   );
 };

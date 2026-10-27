@@ -332,9 +332,9 @@ describe('TASK 173 — Post-Diagnostic Results, Navigation & Dashboard Signal Cl
       </PlacementProvider>
     );
 
-    // All domain signal columns in DailySignalGraph
+    // All 9 active domain signal columns in DailySignalGraph (Simple Mode)
     const domainElements = screen.getAllByTestId('signal-domain');
-    expect(domainElements).toHaveLength(11);
+    expect(domainElements).toHaveLength(9);
 
     // Since the user has 0 completed tasks and 0 DSA problems solved, each domain's practical readiness is 0%
     // and status MUST be 'needs_baseline' (not 'at_risk')

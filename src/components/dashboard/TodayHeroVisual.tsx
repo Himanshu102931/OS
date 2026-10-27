@@ -272,7 +272,6 @@ export const TodayHeroVisual: React.FC<TodayHeroVisualProps> = ({ candidates }) 
   const orbitRadius = size * 0.34;
 
   const dueCount = nodes.filter((n) => n.id !== 'primary' && n.state === 'due').length;
-  const urgentCount = nodes.filter((n) => n.id !== 'primary' && n.state === 'urgent').length;
   const todayAssignments = dailyTaskAssignments.filter(
     (a) => a.date === todayDate && isEligibleSimpleDailyAssignment(a)
   );
@@ -316,7 +315,7 @@ export const TodayHeroVisual: React.FC<TodayHeroVisualProps> = ({ candidates }) 
     >
       {/* Screen reader summary paragraph (§13.7) */}
       <p className="sr-only">
-        {`Mission: ${candidates[0]?.task?.title || 'All caught up'}. ${dueCount} domain${dueCount === 1 ? '' : 's'} due, ${urgentCount} company urgent, ${completedAssignments} of ${todayAssignments.length} assignments complete.`}
+        {`Mission: ${candidates[0]?.task?.title || 'All caught up'}. ${dueCount} domain${dueCount === 1 ? '' : 's'} due, ${completedAssignments} of ${todayAssignments.length} assignments complete.`}
       </p>
 
       <svg

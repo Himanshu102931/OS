@@ -1,6 +1,6 @@
 import React from 'react';
 import { Waypoints, ArrowRight } from 'lucide-react';
-import { TodaySection, SectionHeading, MonoChip } from './todayPrimitives';
+import { TodaySection, SectionHeading } from './todayPrimitives';
 import { DailySignalGraph } from './DailySignalGraph';
 import type { CompanyOverlay, AssessmentState } from '../../types';
 import type { AssessmentProfileReadout } from '../../engine/assessmentEngine';
@@ -9,8 +9,8 @@ export interface SignalsFocusProps {
   revealed: boolean;
   observeRef: (el: HTMLElement | null) => void;
 
-  companyOverlays: CompanyOverlay[];
-  onRoute: (route: 'interview' | 'companies' | 'analytics' | 'assessment') => void;
+  companyOverlays?: CompanyOverlay[];
+  onRoute: (route: 'analytics' | 'assessment') => void;
   assessmentProfileReadout?: AssessmentProfileReadout;
   assessmentState?: AssessmentState;
 }
@@ -27,7 +27,7 @@ const LEGEND: { status: string; label: string; swatch: string }[] = [
   { status: 'needs_baseline', label: 'Needs Baseline', swatch: 'bg-text-tertiary' },
 ];
 
-const TILES: { id: string; label: string; note: string; route: 'interview' | 'companies' | 'analytics'; icon: React.ReactElement }[] = [
+const TILES: { id: string; label: string; note: string; route: 'analytics'; icon: React.ReactElement }[] = [
   { id: 'evidence', label: 'Evidence trace', note: '', route: 'analytics', icon: <Waypoints className="size-4" /> },
 ];
 
@@ -37,7 +37,7 @@ const TILES: { id: string; label: string; note: string; route: 'interview' | 'co
  * metrics, so no Attention or Progress datum is duplicated.
  */
 export const SignalsFocus: React.FC<SignalsFocusProps> = ({
-  revealed, observeRef, companyOverlays, onRoute, assessmentProfileReadout, assessmentState,
+  revealed, observeRef, companyOverlays: _companyOverlays, onRoute, assessmentProfileReadout, assessmentState,
 }) => (
   <TodaySection
     section="signals"
@@ -106,9 +106,7 @@ export const SignalsFocus: React.FC<SignalsFocusProps> = ({
           <span className="flex min-w-0 items-center gap-2">
             <span className="text-text-secondary" aria-hidden="true">{tile.icon}</span>
             <span className="truncate text-sm font-medium text-text-primary">{tile.label}</span>
-            {tile.id === 'companies' ? (
-              <MonoChip micro tone="neutral">{companyOverlays.length} targets</MonoChip>
-            ) : tile.note ? (
+            {tile.note ? (
               <span className="hidden truncate text-[11px] text-text-tertiary lg:inline">{tile.note}</span>
             ) : null}
           </span>

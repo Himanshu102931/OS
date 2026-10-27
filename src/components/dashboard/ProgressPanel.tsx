@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarRange, Target, Layers, CalendarCheck, ArrowRight, Radar } from 'lucide-react';
+import { CalendarRange, Target, Layers, CalendarCheck, ArrowRight } from 'lucide-react';
 import { TodaySection, SectionHeading, Panel, MeterBar, TodayButton } from './todayPrimitives';
 import type { AnalyticsSummary } from '../../engine/analyticsEngine';
 import type { Phase } from '../../types';
@@ -17,7 +17,7 @@ export interface ProgressPanelProps {
   analyticsTelemetry: AnalyticsSummary;
   activePhase: Phase;
 
-  onRoute: (route: 'interview' | 'skills' | 'analytics') => void;
+  onRoute: (route: 'skills' | 'analytics') => void;
 }
 
 interface CellProps {
@@ -115,11 +115,6 @@ export const ProgressPanel: React.FC<ProgressPanelProps> = ({
 
         {/* Link row — canonical surfaces are opened, never recomputed here. */}
         <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border-default pt-3">
-          <TodayButton variant="ghost" onClick={() => onRoute('interview')}>
-            <Radar className="size-3.5" aria-hidden="true" />
-            Open Interview Readiness
-            <ArrowRight className="size-3" aria-hidden="true" />
-          </TodayButton>
           <TodayButton variant="ghost" onClick={() => onRoute('skills')}>
             Open Skills
             <ArrowRight className="size-3" aria-hidden="true" />
