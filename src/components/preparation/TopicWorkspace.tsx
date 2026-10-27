@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { PreparationTopic, TopicStageId } from '../../types';
+import type { PreparationTopic, TopicStageId, ContinuousLearningStep } from '../../types';
 import { usePlacement } from '../../context/PlacementContext';
 import { useSession } from '../dashboard/SessionContext';
 import {
@@ -8,6 +8,9 @@ import {
   resolveInitialStage,
   evaluatePrerequisiteStatus,
   evaluateTopicProgression,
+  resolveContinuousLearningStep,
+  resolveSubtopicIndex,
+  updateLearningCursor,
 } from '../../engine/preparationEngine';
 import { getPreparationTopic } from '../../data/preparationDataset';
 import { TopicWorkspaceHeader } from './TopicWorkspaceHeader';
@@ -60,7 +63,17 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
 
   const topicProgress = preparationTopicProgress[topic.id];
 
-  // Restores the stage THIS topic saved, falling back to the topic's first stage
+  // Continuous Learning 3-Step State: learn -> practice -> check
+  const [activeStep, setActiveStep] = useState<ContinuousLearningStep>(() =>
+    resolveContinuousLearningStep(topic, topicProgress)
+  );
+
+  // Exact subtopic reading position (0-based)
+  const [subtopicIndex, setSubtopicIndex] = useState<number>(() =>
+    resolveSubtopicIndex(topic, topicProgress)
+  );
+
+  // Legacy stage state for backward compatibility
   const [activeStage, setActiveStage] = useState<TopicStageId>(() =>
     resolveInitialStage(topic, topicProgress)
   );
@@ -107,26 +120,57 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
     attempts: practiceAttempts,
   });
 
+  const handleStepSelect = (step: ContinuousLearningStep) => {
+    setActiveStep(step);
+    updatePreparationTopicProgress(
+      updateLearningCursor(topic, topicProgress, step, subtopicIndex)
+    );
+  };
+
+  const handleSubtopicSelect = (index: number) => {
+    const maxIdx = Math.max(0, (topic.subtopics?.length ?? 1) - 1);
+    const clamped = Math.max(0, Math.min(index, maxIdx));
+    setSubtopicIndex(clamped);
+    updatePreparationTopicProgress(
+      updateLearningCursor(topic, topicProgress, activeStep, clamped)
+    );
+  };
+
   const handleStageSelect = (stage: TopicStageId) => {
     setActiveStage(stage);
+    if (stage === 'orient' || stage === 'learn') {
+      setActiveStep('learn');
+    } else if (stage === 'apply' || stage === 'assess') {
+      setActiveStep('practice');
+    } else {
+      setActiveStep('check');
+    }
     updatePreparationTopicProgress(
       selectPreparationStage(topic, topicProgress, stage, new Date().toISOString())
     );
   };
 
-  const handleMarkStageComplete = () => {
-    completePreparationStage(topic, activeStage);
-    const updatedStages = topicProgress?.completedStages.includes(activeStage)
-      ? topicProgress.completedStages
-      : [...(topicProgress?.completedStages ?? []), activeStage];
-    const nextStage = topic.stages.find((s) => !updatedStages.includes(s)) ?? activeStage;
-    if (topic.stages.includes(nextStage)) {
-      setActiveStage(nextStage);
+  const handleMarkStageComplete = (stage?: TopicStageId) => {
+    const targetStage =
+      stage ??
+      (activeStep === 'learn'
+        ? topicProgress?.completedStages.includes('orient')
+          ? 'learn'
+          : 'orient'
+        : activeStep === 'practice'
+        ? 'apply'
+        : 'review');
+
+    completePreparationStage(topic, targetStage);
+
+    if (activeStep === 'learn' && targetStage === 'orient' && !topicProgress?.completedStages.includes('learn')) {
+      setActiveStage('learn');
     }
   };
 
   const handleCompleteActivity = () => {
-    completePreparationStage(topic, activeStage);
+    const targetStage = activeStage || (topic.stages[0] ?? 'orient');
+    completePreparationStage(topic, targetStage);
     setDismissedTargetId(routeState.targetId ?? null);
     // Check A: Verify workspace target matches the session activity being completed
     if (isCurrentSessionActivity && session?.currentActivity?.id) {
@@ -178,7 +222,7 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
 
   return (
     <div className="space-y-6" data-testid="topic-knowledge-workspace">
-      {/* Zone 3: Workspace Context & Topic Preparedness Header */}
+      {/* Workspace Header with 3-step navigation */}
       <TopicWorkspaceHeader
         topic={topic}
         topicSkill={topicSkill}
@@ -188,6 +232,8 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
         unmetPrerequisiteTopics={unmetPrerequisiteTopics}
         isDeepLinked={isDeepLinked}
         matchingSessions={matchingSessions}
+        activeStep={activeStep}
+        onSelectStep={handleStepSelect}
         onBack={handleBack}
         onNavigateRoadmap={navigateToRoadmap}
         onDismissDeepLink={handleDismissDeepLink}
@@ -195,7 +241,7 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
         onStartSession={onStartSession}
       />
 
-      {/* Zone 4: Prerequisite Proof Gate (Only rendered when locked) */}
+      {/* Actionable Prerequisite Gate (Rendered when locked) */}
       {prerequisiteStatus.isLocked && (
         <TopicPrerequisiteGate
           topic={topic}
@@ -206,10 +252,14 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
         />
       )}
 
-      {/* Zone 5: 7-Stage Progression Workspace (Rendered when unlocked) */}
+      {/* Continuous Learning Workspace (Rendered when unlocked) */}
       {!prerequisiteStatus.isLocked && (
         <TopicStageContent
           topic={topic}
+          activeStep={activeStep}
+          subtopicIndex={subtopicIndex}
+          onSelectStep={handleStepSelect}
+          onSelectSubtopic={handleSubtopicSelect}
           activeStage={activeStage}
           topicProgress={topicProgress}
           topicSkill={topicSkill}
@@ -221,6 +271,7 @@ export const TopicWorkspace: React.FC<TopicWorkspaceProps> = ({
           onMarkStageComplete={handleMarkStageComplete}
           onNavigateTopic={handleNavigateTopic}
           onStartSession={onStartSession}
+          onBackToHub={onBackToHub}
         />
       )}
     </div>

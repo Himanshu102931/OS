@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type {
   PreparationTopic,
   TopicSkillState,
   TopicPreparedness,
   PracticeSessionDefinition,
+  ContinuousLearningStep,
 } from '../../types';
 import type {
   TopicProgressionResult,
@@ -16,9 +17,15 @@ import {
   Layers,
   Sparkles,
   ArrowRight,
+  BookOpen,
+  Target,
+  ShieldCheck,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
-interface TopicWorkspaceHeaderProps {
+export interface TopicWorkspaceHeaderProps {
   topic: PreparationTopic;
   topicSkill: TopicSkillState;
   preparedness: TopicPreparedness;
@@ -27,6 +34,8 @@ interface TopicWorkspaceHeaderProps {
   unmetPrerequisiteTopics: PreparationTopic[];
   isDeepLinked: boolean;
   matchingSessions: PracticeSessionDefinition[];
+  activeStep?: ContinuousLearningStep;
+  onSelectStep?: (step: ContinuousLearningStep) => void;
   onBack: () => void;
   onNavigateRoadmap: () => void;
   onDismissDeepLink: () => void;
@@ -38,17 +47,20 @@ export const TopicWorkspaceHeader: React.FC<TopicWorkspaceHeaderProps> = ({
   topic,
   topicSkill,
   preparedness,
-  progression,
+  progression: _progression,
   prerequisiteStatus,
   unmetPrerequisiteTopics,
   isDeepLinked,
   matchingSessions,
+  activeStep = 'learn',
+  onSelectStep,
   onBack,
   onNavigateRoadmap,
   onDismissDeepLink,
   onCompleteActivity,
   onStartSession,
 }) => {
+  const [showDetails, setShowDetails] = useState<boolean>(false);
   const recommendedPhase = PHASES.find((p) => p.id === topic.recommendedPhase);
 
   const getFreshnessBadgeClass = (freshness: string) => {
@@ -65,9 +77,33 @@ export const TopicWorkspaceHeader: React.FC<TopicWorkspaceHeaderProps> = ({
     }
   };
 
+  const steps: { id: ContinuousLearningStep; label: string; desc: string; icon: React.FC<{ className?: string }>; isDone: boolean }[] = [
+    {
+      id: 'learn',
+      label: '1. Learn',
+      desc: 'Read core lessons',
+      icon: BookOpen,
+      isDone: preparedness.covered,
+    },
+    {
+      id: 'practice',
+      label: '2. Practice',
+      desc: 'Hands-on drills',
+      icon: Target,
+      isDone: preparedness.practiced,
+    },
+    {
+      id: 'check',
+      label: '3. Check',
+      desc: 'Review understanding',
+      icon: ShieldCheck,
+      isDone: preparedness.currentLevel >= topic.targetLevel || preparedness.readiness === 'ready',
+    },
+  ];
+
   return (
     <header className="space-y-4" data-testid="topic-workspace-header">
-      {/* Active Session Deep Link Banner */}
+      {/* Active Session Deep Link Banner — only shown in verified session deep-link */}
       {isDeepLinked && (
         <div
           data-testid="session-deep-link-banner"
@@ -87,14 +123,14 @@ export const TopicWorkspaceHeader: React.FC<TopicWorkspaceHeaderProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={onDismissDeepLink}
-              className="px-3 py-1.5 text-xs text-[var(--foreground-muted)] hover:text-[var(--foreground)] rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] transition-all focus-visible:ring-2 focus-visible:ring-[var(--focus)] outline-none"
+              className="px-3 py-1.5 text-xs text-[var(--foreground-muted)] hover:text-[var(--foreground)] rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] transition-all focus-visible:ring-2 focus-visible:ring-[var(--focus)] outline-none cursor-pointer"
             >
               Return to Session
             </button>
             <button
               onClick={onCompleteActivity}
               data-testid="workspace-defining-action"
-              className="px-3.5 py-1.5 text-xs font-semibold text-[var(--action-accent-foreground)] bg-[var(--action-accent)] hover:bg-[var(--action-accent-hover)] rounded-lg transition-all shadow-sm focus-visible:ring-2 focus-visible:ring-[var(--focus)] outline-none"
+              className="px-3.5 py-1.5 text-xs font-semibold text-[var(--action-accent-foreground)] bg-[var(--action-accent)] hover:bg-[var(--action-accent-hover)] rounded-lg transition-all shadow-sm focus-visible:ring-2 focus-visible:ring-[var(--focus)] outline-none cursor-pointer"
             >
               Complete Activity & Advance
             </button>
@@ -107,7 +143,7 @@ export const TopicWorkspaceHeader: React.FC<TopicWorkspaceHeaderProps> = ({
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-xs text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:border-[var(--border-active)] transition-all focus-visible:ring-2 focus-visible:ring-[var(--focus)] outline-none"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-xs text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:border-[var(--border-active)] transition-all focus-visible:ring-2 focus-visible:ring-[var(--focus)] outline-none cursor-pointer"
           >
             <ArrowLeft className="size-3.5" />
             <span>{isDeepLinked ? 'Back to Today' : 'Preparation Hub'}</span>
@@ -126,7 +162,7 @@ export const TopicWorkspaceHeader: React.FC<TopicWorkspaceHeaderProps> = ({
         {topic.roadmapTopicId && (
           <button
             onClick={onNavigateRoadmap}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--surface-elevated)] border border-[var(--border)] text-xs font-medium text-[var(--accent)] hover:bg-[var(--surface-muted)] transition-all focus-visible:ring-2 focus-visible:ring-[var(--focus)] outline-none"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--surface-elevated)] border border-[var(--border)] text-xs font-medium text-[var(--accent)] hover:bg-[var(--surface-muted)] transition-all focus-visible:ring-2 focus-visible:ring-[var(--focus)] outline-none cursor-pointer"
           >
             <Layers className="size-3.5" />
             <span>View in Roadmap</span>
@@ -134,161 +170,203 @@ export const TopicWorkspaceHeader: React.FC<TopicWorkspaceHeaderProps> = ({
         )}
       </div>
 
-      {/* Main Topic Card & Preparedness Strip */}
-      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 sm:p-6 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-bold text-[var(--foreground)] tracking-tight">
-                {topic.title}
-              </h1>
-              <span className="px-2 py-0.5 text-[11px] font-mono rounded-md border uppercase font-medium bg-[var(--surface-elevated)] text-[var(--accent)] border-[var(--border)]">
-                {preparedness.readiness.replace('_', ' ')}
-              </span>
-              {progression.state === 'learned_unproven' && (
-                <span className="px-2 py-0.5 text-[11px] font-mono rounded-md border uppercase font-medium bg-[var(--warning)]/15 text-[var(--warning)] border-[var(--warning)]/30">
-                  Proof Needed
-                </span>
-              )}
-              {progression.state === 'ready_to_progress' && (
-                <span className="px-2 py-0.5 text-[11px] font-mono rounded-md border uppercase font-medium bg-[var(--success)]/15 text-[var(--success)] border-[var(--success)]/30">
-                  Evidenced
-                </span>
-              )}
-              <span
-                className={`px-2 py-0.5 text-[11px] font-mono rounded-md border uppercase font-medium ${getFreshnessBadgeClass(
-                  topicSkill.freshness
-                )}`}
-              >
-                {topicSkill.freshness}
-              </span>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-mono text-[var(--foreground-muted)]">
-              <span className={topic.priority === 'high' ? 'text-[var(--warning)] font-semibold' : ''}>
-                {topic.priority.toUpperCase()} PRIORITY
-              </span>
-              <span className="text-[var(--border)]">•</span>
-              <span>{recommendedPhase?.name || topic.recommendedPhase}</span>
-              <span className="text-[var(--border)]">•</span>
-              <span>~{topic.estimatedMinutes} min</span>
-              <span className="text-[var(--border)]">•</span>
-              <span>
-                Level {preparedness.currentLevel} / {preparedness.targetLevel} target
-              </span>
-            </div>
-
-            <p className="text-xs text-[var(--foreground-muted)] leading-relaxed max-w-3xl pt-1">
-              {topic.description}
-            </p>
-          </div>
-
-          <div className="shrink-0 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl p-3.5 text-right min-w-[140px]">
-            <span className="block text-[11px] text-[var(--foreground-muted)] uppercase font-mono tracking-wider">
-              Evidence Score
-            </span>
-            <span className="text-2xl font-bold font-mono text-[var(--accent)]">
-              {topicSkill.evidenceStrength} / 100
-            </span>
-          </div>
+      {/* Main Topic Header Card */}
+      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 sm:p-6 space-y-5 shadow-xs">
+        {/* Title and Short Description */}
+        <div className="space-y-1.5">
+          <h1 className="text-xl sm:text-2xl font-bold text-[var(--foreground)] tracking-tight">
+            {topic.title}
+          </h1>
+          <p className="text-xs sm:text-sm text-[var(--foreground-muted)] leading-relaxed max-w-3xl">
+            {topic.description}
+          </p>
         </div>
 
-        {/* 4-Pillar Preparedness Model */}
-        <div className="pt-3 border-t border-[var(--border)] space-y-3">
-          <div className="flex flex-wrap gap-2 text-[11px] font-mono">
-            {[
-              { label: 'Covered', ok: preparedness.covered, detail: `${preparedness.coveragePct}%` },
-              {
-                label: 'Practiced',
-                ok: preparedness.practiced,
-                detail: `${preparedness.attemptCount} attempts`,
-              },
-              {
-                label: 'Assessed',
-                ok:
-                  preparedness.assessmentPerformance !== null &&
-                  preparedness.assessmentPerformance >= 70,
-                detail:
-                  preparedness.assessmentPerformance !== null
-                    ? `${preparedness.assessmentPerformance}% best`
-                    : 'no attempt',
-              },
-              {
-                label: 'Retained',
-                ok:
-                  preparedness.evidenceStrength >= 60 &&
-                  preparedness.evidenceFreshness !== 'stale' &&
-                  preparedness.evidenceFreshness !== 'untested',
-                detail: `${preparedness.evidenceStrength}/100`,
-              },
-              ...(topic.stages.includes('interview')
-                ? [
-                    {
-                      label: 'Interview',
-                      ok: preparedness.interviewProof,
-                      detail: preparedness.interviewProof ? 'proven' : 'missing',
-                    },
-                  ]
-                : []),
-            ].map((pillar) => (
-              <span
-                key={pillar.label}
-                className={`px-2.5 py-1 rounded-lg border ${
-                  pillar.ok
-                    ? 'bg-[var(--success)]/10 text-[var(--success)] border-[var(--success)]/30'
-                    : 'bg-[var(--surface-elevated)] text-[var(--foreground-muted)] border-[var(--border)]'
+        {/* 3-Step Continuous Learning Navigation: Learn -> Practice -> Check */}
+        <nav
+          aria-label="Continuous Learning Stages"
+          data-testid="continuous-learning-steps"
+          className="grid grid-cols-3 gap-2 sm:gap-3 pt-2"
+        >
+          {steps.map((s, idx) => {
+            const Icon = s.icon;
+            const isActive = activeStep === s.id;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                id={`step-tab-${s.id}`}
+                aria-label={s.label}
+                aria-selected={isActive}
+                onClick={() => onSelectStep && onSelectStep(s.id)}
+                className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-xl border text-left transition-all outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus)] cursor-pointer ${
+                  isActive
+                    ? 'bg-[var(--surface-elevated)] border-[var(--accent)] shadow-xs'
+                    : 'bg-[var(--surface-muted)]/70 hover:bg-[var(--surface-elevated)] border-[var(--border)]'
                 }`}
               >
-                {pillar.ok ? '✓' : '○'} {pillar.label}
-                <span className="text-[var(--foreground-subtle)] ml-1">{pillar.detail}</span>
-              </span>
-            ))}
-          </div>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span
+                    className={`flex items-center justify-center size-6 rounded-lg text-xs font-mono shrink-0 transition-colors ${
+                      s.isDone
+                        ? 'bg-[var(--success)]/15 text-[var(--success)]'
+                        : isActive
+                        ? 'bg-[var(--accent)]/15 text-[var(--accent)]'
+                        : 'bg-[var(--surface-elevated)] text-[var(--foreground-muted)]'
+                    }`}
+                  >
+                    {s.isDone ? <CheckCircle2 className="size-4" /> : idx + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <span
+                      className={`block text-xs font-semibold truncate ${
+                        isActive ? 'text-[var(--foreground)]' : 'text-[var(--foreground-muted)]'
+                      }`}
+                    >
+                      {s.label}
+                    </span>
+                    <span className="hidden sm:block text-[11px] text-[var(--foreground-subtle)] truncate">
+                      {s.desc}
+                    </span>
+                  </div>
+                </div>
+                <Icon
+                  className={`size-4 shrink-0 hidden sm:block ${
+                    isActive
+                      ? 'text-[var(--accent)]'
+                      : s.isDone
+                      ? 'text-[var(--success)]'
+                      : 'text-[var(--foreground-subtle)]'
+                  }`}
+                />
+              </button>
+            );
+          })}
+        </nav>
 
-          {preparedness.missingProof.length > 0 && (
-            <ul className="space-y-1 pt-1">
-              {preparedness.missingProof.map((gap, i) => (
-                <li
-                  key={i}
-                  className="text-[11px] text-[var(--foreground-muted)] flex items-start gap-1.5"
-                >
-                  <span className="text-[var(--warning)] shrink-0">•</span>
-                  <span>{gap}</span>
-                </li>
-              ))}
-            </ul>
+        {/* Collapsible More Details Disclosure */}
+        <div className="pt-2 border-t border-[var(--border)]">
+          <button
+            type="button"
+            onClick={() => setShowDetails((prev) => !prev)}
+            className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] hover:text-[var(--foreground)] font-mono transition-colors cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-[var(--focus)]"
+          >
+            <span>{showDetails ? 'Hide details' : 'More details & evidence'}</span>
+            {showDetails ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+          </button>
+
+          {showDetails && (
+            <div className="mt-3 p-4 bg-[var(--surface-muted)] border border-[var(--border)] rounded-xl space-y-4 animate-fade-in">
+              <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-2 py-0.5 text-[11px] font-mono rounded border uppercase font-medium bg-[var(--surface-elevated)] text-[var(--accent)] border-[var(--border)]">
+                    {preparedness.readiness.replace('_', ' ')}
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 text-[11px] font-mono rounded border uppercase font-medium ${getFreshnessBadgeClass(
+                      topicSkill.freshness
+                    )}`}
+                  >
+                    {topicSkill.freshness}
+                  </span>
+                  <span className="font-mono text-[11px] text-[var(--foreground-muted)]">
+                    {topic.priority.toUpperCase()} PRIORITY · {recommendedPhase?.name || topic.recommendedPhase} · ~{topic.estimatedMinutes} min
+                  </span>
+                </div>
+                <div className="font-mono text-xs">
+                  <span className="text-[var(--foreground-muted)]">Evidence: </span>
+                  <span className="font-bold text-[var(--accent)]">{topicSkill.evidenceStrength}/100</span>
+                </div>
+              </div>
+
+              {/* 4-Pillar Preparedness Model */}
+              <div className="pt-2 border-t border-[var(--border)] space-y-2">
+                <div className="flex flex-wrap gap-2 text-[11px] font-mono">
+                  {[
+                    { label: 'Covered', ok: preparedness.covered, detail: `${preparedness.coveragePct}%` },
+                    {
+                      label: 'Practiced',
+                      ok: preparedness.practiced,
+                      detail: `${preparedness.attemptCount} attempts`,
+                    },
+                    {
+                      label: 'Assessed',
+                      ok:
+                        preparedness.assessmentPerformance !== null &&
+                        preparedness.assessmentPerformance >= 70,
+                      detail:
+                        preparedness.assessmentPerformance !== null
+                          ? `${preparedness.assessmentPerformance}% best`
+                          : 'no attempt',
+                    },
+                    {
+                      label: 'Retained',
+                      ok:
+                        preparedness.evidenceStrength >= 60 &&
+                        preparedness.evidenceFreshness !== 'stale' &&
+                        preparedness.evidenceFreshness !== 'untested',
+                      detail: `${preparedness.evidenceStrength}/100`,
+                    },
+                    ...(topic.stages.includes('interview')
+                      ? [
+                          {
+                            label: 'Interview',
+                            ok: preparedness.interviewProof,
+                            detail: preparedness.interviewProof ? 'proven' : 'missing',
+                          },
+                        ]
+                      : []),
+                  ].map((pillar) => (
+                    <span
+                      key={pillar.label}
+                      className={`px-2.5 py-1 rounded-lg border ${
+                        pillar.ok
+                          ? 'bg-[var(--success)]/10 text-[var(--success)] border-[var(--success)]/30'
+                          : 'bg-[var(--surface-elevated)] text-[var(--foreground-muted)] border-[var(--border)]'
+                      }`}
+                    >
+                      {pillar.ok ? '✓' : '○'} {pillar.label}
+                      <span className="text-[var(--foreground-subtle)] ml-1">{pillar.detail}</span>
+                    </span>
+                  ))}
+                </div>
+
+                {preparedness.missingProof.length > 0 && (
+                  <ul className="space-y-1 pt-1">
+                    {preparedness.missingProof.map((gap, i) => (
+                      <li
+                        key={i}
+                        className="text-[11px] text-[var(--foreground-muted)] flex items-start gap-1.5"
+                      >
+                        <span className="text-[var(--warning)] shrink-0">•</span>
+                        <span>{gap}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
           )}
         </div>
 
-        {/* Current Primary Action Bar */}
-        <div className="pt-3 border-t border-[var(--border)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[var(--surface-muted)] -mx-5 -mb-5 sm:-mx-6 sm:-mb-6 p-4 rounded-b-xl">
-          <div className="flex items-center gap-2 text-xs">
-            <Sparkles className="size-4 text-[var(--accent)] shrink-0" />
-            <span className="text-[var(--foreground-muted)]">Next Recommended Action:</span>
-            <span className="text-[var(--foreground)] font-medium">
-              {prerequisiteStatus.isLocked
-                ? `Complete ${unmetPrerequisiteTopics.map((t) => t.title).join(', ')} first to unlock this topic`
-                : progression.state === 'learned_unproven'
-                ? `Demonstrate competence: attempt a practice session for ${topic.title}`
-                : preparedness.nextAction}
-            </span>
+        {/* Action Prompt Strip if locked or unproven */}
+        {prerequisiteStatus.isLocked ? (
+          <div className="pt-3 border-t border-[var(--border)] flex items-center gap-2 text-xs text-[var(--warning)]">
+            <Sparkles className="size-4 shrink-0" />
+            <span>Complete prerequisite ({unmetPrerequisiteTopics.map((t) => t.title).join(', ')}) first to unlock this topic.</span>
           </div>
-
-          {!prerequisiteStatus.isLocked && onStartSession && matchingSessions.length > 0 && (
+        ) : !isDeepLinked && activeStep === 'practice' && onStartSession && matchingSessions.length > 0 ? (
+          <div className="pt-3 border-t border-[var(--border)] flex items-center justify-between gap-3">
+            <span className="text-xs text-[var(--foreground-muted)]">Ready to test your understanding?</span>
             <button
               onClick={() => onStartSession(matchingSessions[0]?.id)}
-              data-testid="workspace-defining-action"
-              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[var(--action-accent)] hover:bg-[var(--action-accent-hover)] text-[var(--action-accent-foreground)] font-semibold text-xs transition-all shadow-sm shrink-0 focus-visible:ring-2 focus-visible:ring-[var(--focus)] outline-none"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--action-accent)] hover:bg-[var(--action-accent-hover)] text-[var(--action-accent-foreground)] font-semibold text-xs transition-all shadow-xs cursor-pointer"
             >
-              <span>
-                {progression.state === 'learned_unproven'
-                  ? 'Prove Readiness (Drill)'
-                  : 'Start Assessment Drill'}
-              </span>
+              <span>Start Assessment Drill</span>
               <ArrowRight className="size-3.5" />
             </button>
-          )}
-        </div>
+          </div>
+        ) : null}
       </div>
     </header>
   );

@@ -901,6 +901,14 @@ export interface TopicPreparedness {
   nextAction: string;
 }
 
+export type ContinuousLearningStep = 'learn' | 'practice' | 'check';
+
+export interface PreparationLearningCursor {
+  subtopicIndex: number;
+  activeStep: ContinuousLearningStep;
+  lastAccessedAt: string;
+}
+
 export interface PreparationTopicProgress {
   topicId: string;
   sectionId: PreparationSectionId;
@@ -918,6 +926,7 @@ export interface PreparationTopicProgress {
   freshness: SkillFreshnessState;
   createdAt: string;
   updatedAt: string;
+  learningCursor?: PreparationLearningCursor;
 }
 
 export type ProjectLabSectionId =

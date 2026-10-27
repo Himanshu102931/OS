@@ -304,13 +304,13 @@ describe('PREPARATION MANUFACTURING PART 3: Practice Session Runner', () => {
       </PlacementProvider>
     );
 
-    // Click Apply tab where practice sessions are offered
-    const applyTab = screen.getByRole('button', { name: /Apply/i });
+    // Click Practice step where practice sessions are offered
+    const practiceTab = screen.getByRole('button', { name: /Practice/i });
     act(() => {
-      fireEvent.click(applyTab);
+      fireEvent.click(practiceTab);
     });
 
-    const startDrillBtns = screen.getAllByRole('button', { name: /Start Drill/i });
+    const startDrillBtns = screen.getAllByRole('button', { name: /Start.*Drill/i });
     if (startDrillBtns.length > 0) {
       act(() => {
         fireEvent.click(startDrillBtns[0]);

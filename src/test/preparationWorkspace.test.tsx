@@ -50,7 +50,7 @@ describe('PREPARATION MANUFACTURING PART 2: Topic Knowledge Workspace', () => {
     render(<WorkspaceHarness topic={pythonTopic} />);
 
     expect(screen.getAllByText(/python/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/~480 min/i)).toBeInTheDocument();
+    expect(screen.getByText(/Lesson 1 of/i)).toBeInTheDocument();
   });
 
   it('3. Current stage is derived from canonical progress', () => {
@@ -69,9 +69,9 @@ describe('PREPARATION MANUFACTURING PART 2: Topic Knowledge Workspace', () => {
       </PlacementProvider>
     );
 
-    const nav = screen.getByRole('navigation', { name: /Topic Learning Progression Stages/i });
-    const orientTab = within(nav).getByRole('button', { name: /Orient/i });
-    expect(orientTab).toHaveAttribute('aria-selected', 'true');
+    const nav = screen.getByRole('navigation', { name: /Continuous Learning Stages/i });
+    const learnTab = within(nav).getByRole('button', { name: /1\. Learn/i });
+    expect(learnTab).toHaveAttribute('aria-selected', 'true');
 
     // Update persisted stage to 'learn'
     act(() => {
@@ -100,11 +100,11 @@ describe('PREPARATION MANUFACTURING PART 2: Topic Knowledge Workspace', () => {
     });
   });
 
-  it('4. Seven canonical stages render in progression rail', () => {
+  it('4. Three continuous learning stages render in progression rail (Learn, Practice, Check)', () => {
     render(<WorkspaceHarness topic={pythonTopic} />);
 
-    const nav = screen.getByRole('navigation', { name: /Topic Learning Progression Stages/i });
-    const stages = ['Orient', 'Learn', 'Apply', 'Assess', 'Review', 'Interview', 'Evidence'];
+    const nav = screen.getByRole('navigation', { name: /Continuous Learning Stages/i });
+    const stages = ['Learn', 'Practice', 'Check'];
     for (const stage of stages) {
       expect(within(nav).getByRole('button', { name: new RegExp(stage, 'i') })).toBeInTheDocument();
     }
@@ -141,45 +141,39 @@ describe('PREPARATION MANUFACTURING PART 2: Topic Knowledge Workspace', () => {
   it('6. Stage selection changes visible stage content', () => {
     render(<WorkspaceHarness topic={pythonTopic} />);
 
-    // Default: Orient
-    expect(screen.getByText(/Why This Topic Matters/i)).toBeInTheDocument();
+    // Default: Learn step
+    expect(screen.getByTestId('learn-section')).toBeInTheDocument();
 
-    // Select Learn
-    const nav = screen.getByRole('navigation', { name: /Topic Learning Progression Stages/i });
-    const learnTab = within(nav).getByRole('button', { name: /^Learn$/i });
+    // Select Practice
+    const nav = screen.getByRole('navigation', { name: /Continuous Learning Stages/i });
+    const practiceTab = within(nav).getByRole('button', { name: /Practice/i });
     act(() => {
-      fireEvent.click(learnTab);
+      fireEvent.click(practiceTab);
     });
 
-    expect(screen.getByText(/Curriculum Subtopics/i)).toBeInTheDocument();
-    expect(screen.getByText(/Core Learning Objectives/i)).toBeInTheDocument();
+    expect(screen.getByTestId('practice-section')).toBeInTheDocument();
+    expect(screen.getByText(/Hands-on Practice Activities/i)).toBeInTheDocument();
   });
 
-  it('7. Subtopic knowledge cards expand smoothly on click in Learn stage', () => {
+  it('7. Subtopic knowledge card displays structured sections in Learn stage', () => {
     render(<WorkspaceHarness topic={pythonTopic} />);
 
-    const nav = screen.getByRole('navigation', { name: /Topic Learning Progression Stages/i });
-    const learnTab = within(nav).getByRole('button', { name: /^Learn$/i });
-    act(() => {
-      fireEvent.click(learnTab);
-    });
-
-    // Click first subtopic card
-    const firstSubtopic = screen.getByText(/Variables, primitive\/data types & operators/i);
-    act(() => {
-      fireEvent.click(firstSubtopic);
-    });
-
-    // What, Why, Example, Practice, Proof labels visible
-    expect(screen.getByText('What')).toBeInTheDocument();
-    expect(screen.getByText('Why')).toBeInTheDocument();
+    // Understand, Example, Try it sections visible for active subtopic
+    expect(screen.getByText('Understand')).toBeInTheDocument();
+    expect(screen.getByText('What it is')).toBeInTheDocument();
+    expect(screen.getByText('Why it matters')).toBeInTheDocument();
     expect(screen.getByText('Example')).toBeInTheDocument();
-    expect(screen.getByText('Practice')).toBeInTheDocument();
-    expect(screen.getByText('Proof')).toBeInTheDocument();
+    expect(screen.getByText('Try It & Proof')).toBeInTheDocument();
   });
 
-  it('8. Preparedness model renders Covered/Practiced/Assessed/Retained pillars', () => {
+  it('8. Preparedness model renders Covered/Practiced/Assessed/Retained pillars in details', () => {
     render(<WorkspaceHarness topic={pythonTopic} />);
+
+    // Open details disclosure
+    const detailsBtn = screen.getByRole('button', { name: /More details & evidence/i });
+    act(() => {
+      fireEvent.click(detailsBtn);
+    });
 
     expect(screen.getAllByText(/Covered/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/Practiced/i)).toBeInTheDocument();
@@ -197,10 +191,17 @@ describe('PREPARATION MANUFACTURING PART 2: Topic Knowledge Workspace', () => {
       />
     );
 
+    // Switch to practice step
+    const nav = screen.getByRole('navigation', { name: /Continuous Learning Stages/i });
+    const practiceTab = within(nav).getByRole('button', { name: /Practice/i });
+    act(() => {
+      fireEvent.click(practiceTab);
+    });
+
     // In clean state with matching sessions, start drill is available
-    const primaryCta = screen.getByTestId('workspace-defining-action');
+    const primaryCta = screen.getByTestId('start-practice-btn');
     expect(primaryCta).toBeInTheDocument();
-    expect(primaryCta).toHaveTextContent(/Start Assessment Drill/i);
+    expect(primaryCta).toHaveTextContent(/Start Practice Drill/i);
 
     act(() => {
       fireEvent.click(primaryCta);
@@ -218,7 +219,7 @@ describe('PREPARATION MANUFACTURING PART 2: Topic Knowledge Workspace', () => {
     expect(gate).toHaveTextContent(/Prerequisite Required/i);
     expect(gate).toHaveTextContent(/Programming Language \(Python\)/i);
 
-    // Stage tabs should NOT be visible when locked
+    // Stage content should NOT be visible when locked
     expect(screen.queryByTestId('topic-stage-progression')).not.toBeInTheDocument();
   });
 
@@ -367,17 +368,23 @@ describe('PREPARATION MANUFACTURING PART 2: Topic Knowledge Workspace', () => {
   it('17. No invented readiness metrics: evidence strength reflects canonical calculation', () => {
     render(<WorkspaceHarness topic={pythonTopic} />);
 
-    expect(screen.getByText('Evidence Score')).toBeInTheDocument();
-    expect(screen.getByText('0 / 100')).toBeInTheDocument();
+    // Open details disclosure
+    const detailsBtn = screen.getByRole('button', { name: /More details & evidence/i });
+    act(() => {
+      fireEvent.click(detailsBtn);
+    });
+
+    expect(screen.getByText('Evidence:')).toBeInTheDocument();
+    expect(screen.getAllByText(/0\/100/i).length).toBeGreaterThanOrEqual(1);
   });
 
   it('18. Accessibility semantics: navigation, buttons, and aria-selected exist on stage rail', () => {
     render(<WorkspaceHarness topic={pythonTopic} />);
 
-    const nav = screen.getByRole('navigation', { name: /Topic Learning Progression Stages/i });
+    const nav = screen.getByRole('navigation', { name: /Continuous Learning Stages/i });
     expect(nav).toBeInTheDocument();
 
-    const stageButtons = ['Orient', 'Learn', 'Apply', 'Assess', 'Review', 'Interview', 'Evidence'];
+    const stageButtons = ['1. Learn', '2. Practice', '3. Check'];
     for (const name of stageButtons) {
       const btn = within(nav).getByRole('button', { name: new RegExp(name, 'i') });
       expect(btn).toBeInTheDocument();
@@ -408,47 +415,43 @@ describe('PREPARATION MANUFACTURING PART 2: Topic Knowledge Workspace', () => {
     expect(backCalled).toBe(true);
   });
 
-  it('21. Knowledge Flow renders for the seven canonical stages', () => {
-    const { container } = render(<WorkspaceHarness topic={pythonTopic} />);
-    const rail = screen.getByTestId('knowledge-flow-rail');
+  it('21. Continuous learning rail renders three progression steps', () => {
+    render(<WorkspaceHarness topic={pythonTopic} />);
+    const rail = screen.getByTestId('continuous-learning-steps');
     expect(rail).toBeInTheDocument();
-
-    const beam = container.querySelector('.knowledge-flow-beam');
-    expect(beam).toBeInTheDocument();
+    expect(rail.querySelectorAll('button').length).toBe(3);
   });
 
   it('22. Visual motion system does not create a second progression source', () => {
+    const { container } = render(<WorkspaceHarness topic={pythonTopic} />);
+    const activeTabs = container.querySelectorAll('[aria-selected="true"]');
+    expect(activeTabs.length).toBe(1);
+  });
+
+  it('23. Current stage receives active styling and is derived from canonical progress', () => {
     render(<WorkspaceHarness topic={pythonTopic} />);
-    const currentBadges = screen.getAllByText('Current');
-    expect(currentBadges.length).toBe(1);
+    const nav = screen.getByRole('navigation', { name: /Continuous Learning Stages/i });
+    const learnBtn = within(nav).getByRole('button', { name: /1\. Learn/i });
+    expect(learnBtn).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('23. Current stage receives breathing halo and is derived from canonical progress', () => {
-    const { container } = render(<WorkspaceHarness topic={pythonTopic} />);
-    const breathingStage = container.querySelector('.stage-current-breath');
-    expect(breathingStage).toBeInTheDocument();
-    expect(breathingStage).toHaveTextContent(/Orient/i);
-  });
+  it('24. Stage selection triggers update to visible panel', () => {
+    render(<WorkspaceHarness topic={pythonTopic} />);
+    expect(screen.getByTestId('learn-section')).toBeInTheDocument();
 
-  it('24. Stage selection triggers CSS enter transition on stage panel', () => {
-    const { container } = render(<WorkspaceHarness topic={pythonTopic} />);
-    const panel = container.querySelector('.stage-panel-enter');
-    expect(panel).toBeInTheDocument();
-
-    const learnTab = screen.getByRole('button', { name: /Learn/i });
+    const nav = screen.getByRole('navigation', { name: /Continuous Learning Stages/i });
+    const practiceTab = within(nav).getByRole('button', { name: /2\. Practice/i });
     act(() => {
-      fireEvent.click(learnTab);
+      fireEvent.click(practiceTab);
     });
 
-    const updatedPanel = container.querySelector('.stage-panel-enter');
-    expect(updatedPanel).toBeInTheDocument();
-    expect(updatedPanel).toHaveAttribute('id', 'stage-panel-learn');
+    expect(screen.getByTestId('practice-section')).toBeInTheDocument();
   });
 
   it('25. Pure CSS implementation: no requestAnimationFrame loops or timer hooks', () => {
     const { container } = render(<WorkspaceHarness topic={pythonTopic} />);
-    const rail = screen.getByTestId('knowledge-flow-rail');
-    expect(rail).toBeInTheDocument();
-    expect(container.querySelector('.knowledge-flow-beam')).toBeInTheDocument();
+    const steps = screen.getByTestId('continuous-learning-steps');
+    expect(steps).toBeInTheDocument();
+    expect(container.querySelector('[data-testid="topic-knowledge-workspace"]')).toBeInTheDocument();
   });
 });

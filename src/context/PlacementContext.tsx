@@ -792,13 +792,33 @@ export const PlacementProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const updatePreparationTopicProgress = (updatedProgress: PreparationTopicProgress) => {
-    setAppState((prev) => ({
-      ...prev,
-      preparationTopicProgress: {
-        ...prev.preparationTopicProgress,
-        [updatedProgress.topicId]: updatedProgress,
-      },
-    }));
+    setAppState((prev) => {
+      const existing = prev.preparationTopicProgress[updatedProgress.topicId];
+      const merged: PreparationTopicProgress = existing
+        ? {
+            ...existing,
+            ...updatedProgress,
+            completedStages: Array.from(
+              new Set([
+                ...(existing.completedStages || []),
+                ...(updatedProgress.completedStages || []),
+              ])
+            ),
+            stageProgress: {
+              ...(existing.stageProgress || {}),
+              ...(updatedProgress.stageProgress || {}),
+            },
+          }
+        : updatedProgress;
+
+      return {
+        ...prev,
+        preparationTopicProgress: {
+          ...prev.preparationTopicProgress,
+          [updatedProgress.topicId]: merged,
+        },
+      };
+    });
   };
 
   const completePreparationStage = (topic: PreparationTopic, stage: TopicStageId) => {

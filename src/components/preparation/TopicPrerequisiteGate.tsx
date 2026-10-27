@@ -1,7 +1,7 @@
 import React from 'react';
 import type { PreparationTopic, PreparationTopicProgress } from '../../types';
 import type { PrerequisiteStatus } from '../../engine/preparationEngine';
-import { ShieldCheck, ArrowRight } from 'lucide-react';
+import { Lock, ArrowRight, BookOpen, Target } from 'lucide-react';
 
 interface TopicPrerequisiteGateProps {
   topic: PreparationTopic;
@@ -18,58 +18,102 @@ export const TopicPrerequisiteGate: React.FC<TopicPrerequisiteGateProps> = ({
   topicProgressMap,
   onNavigateTopic,
 }) => {
+  if (unmetPrerequisiteTopics.length === 0) {
+    return null;
+  }
+
+  // Focus on the earliest actionable foundation first
+  const primaryPrereq = unmetPrerequisiteTopics[0];
+  const otherPrereqs = unmetPrerequisiteTopics.slice(1);
+
+  const isPrimaryEvidenceUnmet =
+    prerequisiteStatus.unmetEvidencePrerequisiteIds?.includes(primaryPrereq.id);
+
+  const primaryProgress = topicProgressMap[primaryPrereq.id];
+  const primaryDoneStages = primaryProgress?.completedStages ?? [];
+
   return (
     <section
-      aria-label="Topic Prerequisite Proof Gate"
+      aria-label="Topic Prerequisite Gate"
       data-testid="prerequisite-gate"
-      className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 sm:p-6 space-y-4"
+      className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 sm:p-6 space-y-5 shadow-xs"
     >
-      <div className="space-y-1.5">
-        <h3 className="text-sm font-semibold text-[var(--foreground)] uppercase tracking-wider flex items-center gap-2">
-          <ShieldCheck className="size-4 text-[var(--warning)]" />
-          <span>Prerequisite Required</span>
-        </h3>
-        <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">
-          Complete curriculum coverage and demonstrate evidence in the prerequisite topic
-          {unmetPrerequisiteTopics.length > 1 ? 's' : ''} below to unlock {topic.title}.
-        </p>
+      {/* Primary Actionable Block */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-[var(--warning)]">
+          <Lock className="size-4" />
+          <h2 className="text-sm font-semibold uppercase tracking-wider">
+            Prerequisite Required
+          </h2>
+        </div>
+
+        <div className="p-4 bg-[var(--surface-muted)] border border-[var(--border)] rounded-xl space-y-3">
+          <div>
+            <h3 className="text-base font-bold text-[var(--foreground)]">
+              Before starting {topic.title}, complete {primaryPrereq.title}.
+            </h3>
+            <p className="text-xs text-[var(--foreground-muted)] mt-1 leading-relaxed">
+              {isPrimaryEvidenceUnmet
+                ? `You have covered the lessons in ${primaryPrereq.title}, but practical or assessment demonstration is required before unlocking ${topic.title}.`
+                : `${primaryPrereq.title} provides the foundational concepts required for ${topic.title}.`}
+            </p>
+          </div>
+
+          <div>
+            <button
+              type="button"
+              onClick={() => onNavigateTopic(primaryPrereq.id)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--action-accent)] hover:bg-[var(--action-accent-hover)] text-[var(--action-accent-foreground)] font-semibold text-xs transition-all shadow-xs cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--focus)] outline-none"
+            >
+              {isPrimaryEvidenceUnmet ? (
+                <>
+                  <Target className="size-3.5" />
+                  <span>Practice {primaryPrereq.title}</span>
+                </>
+              ) : (
+                <>
+                  <BookOpen className="size-3.5" />
+                  <span>{primaryDoneStages.length > 0 ? `Continue ${primaryPrereq.title}` : `Open ${primaryPrereq.title}`}</span>
+                </>
+              )}
+              <ArrowRight className="size-3.5" />
+            </button>
+          </div>
+        </div>
       </div>
 
-      <ul className="space-y-2">
-        {unmetPrerequisiteTopics.map((prereq) => {
-          const prereqProgress = topicProgressMap[prereq.id];
-          const doneStages = prereqProgress?.completedStages ?? [];
-          const doneCount = prereq.stages.filter((s) => doneStages.includes(s)).length;
-          const isEvidenceUnmet =
-            prerequisiteStatus.unmetEvidencePrerequisiteIds?.includes(prereq.id);
-
-          return (
-            <li
-              key={prereq.id}
-              className="p-3.5 bg-[var(--surface-muted)] border border-[var(--border)] rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-            >
-              <div className="space-y-0.5">
-                <span className="text-xs font-semibold text-[var(--foreground)] block">
-                  {prereq.title}
-                </span>
-                <span className="text-[11px] text-[var(--foreground-muted)] font-mono block">
-                  {isEvidenceUnmet
-                    ? `Curriculum complete (${doneCount}/${prereq.stages.length} stages) — demonstrated practice or assessment evidence required before unlocking ${topic.title}`
-                    : `${doneCount} of ${prereq.stages.length} stages complete — required before ${topic.title}`}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => onNavigateTopic(prereq.id)}
-                className="px-3 py-1.5 rounded-lg bg-[var(--surface-elevated)] border border-[var(--border)] text-xs font-medium text-[var(--accent)] hover:border-[var(--border-active)] hover:text-[var(--foreground)] transition-all shrink-0 flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-[var(--focus)] outline-none"
-              >
-                <span>{isEvidenceUnmet ? `Practice ${prereq.title}` : `Open ${prereq.title}`}</span>
-                <ArrowRight className="size-3" />
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+      {/* Additional prerequisites if any */}
+      {otherPrereqs.length > 0 && (
+        <div className="space-y-2 pt-2 border-t border-[var(--border)]">
+          <span className="text-[11px] font-mono uppercase tracking-wider text-[var(--foreground-subtle)] block">
+            Also required:
+          </span>
+          <ul className="space-y-2">
+            {otherPrereqs.map((prereq) => {
+              const isEvidenceUnmet =
+                prerequisiteStatus.unmetEvidencePrerequisiteIds?.includes(prereq.id);
+              return (
+                <li
+                  key={prereq.id}
+                  className="p-3 bg-[var(--surface-muted)]/60 border border-[var(--border)] rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs"
+                >
+                  <span className="text-[var(--foreground)] font-medium">
+                    {prereq.title}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onNavigateTopic(prereq.id)}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded bg-[var(--surface-elevated)] border border-[var(--border)] text-[11px] font-medium text-[var(--accent)] hover:border-[var(--border-active)] transition-colors cursor-pointer shrink-0"
+                  >
+                    <span>{isEvidenceUnmet ? `Practice ${prereq.title}` : `Open ${prereq.title}`}</span>
+                    <ArrowRight className="size-3" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </section>
   );
 };

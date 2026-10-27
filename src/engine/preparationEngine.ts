@@ -12,6 +12,7 @@ import type {
   DomainAssessmentResult,
   AssessmentState,
   EvidenceLog,
+  ContinuousLearningStep,
 } from '../types';
 
 /** Stages that establish curriculum coverage (the knowledge arc). */
@@ -714,5 +715,113 @@ export function evaluateTopicProgression(
       assessmentScore: preparedness.assessmentPerformance,
     },
     actionableStep,
+  };
+}
+
+/**
+ * Resolves the active 3-part continuous learning step:
+ * 'learn' | 'practice' | 'check'
+ *
+ * Checks persistent learningCursor first. If none, falls back cleanly
+ * to curriculum completion state without altering history.
+ */
+export function resolveContinuousLearningStep(
+  topic: PreparationTopic,
+  progress?: PreparationTopicProgress
+): ContinuousLearningStep {
+  if (progress?.learningCursor?.activeStep) {
+    return progress.learningCursor.activeStep;
+  }
+
+  const completed = progress?.completedStages ?? [];
+
+  // If orient or learn stages are defined and not complete, user should be in Learn
+  const hasIncompleteLearn =
+    (topic.stages.includes('orient') && !completed.includes('orient')) ||
+    (topic.stages.includes('learn') && !completed.includes('learn'));
+
+  if (hasIncompleteLearn) {
+    return 'learn';
+  }
+
+  // If learn is finished, but apply/assess are incomplete, user is in Practice
+  const hasIncompletePractice =
+    (topic.stages.includes('apply') && !completed.includes('apply')) ||
+    (topic.stages.includes('assess') && !completed.includes('assess'));
+
+  if (hasIncompletePractice) {
+    return 'practice';
+  }
+
+  // Otherwise, user is in Check
+  return 'check';
+}
+
+/**
+ * Safely resolves and clamps the subtopic reading cursor position.
+ * Returns a 0-based index guaranteed to be within [0, totalSubtopics - 1].
+ */
+export function resolveSubtopicIndex(
+  topic: PreparationTopic,
+  progress?: PreparationTopicProgress
+): number {
+  const maxIndex = Math.max(0, (topic.subtopics?.length ?? 1) - 1);
+  if (progress?.learningCursor?.subtopicIndex !== undefined) {
+    return Math.max(0, Math.min(progress.learningCursor.subtopicIndex, maxIndex));
+  }
+  return 0;
+}
+
+/**
+ * Pure update for the learner's continuous reading position.
+ *
+ * Saves subtopic index and active step without completing stages,
+ * emitting evidence logs, advancing session activities, or modifying mastery.
+ */
+export function updateLearningCursor(
+  topic: PreparationTopic,
+  existing: PreparationTopicProgress | undefined,
+  step: ContinuousLearningStep,
+  subtopicIndex: number,
+  nowISO: string = new Date().toISOString()
+): PreparationTopicProgress {
+  const maxIndex = Math.max(0, (topic.subtopics?.length ?? 1) - 1);
+  const clampedIndex = Math.max(0, Math.min(subtopicIndex, maxIndex));
+
+  // Map canonical currentStage for backward compatibility
+  let currentStage: TopicStageId = existing?.currentStage ?? topic.stages[0] ?? 'orient';
+  if (step === 'learn') {
+    currentStage = topic.stages.includes('learn') ? 'learn' : (topic.stages[0] ?? 'orient');
+  } else if (step === 'practice') {
+    currentStage = topic.stages.includes('apply') ? 'apply' : (topic.stages.includes('assess') ? 'assess' : currentStage);
+  } else if (step === 'check') {
+    currentStage = topic.stages.includes('review')
+      ? 'review'
+      : topic.stages.includes('interview')
+      ? 'interview'
+      : 'evidence';
+  }
+  if (!topic.stages.includes(currentStage)) {
+    currentStage = topic.stages[0] ?? 'orient';
+  }
+
+  return {
+    topicId: topic.id,
+    sectionId: topic.sectionId,
+    domainId: topic.domainId,
+    currentStage,
+    completedStages: existing?.completedStages ?? [],
+    stageProgress: cloneStageProgress(existing),
+    lastAccessedAt: nowISO,
+    totalTimeSpentMinutes: existing?.totalTimeSpentMinutes ?? 0,
+    evidenceStrength: existing?.evidenceStrength ?? 0,
+    freshness: existing?.freshness ?? 'untested',
+    createdAt: existing?.createdAt ?? nowISO,
+    updatedAt: nowISO,
+    learningCursor: {
+      subtopicIndex: clampedIndex,
+      activeStep: step,
+      lastAccessedAt: nowISO,
+    },
   };
 }

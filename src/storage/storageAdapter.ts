@@ -9,6 +9,7 @@ import type {
   UserSettings,
   PracticeAttempt,
   PreparationTopicProgress,
+  PreparationLearningCursor,
   DSAAttempt,
   EvidenceLog,
   TaskDefinition,
@@ -504,6 +505,13 @@ function validatePreparationTopicProgress(progress: Record<string, unknown>): bo
     if (typeof ptp.freshness !== 'string') return false;
     if (typeof ptp.createdAt !== 'string') return false;
     if (typeof ptp.updatedAt !== 'string') return false;
+    if (ptp.learningCursor !== undefined) {
+      if (!ptp.learningCursor || typeof ptp.learningCursor !== 'object') return false;
+      const lc = ptp.learningCursor as Partial<PreparationLearningCursor>;
+      if (typeof lc.subtopicIndex !== 'number' || lc.subtopicIndex < 0 || !Number.isInteger(lc.subtopicIndex)) return false;
+      if (typeof lc.activeStep !== 'string' || !['learn', 'practice', 'check'].includes(lc.activeStep)) return false;
+      if (typeof lc.lastAccessedAt !== 'string') return false;
+    }
   }
   return true;
 }
