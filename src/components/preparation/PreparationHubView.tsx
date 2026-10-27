@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   PREPARATION_SECTIONS,
   PREPARATION_TOPICS,
@@ -39,10 +39,27 @@ export const PreparationHubView: React.FC = () => {
   );
 
   // Route state IS the single source of truth — no local mirror needed.
-  const selectedTopic: PreparationTopic | null =
-    routeState.route === 'preparation' && routeState.targetId
-      ? PREPARATION_TOPICS.find((t) => t.id === routeState.targetId) ?? null
-      : null;
+  // Guard against retired or ineligible topics in Simple Mode:
+  const selectedTopic: PreparationTopic | null = useMemo(() => {
+    if (routeState.route !== 'preparation' || !routeState.targetId) return null;
+    const topic = PREPARATION_TOPICS.find((t) => t.id === routeState.targetId);
+    if (!topic || !isEligibleSimplePreparationTopic(topic)) {
+      return null;
+    }
+    return topic;
+  }, [routeState.route, routeState.targetId]);
+
+  // Guard against direct deep links to retired topics: safely redirect to the active preparation hub
+  useEffect(() => {
+    if (routeState.route === 'preparation' && routeState.targetId) {
+      const isEligible = PREPARATION_TOPICS.some(
+        (t) => t.id === routeState.targetId && isEligibleSimplePreparationTopic(t)
+      );
+      if (!isEligible) {
+        setRoute('preparation');
+      }
+    }
+  }, [routeState.route, routeState.targetId, setRoute]);
 
   const handleTopicSelect = (topic: PreparationTopic) => {
     setRoute('preparation', topic.id);
@@ -117,6 +134,11 @@ export const PreparationHubView: React.FC = () => {
           <PracticeSessionRunner
             session={practiceSessions.find((s) => s.id === activeSessionId) || practiceSessions[0]}
             onClose={() => setActiveSessionId(null)}
+            onReturn={() => {
+              setActiveSessionId(null);
+              setRoute('preparation', selectedTopic.id);
+            }}
+            returnLabel={`Return to ${selectedTopic.title}`}
           />
         )}
       </div>

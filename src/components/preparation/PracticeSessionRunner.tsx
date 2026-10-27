@@ -26,11 +26,18 @@ import {
 interface PracticeSessionRunnerProps {
   session: PracticeSessionDefinition;
   onClose: () => void;
+  onReturn?: () => void;
+  returnLabel?: string;
 }
 
 type RunnerStep = 'intro' | 'active' | 'result';
 
-export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ session, onClose }) => {
+export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({
+  session,
+  onClose,
+  onReturn,
+  returnLabel,
+}) => {
   const { todayDate, recordPracticeAttempt, setRoute } = usePlacement();
   const [step, setStep] = useState<RunnerStep>('intro');
   const [currentIndex, setCurrentIndex] = useState<number>(0);
@@ -539,12 +546,16 @@ export const PracticeSessionRunner: React.FC<PracticeSessionRunnerProps> = ({ se
               </button>
               <button
                 onClick={() => {
-                  onClose();
-                  setRoute('preparation');
+                  if (onReturn) {
+                    onReturn();
+                  } else {
+                    onClose();
+                    setRoute('preparation');
+                  }
                 }}
                 className="px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-all shadow-xs focus-visible:ring-2 focus-visible:ring-[var(--focus)] outline-none"
               >
-                Return to Preparation Hub
+                {returnLabel ?? 'Return to Preparation Hub'}
               </button>
             </div>
           </div>

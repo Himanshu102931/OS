@@ -214,29 +214,25 @@ describe('P2 CORRECTIVE AUDIT — REGRESSION TESTS', () => {
         screen.getByText(/One attempt and one evidence event recorded for this session/i)
       ).toBeInTheDocument();
 
-      // 7. Close runner and return to Preparation Hub
-      const returnBtn = screen.getByRole('button', { name: /Return to Preparation Hub/i });
+      // 7. Click the topic-specific return button (no manual reopening needed!)
+      const returnBtn = screen.getByRole('button', {
+        name: (content) => content.includes('Return to') && content.includes('Python'),
+      });
       act(() => {
         fireEvent.click(returnBtn);
       });
 
-      // 8. Re-open prep-lang topic workspace
-      act(() => {
-        capturedPlacement!.setRoute('preparation', 'prep-lang');
-      });
+      // 8. Explicitly verify route and workspace remain on the original topic
+      expect(capturedPlacement!.routeState.route).toBe('preparation');
+      expect(capturedPlacement!.routeState.targetId).toBe('prep-lang');
+      expect(screen.getByTestId('topic-knowledge-workspace')).toBeInTheDocument();
 
-      // 9. Switch to Practice step
-      const practiceTabBtn = screen.getByRole('button', { name: /2\.\s*Practice/i });
-      act(() => {
-        fireEvent.click(practiceTabBtn);
-      });
-
-      // 10. Verify recorded attempt in UI
+      // 9. Verify recorded attempt in UI is visible on the Practice step
       const recordedSection = screen.getByTestId('recorded-practice-attempts');
       expect(recordedSection).toBeInTheDocument();
       expect(within(recordedSection).getByText('Python Fundamentals Drill')).toBeInTheDocument();
 
-      // 11. Verify context state has exactly 1 practice attempt and 1 evidence event for prep-lang
+      // 10. Verify context state has exactly 1 practice attempt and 1 evidence event for prep-lang
       expect(capturedPlacement!.practiceAttempts).toHaveLength(1);
       expect(capturedPlacement!.practiceAttempts[0].topicId).toBe('prep-lang');
       expect(capturedPlacement!.practiceAttempts[0].sessionId).toBe('practice-python-01');
@@ -246,6 +242,153 @@ describe('P2 CORRECTIVE AUDIT — REGRESSION TESTS', () => {
       );
       expect(matchingEvidence).toHaveLength(1);
       expect(matchingEvidence[0].domainId).toBe('python');
+
+      // 11. Check step is accessible directly from the same workspace
+      const checkTabBtn = screen.getByRole('button', { name: /3\.\s*Check/i });
+      act(() => {
+        fireEvent.click(checkTabBtn);
+      });
+      expect(screen.getByRole('heading', { name: /Check Understanding/i })).toBeInTheDocument();
+      expect(screen.getByText(/1 attempt\(s\)/i)).toBeInTheDocument();
+    });
+
+    it('closing practice runner early returns to topic without recording attempt or evidence', () => {
+      let capturedPlacement: ReturnType<typeof usePlacement> | null = null;
+      function Harness() {
+        capturedPlacement = usePlacement();
+        return <PreparationHubView />;
+      }
+
+      render(
+        <PlacementProvider>
+          <SessionProvider>
+            <Harness />
+          </SessionProvider>
+        </PlacementProvider>
+      );
+
+      // 1. Navigate to prep-lang topic workspace
+      act(() => {
+        capturedPlacement!.setRoute('preparation', 'prep-lang');
+      });
+
+      // 2. Select Practice step
+      const practiceStepBtn = screen.getByRole('button', { name: /2\.\s*Practice/i });
+      act(() => {
+        fireEvent.click(practiceStepBtn);
+      });
+
+      // 3. Launch practice runner
+      const startDrillBtn = screen.getByRole('button', { name: /Start Practice Drill/i });
+      act(() => {
+        fireEvent.click(startDrillBtn);
+      });
+
+      // 4. Modal is open
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toBeInTheDocument();
+
+      // 5. Click Cancel without submitting
+      const cancelBtn = within(dialog).getByRole('button', { name: /Cancel/i });
+      act(() => {
+        fireEvent.click(cancelBtn);
+      });
+
+      // 6. Dialog is closed
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+      // 7. Topic workspace remains open at prep-lang
+      expect(capturedPlacement!.routeState.route).toBe('preparation');
+      expect(capturedPlacement!.routeState.targetId).toBe('prep-lang');
+      expect(screen.getByTestId('topic-knowledge-workspace')).toBeInTheDocument();
+
+      // 8. No attempts or evidence recorded
+      expect(capturedPlacement!.practiceAttempts).toHaveLength(0);
+      expect(screen.queryByTestId('recorded-practice-attempts')).not.toBeInTheDocument();
+      const prepProgress = capturedPlacement!.preparationTopicProgress['prep-lang'];
+      expect(prepProgress?.completedStages?.includes('apply')).toBeFalsy();
+      expect(prepProgress?.completedStages?.includes('assess')).toBeFalsy();
+      expect(prepProgress?.stageProgress?.apply?.completedAt).toBeUndefined();
+      expect(prepProgress?.stageProgress?.assess?.completedAt).toBeUndefined();
+    });
+
+    it('PracticeSessionRunner prevents repeated submissions and duplicate evidence creation', () => {
+      let capturedPlacement: ReturnType<typeof usePlacement> | null = null;
+      function Harness() {
+        capturedPlacement = usePlacement();
+        return <PreparationHubView />;
+      }
+
+      render(
+        <PlacementProvider>
+          <SessionProvider>
+            <Harness />
+          </SessionProvider>
+        </PlacementProvider>
+      );
+
+      act(() => {
+        capturedPlacement!.setRoute('preparation', 'prep-lang');
+      });
+
+      const practiceStepBtn = screen.getByRole('button', { name: /2\.\s*Practice/i });
+      act(() => {
+        fireEvent.click(practiceStepBtn);
+      });
+
+      const startDrillBtn = screen.getByRole('button', { name: /Start Practice Drill/i });
+      act(() => {
+        fireEvent.click(startDrillBtn);
+      });
+
+      const dialog = screen.getByRole('dialog');
+      const startAssessmentBtn = within(dialog).getByRole('button', { name: /^Start Assessment$/i });
+      act(() => {
+        fireEvent.click(startAssessmentBtn);
+      });
+
+      while (screen.queryByTestId('diagnostic-pulse-rail')) {
+        const dialog = screen.getByRole('dialog');
+        const textarea = within(dialog).queryByRole('textbox');
+        if (textarea) {
+          act(() => {
+            fireEvent.change(textarea, { target: { value: 'Answer' } });
+            const checkbox = within(dialog).queryByRole('checkbox');
+            if (checkbox) fireEvent.click(checkbox);
+          });
+        } else {
+          const optionButtons = within(dialog)
+            .getAllByRole('button')
+            .filter((btn) => /^[A-D]\s/i.test(btn.textContent?.trim() || ''));
+          if (optionButtons.length > 0) {
+            act(() => {
+              fireEvent.click(optionButtons[0]);
+            });
+          }
+        }
+
+        const nextBtn = within(dialog).queryByRole('button', { name: /Next Question/i });
+        if (nextBtn) {
+          act(() => {
+            fireEvent.click(nextBtn);
+          });
+        } else {
+          const submitBtn = within(dialog).getByRole('button', { name: /Submit Assessment/i });
+          act(() => {
+            fireEvent.click(submitBtn);
+          });
+          act(() => {
+            fireEvent.click(submitBtn);
+          });
+          break;
+        }
+      }
+
+      expect(capturedPlacement!.practiceAttempts).toHaveLength(1);
+      const evidence = capturedPlacement!.evidenceLogs.filter(
+        (e) => e.topicId === 'prep-lang' && e.sourceId === 'practice-python-01'
+      );
+      expect(evidence).toHaveLength(1);
     });
   });
 
@@ -389,6 +532,75 @@ describe('P2 CORRECTIVE AUDIT — REGRESSION TESTS', () => {
       // INTERVIEW & CAREER must be hidden in Simple Mode presentation
       expect(screen.queryByText('INTERVIEW & CAREER')).not.toBeInTheDocument();
       expect(screen.queryByText('prep-interview-tech')).not.toBeInTheDocument();
+    });
+
+    it('direct navigation to retired topic prep-interview-tech redirects to active hub without rendering retired module', () => {
+      let capturedPlacement: ReturnType<typeof usePlacement> | null = null;
+      function Harness() {
+        capturedPlacement = usePlacement();
+        return <PreparationHubView />;
+      }
+
+      window.location.hash = '#/preparation/prep-interview-tech';
+      render(
+        <PlacementProvider>
+          <SessionProvider>
+            <Harness />
+          </SessionProvider>
+        </PlacementProvider>
+      );
+
+      // Safe fallback: Does NOT render TopicWorkspace for retired interview
+      expect(screen.queryByTestId('topic-knowledge-workspace')).not.toBeInTheDocument();
+      // Renders active Preparation Hub View without blank screen
+      expect(screen.getByTestId('preparation-hub-view')).toBeInTheDocument();
+      // Redirects routeState cleanly to active hub
+      expect(capturedPlacement!.routeState.targetId).toBeUndefined();
+      expect(capturedPlacement!.routeState.route).toBe('preparation');
+    });
+
+    it('direct navigation to retired topic prep-interview-career redirects to active hub without rendering retired module', () => {
+      let capturedPlacement: ReturnType<typeof usePlacement> | null = null;
+      function Harness() {
+        capturedPlacement = usePlacement();
+        return <PreparationHubView />;
+      }
+
+      window.location.hash = '#/preparation/prep-interview-career';
+      render(
+        <PlacementProvider>
+          <SessionProvider>
+            <Harness />
+          </SessionProvider>
+        </PlacementProvider>
+      );
+
+      expect(screen.queryByTestId('topic-knowledge-workspace')).not.toBeInTheDocument();
+      expect(screen.getByTestId('preparation-hub-view')).toBeInTheDocument();
+      expect(capturedPlacement!.routeState.targetId).toBeUndefined();
+      expect(capturedPlacement!.routeState.route).toBe('preparation');
+    });
+
+    it('direct navigation to valid active topic prep-sql renders SQL workspace without redirection', () => {
+      let capturedPlacement: ReturnType<typeof usePlacement> | null = null;
+      function Harness() {
+        capturedPlacement = usePlacement();
+        return <PreparationHubView />;
+      }
+
+      window.location.hash = '#/preparation/prep-sql';
+      render(
+        <PlacementProvider>
+          <SessionProvider>
+            <Harness />
+          </SessionProvider>
+        </PlacementProvider>
+      );
+
+      // Valid active topic renders TopicWorkspace immediately
+      expect(screen.getByTestId('topic-knowledge-workspace')).toBeInTheDocument();
+      expect(capturedPlacement!.routeState.targetId).toBe('prep-sql');
+      expect(screen.queryByTestId('preparation-hub-view')).not.toBeInTheDocument();
     });
   });
 });
